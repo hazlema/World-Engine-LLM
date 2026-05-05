@@ -327,6 +327,9 @@ function App() {
     wsRef.current?.send(JSON.stringify({ type: "start", presetSlug: slug }));
     setTurns([]);
     nextIdRef.current = 1;
+    setAudioByTurn({});
+    setLastNarratedId(null);
+    ttsRef.current?.cache.clear();
     setHasStarted(true);
     setModal(null);
   }, []);
@@ -394,8 +397,8 @@ function App() {
                   key={t.id}
                   turn={t}
                   audioUrl={audioByTurn[t.id]}
-                  autoPlay={narrationOn && t.id === lastNarratedId}
-                  onPlay={() => { if (t.narrative) renderTurn(t.id, t.narrative); }}
+                  autoPlay={t.id === lastNarratedId}
+                  onPlay={() => { if (t.narrative) { setLastNarratedId(t.id); renderTurn(t.id, t.narrative); } }}
                 />
               )))}
             </div>
@@ -503,23 +506,27 @@ function TurnBlock({ turn, audioUrl, autoPlay, onPlay }: {
   const num = String(turn.id).padStart(2, "0");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Auto-play when the audio URL first becomes available and autoPlay is true
+  // Auto-play when the audio URL first becomes available and autoPlay is true,
+  // or when autoPlay flips true for an already-cached URL (manual speaker click).
   useEffect(() => {
-    if (audioUrl && autoPlay && audioRef.current) {
-      audioRef.current.play().catch(() => { /* ignore autoplay policy errors */ });
+    if (autoPlay && audioUrl && audioRef.current) {
+      audioRef.current.play().catch((err: unknown) => {
+        if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
+      });
     }
-  }, [audioUrl, autoPlay]);
+  }, [autoPlay, audioUrl]);
 
   return (
     <div className="turn-block">
-      <div className="turn-margin" aria-hidden>
-        <span>{num}</span>
+      <div className="turn-margin">
+        <span aria-hidden="true">{num}</span>
         {turn.narrative && (
           <button
             type="button"
             className={`turn-speaker ${audioUrl ? "ready" : ""}`}
-            onClick={() => { onPlay(); audioRef.current?.play(); }}
+            onClick={() => { onPlay(); }}
             title={audioUrl ? "Play narration" : "Generate narration"}
+            aria-label={audioUrl ? "Play narration" : "Generate narration"}
           >
             ◐
           </button>
