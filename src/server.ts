@@ -11,7 +11,9 @@ import {
   type Direction,
   type Objective,
 } from "./stack";
-import type { Preset } from "./presets";
+import { loadAllPresets, type Preset } from "./presets";
+
+let presets: Map<string, Preset> = new Map();
 
 const PLAY_LOG_FILE = new URL("../play-log.jsonl", import.meta.url).pathname;
 
@@ -55,7 +57,6 @@ export type ClientMessage =
   | { type: "input"; text: string }
   | { type: "start"; presetSlug: string | null }
   | { type: "keep-exploring" }
-  | { type: "reset" }   // TODO Task 7: remove when handleClientMessage rewrites the reset branch
   | { type: "hello" };
 
 export type Send = (message: ServerMessage) => void;
@@ -167,7 +168,31 @@ export async function processInput(
 
 let currentStack: WorldStack;
 
-async function handleClientMessage(raw: string, send: Send, broadcast: Send): Promise<void> {
+function presetSummaries(): PresetSummary[] {
+  return [...presets.values()].map((p) => ({
+    slug: p.slug,
+    title: p.title,
+    description: p.description,
+  }));
+}
+
+function snapshotMessage(stack: WorldStack): ServerMessage {
+  return {
+    type: "snapshot",
+    turn: stack.turn,
+    entries: stack.entries,
+    threads: stack.threads,
+    objectives: stack.objectives,
+    presetSlug: stack.presetSlug,
+    presets: presetSummaries(),
+  };
+}
+
+async function handleClientMessage(
+  raw: string,
+  send: Send,
+  broadcast: Send
+): Promise<void> {
   let msg: ClientMessage;
   try {
     msg = JSON.parse(raw);
@@ -177,40 +202,53 @@ async function handleClientMessage(raw: string, send: Send, broadcast: Send): Pr
   }
 
   if (msg.type === "hello") {
-    send({
-      type: "snapshot",
-      turn: currentStack.turn,
-      entries: currentStack.entries,
-      threads: currentStack.threads,
-      objectives: currentStack.objectives,
-      presetSlug: currentStack.presetSlug,
-      presets: [],
-    });
+    send(snapshotMessage(currentStack));
     return;
   }
 
-  if (msg.type === "reset") {
-    const fresh: WorldStack = { entries: [], threads: [], turn: 0, position: [0, 0], places: {}, objectives: [], presetSlug: null };
+  if (msg.type === "start") {
+    let next: WorldStack;
+    if (msg.presetSlug === null) {
+      next = emptyWorld();
+    } else {
+      const preset = presets.get(msg.presetSlug);
+      if (!preset) {
+        send({
+          type: "error",
+          source: "archivist",
+          message: `Unknown preset: ${msg.presetSlug}`,
+        });
+        return;
+      }
+      next = startWithPreset(preset);
+    }
     try {
-      await saveStack(fresh);
-      currentStack = fresh;
-      broadcast({
-        type: "snapshot",
-        turn: 0,
-        entries: [],
-        threads: [],
-        objectives: [],
-        presetSlug: null,
-        presets: [],
-      });
+      await saveStack(next);
+      currentStack = next;
+      broadcast(snapshotMessage(currentStack));
     } catch (err) {
-      send({ type: "error", source: "archivist", message: `Reset failed: ${err}` });
+      send({ type: "error", source: "archivist", message: `Start failed: ${err}` });
+    }
+    return;
+  }
+
+  if (msg.type === "keep-exploring") {
+    const next = keepExploring(currentStack);
+    try {
+      await saveStack(next);
+      currentStack = next;
+      broadcast(snapshotMessage(currentStack));
+    } catch (err) {
+      send({ type: "error", source: "archivist", message: `Save failed: ${err}` });
     }
     return;
   }
 
   if (msg.type === "input") {
-    const newStack = await processInput(currentStack, msg.text, broadcast);
+    const briefing = currentStack.presetSlug
+      ? presets.get(currentStack.presetSlug)?.body
+      : undefined;
+    const newStack = await processInput(currentStack, msg.text, broadcast, briefing);
     if (newStack !== currentStack) {
       currentStack = newStack;
       try {
@@ -227,6 +265,7 @@ async function handleClientMessage(raw: string, send: Send, broadcast: Send): Pr
 }
 
 async function main() {
+  presets = await loadAllPresets();
   currentStack = await loadStack();
 
   const indexHtml = await import("./web/index.html");
