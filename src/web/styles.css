@@ -685,6 +685,47 @@ button {
   box-shadow: var(--glow-ember);
 }
 
+/* Voice picker dropdown — sits next to the narration toggle in the action bar */
+.voice-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 1px solid var(--stroke);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+  padding: 0.42rem 1.85rem 0.42rem 0.85rem;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background 140ms, border-color 140ms, color 140ms;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path fill='%23a1a1aa' d='M0 0h8L4 5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+}
+
+.voice-select:hover:not(:disabled) {
+  background-color: var(--surface-2);
+  border-color: var(--stroke-strong);
+  color: var(--fg);
+}
+
+.voice-select:focus {
+  outline: none;
+  border-color: var(--ember-tint-2);
+  box-shadow: 0 0 0 3px var(--ember-tint);
+}
+
+.voice-select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.voice-select option {
+  background: var(--surface-1);
+  color: var(--fg);
+  font-family: var(--font-mono);
+}
+
 /* ---------- modal ---------- */
 
 .modal-overlay {
