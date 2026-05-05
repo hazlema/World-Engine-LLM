@@ -28,7 +28,8 @@
   --font-mono:    "JetBrains Mono", ui-monospace, "Courier New", monospace;
 
   /* Rhythm */
-  --measure:      40rem;          /* prose column */
+  --measure:      48rem;          /* prose column — wide-but-readable */
+  --rail-w:       18rem;
   --shell-pad:    clamp(1.25rem, 4vw, 3rem);
   --gutter:       clamp(2.5rem, 6vw, 5rem);
   --turn-gap:     3.25rem;
@@ -113,12 +114,11 @@ body::before {
   width: 100%;
 }
 
-@media (min-width: 1080px) {
+@media (min-width: 960px) {
   .dashboard {
     grid-template-columns:
-      minmax(220px, 280px)
-      minmax(0, var(--measure))
-      minmax(220px, 280px);
+      var(--rail-w)
+      minmax(0, var(--measure));
     gap: 3.5rem;
     justify-content: center;
     align-items: start;
@@ -128,13 +128,14 @@ body::before {
 .rail {
   display: flex;
   flex-direction: column;
+  gap: 1.75rem;
 }
 
 .rail-empty {
   display: none;
 }
 
-@media (min-width: 1080px) {
+@media (min-width: 960px) {
   .rail-empty {
     display: block;
     visibility: hidden;
@@ -143,6 +144,18 @@ body::before {
     position: sticky;
     top: 2.5rem;
     align-self: start;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    /* hide default scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule-strong) transparent;
+  }
+  .rail::-webkit-scrollbar { width: 6px; }
+  .rail::-webkit-scrollbar-track { background: transparent; }
+  .rail::-webkit-scrollbar-thumb {
+    background: var(--rule-strong);
+    border-radius: 3px;
   }
 }
 

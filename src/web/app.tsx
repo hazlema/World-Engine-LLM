@@ -294,7 +294,9 @@ function App() {
         </header>
 
         <div className="dashboard">
-          <aside className={`rail rail-left ${hasObjectives ? "" : "rail-empty"}`}>
+          <aside
+            className={`rail rail-left ${hasObjectives || hasWorldState ? "" : "rail-empty"}`}
+          >
             {hasObjectives && (
               <ObjectivesRail
                 title={presetTitle ?? "Objectives"}
@@ -302,6 +304,9 @@ function App() {
                 turn={stack.turn}
                 position={null}
               />
+            )}
+            {hasWorldState && (
+              <WorldRail entries={stack.entries} threads={stack.threads} />
             )}
           </aside>
 
@@ -314,12 +319,6 @@ function App() {
               )))}
             </div>
           </main>
-
-          <aside className={`rail rail-right ${hasWorldState ? "" : "rail-empty"}`}>
-            {hasWorldState && (
-              <WorldRail entries={stack.entries} threads={stack.threads} />
-            )}
-          </aside>
         </div>
       </div>
 
