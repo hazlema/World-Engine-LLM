@@ -13,6 +13,8 @@ const emptyStack: WorldStack = {
   turn: 0,
   position: [0, 0],
   places: {},
+  objectives: [],
+  presetSlug: null,
 };
 
 beforeEach(() => {
@@ -86,6 +88,8 @@ test("processInput: narrator receives the target tile's stored description as an
     turn: 5,
     position: [0, 0],
     places: { "1,0": "A windswept dune crowned by a single dead tree." },
+    objectives: [],
+    presetSlug: null,
   };
   interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   narratorSpy.mockImplementationOnce(async () => "You return to the dune.");
@@ -112,6 +116,8 @@ test("processInput: return visit does NOT overwrite stored description", async (
     turn: 5,
     position: [0, 0],
     places: { "1,0": "ORIGINAL DESCRIPTION" },
+    objectives: [],
+    presetSlug: null,
   };
   interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   narratorSpy.mockImplementationOnce(async () => "You return.");

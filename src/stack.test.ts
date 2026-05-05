@@ -1,19 +1,20 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, type WorldStack } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, loadStack, type WorldStack } from "./stack";
+import type { Preset } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
-  expect(formatStackForNarrator({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {} })).toBe("");
+  expect(formatStackForNarrator({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null })).toBe("");
 });
 
 test("formatStackForNarrator: entries only", () => {
-  const stack = { entries: ["world is cold", "crow watches"], threads: [], turn: 1, position: [0, 0] as [number, number], places: {} };
+  const stack = { entries: ["world is cold", "crow watches"], threads: [], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null };
   expect(formatStackForNarrator(stack)).toBe(
     "ESTABLISHED WORLD:\n- world is cold\n- crow watches\n\n"
   );
 });
 
 test("formatStackForNarrator: threads only", () => {
-  const stack = { entries: [], threads: ["find the missing watcher"], turn: 1, position: [0, 0] as [number, number], places: {} };
+  const stack = { entries: [], threads: ["find the missing watcher"], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null };
   expect(formatStackForNarrator(stack)).toBe(
     "ACTIVE THREADS:\n- find the missing watcher\n\n"
   );
@@ -26,6 +27,8 @@ test("formatStackForNarrator: entries and threads together", () => {
     turn: 1,
     position: [0, 0] as [number, number],
     places: {},
+    objectives: [],
+    presetSlug: null,
   };
   expect(formatStackForNarrator(stack)).toBe(
     "ESTABLISHED WORLD:\n- world is cold\n\nACTIVE THREADS:\n- find the watcher\n\n"
@@ -33,7 +36,7 @@ test("formatStackForNarrator: entries and threads together", () => {
 });
 
 test("formatStackForArchivist: empty stack returns empty headers for both", () => {
-  expect(formatStackForArchivist({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {} })).toBe(
+  expect(formatStackForArchivist({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null })).toBe(
     "CURRENT STACK: (empty)\n\nACTIVE THREADS: (none)\n\n"
   );
 });
@@ -45,6 +48,8 @@ test("formatStackForArchivist: populated stack", () => {
     turn: 2,
     position: [0, 0] as [number, number],
     places: {},
+    objectives: [],
+    presetSlug: null,
   };
   expect(formatStackForArchivist(stack)).toBe(
     "CURRENT STACK:\n- world is cold\n\nACTIVE THREADS:\n- find the watcher\n\n"
@@ -80,6 +85,8 @@ test("formatStackForNarrator: includes stored location description when present"
     turn: 0,
     position: [1, 0],
     places: { "1,0": "A windswept dune crowned by a single dead tree." },
+    objectives: [],
+    presetSlug: null,
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("CURRENT LOCATION (canonical description):");
@@ -93,7 +100,78 @@ test("formatStackForNarrator: omits the location section when no description sto
     turn: 0,
     position: [0, 0],
     places: {},
+    objectives: [],
+    presetSlug: null,
   };
   const out = formatStackForNarrator(stack);
   expect(out).not.toContain("CURRENT LOCATION (canonical description):");
+});
+
+const samplePreset: Preset = {
+  slug: "lunar-rescue",
+  title: "Lunar Rescue",
+  description: "test",
+  objects: ["damaged transmitter", "oxygen cache"],
+  objectives: ["Find the transmitter", "Send the signal"],
+  body: "You are an astronaut.",
+};
+
+test("applyPresetToStack: seeds entries from objects, objectives from objectives, sets slug", () => {
+  const s = applyPresetToStack(samplePreset);
+  expect(s.entries).toEqual(["damaged transmitter", "oxygen cache"]);
+  expect(s.threads).toEqual([]);
+  expect(s.turn).toBe(0);
+  expect(s.position).toEqual([0, 0]);
+  expect(s.places).toEqual({});
+  expect(s.presetSlug).toBe("lunar-rescue");
+  expect(s.objectives).toEqual([
+    { text: "Find the transmitter", achieved: false },
+    { text: "Send the signal", achieved: false },
+  ]);
+});
+
+test("unionAchievedIndices: flips named indices to achieved", () => {
+  const before = [
+    { text: "a", achieved: false },
+    { text: "b", achieved: false },
+    { text: "c", achieved: false },
+  ];
+  const after = unionAchievedIndices(before, [1]);
+  expect(after).toEqual([
+    { text: "a", achieved: false },
+    { text: "b", achieved: true },
+    { text: "c", achieved: false },
+  ]);
+});
+
+test("unionAchievedIndices: monotonic — already-achieved stays achieved when index not present", () => {
+  const before = [
+    { text: "a", achieved: true },
+    { text: "b", achieved: false },
+  ];
+  const after = unionAchievedIndices(before, [1]);
+  expect(after[0].achieved).toBe(true);
+  expect(after[1].achieved).toBe(true);
+});
+
+test("unionAchievedIndices: ignores out-of-range and non-integer indices", () => {
+  const before = [{ text: "a", achieved: false }];
+  const after = unionAchievedIndices(before, [5, -1, 1.5 as unknown as number]);
+  expect(after).toEqual([{ text: "a", achieved: false }]);
+});
+
+test("unionAchievedIndices: returns a new array (does not mutate input)", () => {
+  const before = [{ text: "a", achieved: false }];
+  const after = unionAchievedIndices(before, [0]);
+  expect(before[0].achieved).toBe(false);
+  expect(after[0].achieved).toBe(true);
+});
+
+test("loadStack: defaults objectives to [] and presetSlug to null when absent", async () => {
+  // Relies on the saved world-stack.json fixture lacking the new fields —
+  // the in-repo file currently has only the old shape.
+  const s = await loadStack();
+  expect(Array.isArray(s.objectives)).toBe(true);
+  expect(s.objectives.length).toBe(0);
+  expect(s.presetSlug).toBeNull();
 });

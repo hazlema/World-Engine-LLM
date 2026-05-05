@@ -1,3 +1,5 @@
+import type { Preset } from "./presets";
+
 const STACK_FILE = new URL("../world-stack.json", import.meta.url).pathname;
 export const MAX_STACK_ENTRIES = 25;
 export const MAX_THREADS = 10;
@@ -5,12 +7,19 @@ export const MAX_THREADS = 10;
 export type Position = [number, number];
 export type Direction = "north" | "south" | "east" | "west";
 
+export interface Objective {
+  text: string;
+  achieved: boolean;
+}
+
 export interface WorldStack {
   entries: string[];
   threads: string[];
   turn: number;
   position: Position;
   places: Record<string, string>;
+  objectives: Objective[];
+  presetSlug: string | null;
 }
 
 const DELTAS: Record<Direction, Position> = {
@@ -30,7 +39,15 @@ export function applyDirection(p: Position, dir: Direction): Position {
 }
 
 function emptyStack(): WorldStack {
-  return { entries: [], threads: [], turn: 0, position: [0, 0], places: {} };
+  return {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+  };
 }
 
 export async function loadStack(): Promise<WorldStack> {
@@ -55,12 +72,28 @@ export async function loadStack(): Promise<WorldStack> {
         data.places !== null && typeof data.places === "object" && !Array.isArray(data.places)
           ? data.places
           : {};
+      const objectives: Objective[] = Array.isArray(data.objectives)
+        ? data.objectives
+            .filter(
+              (o: any) =>
+                o &&
+                typeof o === "object" &&
+                typeof o.text === "string" &&
+                typeof o.achieved === "boolean"
+            )
+            .map((o: any) => ({ text: o.text, achieved: o.achieved }))
+        : [];
+      const presetSlug: string | null =
+        typeof data.presetSlug === "string" ? data.presetSlug : null;
+
       return {
         entries: data.entries,
         threads: Array.isArray(data.threads) ? data.threads : [],
         turn: data.turn,
         position,
         places,
+        objectives,
+        presetSlug,
       };
     }
     console.error("Stack file has unexpected shape, starting fresh.");
@@ -103,4 +136,31 @@ export function formatStackForArchivist(stack: WorldStack): string {
     ? "ACTIVE THREADS: (none)"
     : `ACTIVE THREADS:\n${stack.threads.map(t => `- ${t}`).join("\n")}`;
   return `${facts}\n\n${threads}\n\n`;
+}
+
+export function applyPresetToStack(preset: Preset): WorldStack {
+  return {
+    entries: [...preset.objects],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: preset.objectives.map((text) => ({ text, achieved: false })),
+    presetSlug: preset.slug,
+  };
+}
+
+export function unionAchievedIndices(
+  current: Objective[],
+  achievedIndices: number[]
+): Objective[] {
+  const flips = new Set<number>();
+  for (const i of achievedIndices) {
+    if (Number.isInteger(i) && i >= 0 && i < current.length) {
+      flips.add(i);
+    }
+  }
+  return current.map((o, i) =>
+    flips.has(i) && !o.achieved ? { ...o, achieved: true } : o
+  );
 }

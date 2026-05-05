@@ -7,13 +7,15 @@ import type { WorldStack } from "./stack";
 let callModelSpy: any;
 let callModelStructuredSpy: any;
 
-const emptyStack = { entries: [] as string[], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {} };
-const populatedStack = {
+const emptyStack: WorldStack = { entries: [] as string[], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null };
+const populatedStack: WorldStack = {
   entries: ["world is cold", "crow watches"],
   threads: ["find the watcher"],
   turn: 2,
   position: [0, 0] as [number, number],
   places: {},
+  objectives: [],
+  presetSlug: null,
 };
 
 beforeEach(() => {
@@ -182,6 +184,8 @@ test("archivistTurn: returns moved and locationDescription fields", async () => 
     turn: 0,
     position: [0, 0],
     places: {},
+    objectives: [],
+    presetSlug: null,
   };
   callModelStructuredSpy.mockImplementationOnce(async () => ({
     entries: ["dune"],
@@ -203,6 +207,8 @@ test("archivistTurn: missing moved/locationDescription default safely", async ()
     turn: 0,
     position: [0, 0],
     places: {},
+    objectives: [],
+    presetSlug: null,
   };
   callModelStructuredSpy.mockImplementationOnce(async () => ({
     entries: [],
