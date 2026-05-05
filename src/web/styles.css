@@ -239,17 +239,19 @@ body::before {
   gap: var(--turn-gap);
 }
 
-/* asterism between turns */
+/* asterism between turns — spans both grid columns so it gets its own row
+   inside the (grid) turn-block instead of stealing the gutter slot */
 .turn-list > * + *::before {
   content: "⁂";
   display: block;
+  grid-column: 1 / -1;
   text-align: center;
   font-family: var(--font-display);
   font-size: 1.25rem;
   letter-spacing: 0.6em;
   color: var(--paper-faded);
   opacity: 0.55;
-  margin: -1.75rem 0 1.75rem;
+  margin: calc(-0.5 * var(--turn-gap)) 0 calc(0.5 * var(--turn-gap));
   user-select: none;
 }
 
@@ -389,11 +391,11 @@ body::before {
 
 .turn-block.system.briefing .turn-narrative:first-of-type::first-letter {
   font-family: var(--font-display);
-  font-style: italic;
-  font-size: 5.5rem;
-  line-height: 0.82;
+  font-style: normal;
+  font-size: 5rem;
+  line-height: 0.85;
   float: left;
-  padding: 0.5rem 0.8rem 0 0;
+  padding: 0.45rem 0.65rem 0 0;
   color: var(--ember);
   font-weight: 400;
   text-shadow: 0 0 24px var(--ember-faint);
