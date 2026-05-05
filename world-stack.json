@@ -1,21 +1,37 @@
 {
   "entries": [
-    "rusted iron lantern half-buried in roots",
-    "thick smoke clings lower oak boughs",
-    "cool damp air under largest oak boughs"
+    "shard of fractured aluminum beside severed wiring",
+    "oxygen cache strapped to lander hull",
+    "damaged transmitter half-buried in regolith",
+    "abandoned rover wreck on eastern crater rim",
+    "no rain in three moons"
   ],
   "threads": [
-    "who lit the distant fire",
-    "why smoke thickens near black oak",
-    "find dripping sound source in woods"
+    "why does scraping continue outside?",
+    "restore comm array before signal loss",
+    "find out what caused the silence"
   ],
-  "turn": 5,
+  "turn": 4,
   "position": [
-    1,
+    0,
     0
   ],
   "places": {
-    "0,0": "The room features a rough-hewn wooden door scarred by weather, dry brittle leaves scattered on stone floor, and dense shadowed path leading left with dripping water source.",
-    "1,0": "A narrow ravine between dry shale and a thicket of stunted black oaks, with stone steps leading upward. Thin smoke drifts over the ridge to the west."
-  }
+    "0,0": "Player is inside a buckled lunar cabin illuminated by red emergency LEDs, with exposed wiring harnesses and a path toward the rear hatch."
+  },
+  "objectives": [
+    {
+      "text": "Find the transmitter",
+      "achieved": false
+    },
+    {
+      "text": "Restore power to the comm array",
+      "achieved": false
+    },
+    {
+      "text": "Send the distress signal",
+      "achieved": false
+    }
+  ],
+  "presetSlug": "lunar-rescue"
 }

@@ -3,3 +3,388 @@
 {"ts":"2026-05-05T04:01:17.006Z","turn":3,"input":"go to the black oaks","position":[1,0],"narrative":"The dry shale scrapes beneath your boots as you ascend the stone steps. The air immediately grows heavier, smelling sharply of damp earth and decaying pine needles as you enter the thicket of black oaks. The silence here is profound, broken only by the faint rustling of unseen creatures in the shadows. As you push past the lowest branches, you notice that the smoke drifting from the west seems thicker here, clinging to the undersides of the heavy boughs. A narrow, dark path winds deeper into the thicket just ahead."}
 {"ts":"2026-05-05T04:02:03.132Z","turn":4,"input":"Follow the path","position":[1,0],"narrative":"The dry shale crunches under your boots as you descend from the stone steps and enter the thicket. The air immediately grows colder, the scent of pine sharp and biting. The narrow path is choked with tangled roots and shadow. Ahead, the smoke becomes noticeably denser, swirling thickly around the base of the oldest black oaks. A faint, rhythmic dripping sound echoes from deeper within the woods.\n\nYou can follow the dark path forward into the dense shadows, or attempt to investigate the source of the thickening smoke near the largest oak."}
 {"ts":"2026-05-05T04:03:00.673Z","turn":5,"input":"investigate the smoke","position":[1,0],"narrative":"The smoke is dry and acrid, carrying the faint, sweet smell of burning pine. As you approach the largest oak, you notice the thickest smoke clings to the lower boughs, revealing that the air immediately beneath them is noticeably cooler and damper than the rest of the ravine. A faint, rhythmic dripping sound echoes from deeper within the shadows of the trees.\n\nA small, rusted iron lantern lies half-buried in the roots near the base of the oak."}
+{"ts":"2026-05-05T13:19:36.428Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T13:19:36.429Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T13:19:36.429Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T13:19:36.430Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T13:19:36.430Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T13:19:36.430Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T13:19:36.430Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T13:20:47.793Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T13:20:47.794Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T13:20:47.794Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T13:20:47.794Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T13:20:47.794Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T13:20:47.794Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T13:20:47.795Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T13:25:38.812Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T13:25:38.812Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T13:25:38.812Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T13:25:38.813Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T13:25:38.813Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T13:25:38.813Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T13:25:38.813Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T13:27:01.746Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T13:27:01.747Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T13:27:01.747Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T13:27:01.747Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T13:27:01.747Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T13:27:01.747Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T13:27:01.748Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T13:28:35.549Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T13:28:35.549Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T13:28:35.550Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T13:28:35.550Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T13:28:35.550Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T13:28:35.550Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T13:28:35.551Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T13:30:04.187Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T13:30:04.187Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T13:30:04.188Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T13:30:04.188Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T13:30:04.188Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T13:30:04.188Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T13:30:04.188Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T13:33:35.088Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T13:33:35.089Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T13:33:35.089Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T13:33:35.089Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T13:33:35.089Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T13:33:35.089Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T13:33:35.090Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:03:21.359Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:03:21.359Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:03:21.359Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:03:21.360Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:03:21.360Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:03:21.360Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:03:21.360Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:05:03.994Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:05:03.994Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:05:03.994Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:05:03.994Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:05:03.994Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:05:03.994Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:05:03.995Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:05:59.065Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:05:59.065Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:05:59.065Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:05:59.065Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:05:59.065Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:05:59.065Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:05:59.066Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:09:33.388Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:09:33.389Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:09:33.389Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:09:33.389Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:09:33.389Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:09:33.389Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:09:33.390Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:10:27.629Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:10:27.630Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:10:27.630Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:10:27.630Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:10:27.630Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:10:27.630Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:10:27.630Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:14:07.185Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:14:07.185Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:14:07.185Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:14:07.185Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:14:07.186Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:14:07.186Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:14:07.186Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:15:04.585Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:15:04.585Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:15:04.586Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:15:04.586Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:15:04.586Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:15:04.586Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:15:04.586Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:33:58.936Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:33:58.937Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:33:58.937Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:33:58.937Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:33:58.937Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:33:58.937Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:33:58.938Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:00.933Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:00.934Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:00.934Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:00.934Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:00.934Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:54.544Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:38:54.544Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:38:54.544Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:38:54.544Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:38:54.544Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:38:54.544Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:38:54.545Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:54.545Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:54.545Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:54.545Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:54.546Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:54.546Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:56.940Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:38:56.941Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:38:56.941Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:38:56.941Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:38:56.941Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:38:56.941Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:38:56.942Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:56.942Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:56.942Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:56.942Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:56.942Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:38:56.943Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:40:34.757Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:40:34.757Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:40:34.757Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:40:34.758Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:40:34.758Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:40:34.758Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:40:34.758Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:40:34.758Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:40:34.759Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:40:34.759Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:40:34.759Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:40:34.759Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:31.473Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:42:31.473Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:42:31.473Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:42:31.474Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:42:31.474Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:42:31.474Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:42:31.474Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:31.475Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:31.475Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:31.475Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:31.475Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:31.475Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:53.991Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:42:53.991Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:42:53.991Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:42:53.991Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:42:53.992Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:42:53.992Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:42:53.992Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:53.992Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:53.993Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:53.993Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:53.993Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:42:53.993Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:45:25.938Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:45:25.939Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:45:25.939Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:45:25.939Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:45:25.939Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:45:25.939Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:45:25.939Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:45:25.940Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:45:25.940Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:45:25.940Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:45:25.940Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:45:25.940Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:58:50.458Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T14:58:50.458Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T14:58:50.458Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T14:58:50.459Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T14:58:50.459Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T14:58:50.459Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T14:58:50.459Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:58:50.460Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:58:50.460Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:58:50.460Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:58:50.460Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T14:58:50.460Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:01:03.802Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:01:03.802Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:01:03.802Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:01:03.802Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:01:03.802Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:01:03.802Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:01:03.803Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:01:03.803Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:01:03.803Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:01:03.803Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:01:03.804Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:01:03.804Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:03:05.103Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:03:05.103Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:03:05.103Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:03:05.103Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:03:05.104Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:03:05.104Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:03:05.104Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:03:05.105Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:03:05.105Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:03:05.105Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:03:05.105Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:03:05.105Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:04:23.535Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:04:23.536Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:04:23.536Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:04:23.536Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:04:23.536Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:04:23.536Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:04:23.537Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:04:23.537Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:04:23.537Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:04:23.537Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:04:23.537Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:04:23.537Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:06:42.665Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:06:42.665Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:06:42.665Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:06:42.665Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:06:42.666Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:06:42.666Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:06:42.666Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:06:42.667Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:06:42.667Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:06:42.667Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:06:42.667Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:06:42.667Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:34:26.690Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:34:26.690Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:34:26.691Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:34:26.691Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:34:26.691Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:34:26.691Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:34:26.691Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:34:26.692Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:34:26.692Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:34:26.692Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:34:26.692Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:34:26.692Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:36:42.187Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:36:42.187Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:36:42.187Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:36:42.187Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:36:42.187Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:36:42.187Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:36:42.188Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:36:42.188Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:36:42.188Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:36:42.188Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:36:42.188Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:36:42.189Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:37:39.280Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:37:39.280Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:37:39.280Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:37:39.280Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:37:39.280Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:37:39.280Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:37:39.281Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:37:39.281Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:37:39.281Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:37:39.281Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:37:39.282Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:37:39.282Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:52:16.007Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:52:16.007Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:52:16.007Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:52:16.007Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:52:16.007Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:52:16.007Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:52:16.008Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:52:16.008Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:52:16.008Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:52:16.009Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:52:16.009Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:52:16.009Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:53:12.188Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:53:12.188Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:53:12.188Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:53:12.189Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:53:12.189Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:53:12.189Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:53:12.189Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:53:12.189Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:53:12.190Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:53:12.190Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:53:12.190Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:53:12.190Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:54:12.926Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T15:54:12.927Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T15:54:12.927Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T15:54:12.927Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T15:54:12.927Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T15:54:12.927Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T15:54:12.928Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:54:12.928Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:54:12.928Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:54:12.928Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:54:12.928Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T15:54:12.928Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T16:08:00.786Z","turn":1,"input":"look around","position":[0,0],"narrative":"The flickering fluorescent lights cast shifting shadows across the cramped carriage. The air smells of stale dust and damp wool. You see four other passengers, all staring fixedly ahead or at their knees, refusing to meet your gaze. On the floor near your feet, the half-empty bottle of plum wine catches the faint light. Directly across the aisle, resting on the window seat, is the leather satchel. The conductor's cap sits starkly on the empty seat at the front. A low, rhythmic groan vibrates through the metal frame of the train as it rattles violently through the dark woods.\n\nA corridor leads down the length of the car; a door stands slightly ajar at the far end."}
+{"ts":"2026-05-05T16:08:24.838Z","turn":2,"input":"open the car door\\","position":[0,0],"narrative":"The metal door groans loudly as you pull it open. The sudden rush of cold, damp air hits your face, carrying the sharp scent of pine and wet earth. Outside, the darkness is absolute, broken only by the faint, sickly yellow glow spilling from the station platform lights ahead. A heavy"}
+{"ts":"2026-05-05T17:33:36.327Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T17:33:36.327Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T17:33:36.327Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T17:33:36.327Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T17:33:36.327Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T17:33:36.327Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T17:33:36.328Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:36.328Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:36.328Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:36.328Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:36.328Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:36.328Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:39.964Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T17:33:39.964Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T17:33:39.964Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T17:33:39.964Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T17:33:39.965Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T17:33:39.965Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T17:33:39.965Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:39.965Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:39.965Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:39.966Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:39.966Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:33:39.966Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:34:53.956Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T17:34:53.956Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T17:34:53.956Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T17:34:53.956Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T17:34:53.956Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T17:34:53.956Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T17:34:53.957Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:34:53.957Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:34:53.957Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:34:53.957Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:34:53.958Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:34:53.958Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:41:42.594Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T17:41:42.594Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T17:41:42.594Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T17:41:42.594Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T17:41:42.594Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T17:41:42.595Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T17:41:42.595Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:41:42.596Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:41:42.596Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:41:42.596Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:41:42.596Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:41:42.596Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:46:57.154Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T17:46:57.154Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T17:46:57.155Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T17:46:57.155Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T17:46:57.155Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T17:46:57.155Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T17:46:57.155Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:46:57.156Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:46:57.156Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:46:57.156Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:46:57.156Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:46:57.156Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T17:57:46.350Z","turn":1,"input":"look around","position":[0,0],"narrative":"The silence is absolute, broken only by the hiss of your suit's life support. The lunar dust stretches in every direction under the stark, unforgiving glare of unfiltered sunlight. To the west, the horizon is a perfect, empty black void. Directly ahead, the damaged transmitter is half-buried in fine, abrasive regolith. To the east, the skeletal frame of the abandoned rover wreck sits precariously on the rim of a dark crater. A faint shadow moves across the desolate plain near the rover."}
+{"ts":"2026-05-05T18:01:53.814Z","turn":2,"input":"look around","position":[0,0],"narrative":"The vast, silent expanse of the lunar plain stretches under the harsh, unfiltered sunlight. The shadows are deep and absolute, offering no comfort against the stark blackness of space above. To your immediate left, the skeletal frame of the rover wreck sits half-buried in the fine regolith. Near the eastern crater rim, the faint shadow you perceived is now distinctly visible—it is a tall, elongated shape moving slowly across the dust, seemingly originating from behind the wreckage. A few meters away, the half-buried transmitter remains untouched."}
+{"ts":"2026-05-05T18:06:32.295Z","turn":3,"input":"look around","position":[0,0],"narrative":"The lunar plain is absolute silence, broken only by the hiss of your suit’s life support. The regolith stretches endlessly to the horizon where Earth is a distant, indifferent marble. To your left, the skeletal rover wreck sits half-submerged in the dark dust. Near the eastern rim, the faint elongated shadow shifts again, seeming to detach itself from the wreckage and glide toward the buried transmitter. You can see the rough texture of the dust around the half-buried device. A path winds north toward a cluster of jagged shadows cast by unseen rocks."}
+{"ts":"2026-05-05T18:08:53.185Z","turn":4,"input":"inventory","position":[0,0],"narrative":"The suit registers weight against the frame. Inside the environmental pack, the air scrubber unit is intact, though the oxygen levels are stable. A multi-tool clipped to the thigh yields a wrench and a fractured radiation meter. The cracked visor remains opaque, offering only distorted views of the desolate lunar plain.\n\nThe faint shadow continues its slow glide toward the buried transmitter. The silence of the vacuum presses in, broken only by the hiss of suit regulators. A path winds directly toward the wreck."}
+{"ts":"2026-05-05T18:28:31.138Z","turn":1,"input":"look around","position":[0,0],"narrative":"The interior of the lander is dimly lit by the sporadic red flicker of emergency LEDs. Dust motes drift in the stale air. To your immediate left, a narrow corridor leads toward a hatch, and directly ahead, a panel displaying dead status lights. Outside the fractured viewport, the stark black vacuum presses against the hull. To your right, you can see the metal framework of the rover wreck, stark against the lunar horizon visible through the damaged glass."}
+{"ts":"2026-05-05T19:09:17.838Z","turn":1,"input":"look around","position":[0,0],"narrative":"The cabin is suffocatingly dark, illuminated only by the sickly, flickering red emergency LEDs mounted along the bulkheads. The metallic scent of stale recycled air hangs heavy. To your immediate left, the hull is visibly buckled where the impact occurred. Directly ahead, a faint outline suggests the damaged transmitter half-buried in the lunar dust. To your right, the shadows deepen around the exposed wiring harness. A path winds toward the rear hatch."}
+{"ts":"2026-05-05T19:10:27.143Z","turn":2,"input":"Call fr help on the transmitter","position":[0,0],"narrative":"The attempt strains the damaged comm array. Static hisses violently through the cracked visor, followed by a burst of harsh white noise that immediately cuts out, replaced by dead silence. No signal transmits. The effort drains precious energy from your suit systems. Outside, the red emergency lights continue their monotonous flicker against the black vacuum.\n\nA faint scraping sound echoes from the rear hatch area; it sounds like something shifting in the dust just outside. A small, metallic object rests near the wiring harness."}
+{"ts":"2026-05-05T19:11:20.150Z","turn":3,"input":"look at the object","position":[0,0],"narrative":"The object is a shard of fractured aluminum, roughly the size of a large coin. It is cold and pitted, showing no immediate signs of recent heat or wear, merely the harsh environment of vacuum and regolith.\n\nThe faint scraping sound from the rear hatch does not change. The metallic shard lies just beside a thick bundle of severed wiring. A narrow opening leads to the rear hatch."}
+{"ts":"2026-05-05T19:12:18.748Z","turn":4,"input":"exit the ship","position":[0,0],"narrative":"The hatch is jammed, but the scraping sound intensifies, accompanied by a sudden rush of absolute silence in the vacuum. The emergency lights reflect harshly off the lunar dust outside. The cold immediately assaults the suit; the temperature plummets instantly. You step out onto the regolith. The gravity is low, and the fine dust crunches audibly under your boots. To the east, the skeletal wreck of the rover lies half-buried in the shadow of a nearby crater rim. The scraping noise stops abruptly. A faint, metallic scent drifts on the still air."}
