@@ -14,7 +14,7 @@ type SystemTurn = {
   kind: "system";
   title: string;
   items: string[];
-  variant?: "threads";
+  variant?: "threads" | "briefing";
 };
 
 type AnyTurn = Turn | SystemTurn;
@@ -83,7 +83,7 @@ function App() {
   });
   const [pending, setPending] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  type ModalView = null | "select" | "briefing" | "win";
+  type ModalView = null | "select" | "objectives" | "win";
   const [modal, setModal] = useState<ModalView>(null);
   const [presets, setPresets] = useState<PresetSummary[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -306,10 +306,10 @@ function App() {
             ))}
             <button
               className="action-button"
-              onClick={() => setModal("briefing")}
-              disabled={!connected || stack.presetSlug === null}
+              onClick={() => setModal("objectives")}
+              disabled={!connected || stack.objectives.length === 0}
             >
-              mission
+              objectives
             </button>
             <button
               className="action-button critical"
@@ -332,22 +332,33 @@ function App() {
                   wsRef.current?.send(JSON.stringify({ type: "start", presetSlug: slug }));
                   setTurns([]);
                   nextIdRef.current = 1;
-                  setModal(slug === null ? null : "briefing");
+                  if (slug !== null) {
+                    const p = presets.find((x) => x.slug === slug);
+                    if (p) {
+                      addTurn({
+                        id: nextIdRef.current++,
+                        kind: "system",
+                        title: `BRIEFING — ${p.title.toUpperCase()}`,
+                        items: [p.body],
+                        variant: "briefing",
+                      });
+                    }
+                  }
+                  setModal(null);
                 }}
                 onCancel={() => setModal(null)}
               />
             )}
-            {modal === "briefing" && (() => {
-              const p = presets.find((x) => x.slug === stack.presetSlug);
-              return p ? (
-                <BriefingView
-                  title={p.title}
-                  body={p.body}
+            {modal === "objectives" && (() => {
+              const p = stack.presetSlug
+                ? presets.find((x) => x.slug === stack.presetSlug)
+                : null;
+              return (
+                <ObjectivesView
+                  title={p?.title ?? "Objectives"}
                   objectives={stack.objectives}
                   onClose={() => setModal(null)}
                 />
-              ) : (
-                <div className="modal-body">No mission active.</div>
               );
             })()}
             {modal === "win" && (
@@ -389,11 +400,17 @@ function SystemBlock({ turn }: { turn: SystemTurn }) {
     <div className="turn-block system">
       <div className="turn-content">
         <div className="turn-header">{turn.title}</div>
-        <ul className={`system-list ${turn.variant || ""}`}>
-          {turn.items.map((item, idx) => (
-            <li key={idx}>{item}</li>
-          ))}
-        </ul>
+        {turn.variant === "briefing" ? (
+          turn.items.map((item, idx) => (
+            <p key={idx} className="turn-narrative">{item}</p>
+          ))
+        ) : (
+          <ul className={`system-list ${turn.variant || ""}`}>
+            {turn.items.map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -447,9 +464,8 @@ function ObjectivesList({ objectives }: { objectives: Objective[] }) {
   );
 }
 
-function BriefingView(props: {
+function ObjectivesView(props: {
   title: string;
-  body: string;
   objectives: Objective[];
   onClose: () => void;
 }) {
@@ -457,9 +473,6 @@ function BriefingView(props: {
     <>
       <div className="modal-body">
         <div className="modal-title">{props.title.toUpperCase()}</div>
-        <p>{props.body}</p>
-        <div className="modal-divider" />
-        <div>OBJECTIVES</div>
         <ObjectivesList objectives={props.objectives} />
       </div>
       <button className="action-button" onClick={props.onClose}>close</button>

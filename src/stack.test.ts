@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, loadStack, type WorldStack } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, type WorldStack } from "./stack";
 import type { Preset } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
@@ -169,13 +169,39 @@ test("unionAchievedIndices: returns a new array (does not mutate input)", () => 
   expect(after[0]?.achieved).toBe(true);
 });
 
-test("loadStack: defaults objectives to [] and presetSlug to null when absent", async () => {
-  // Relies on the saved world-stack.json fixture lacking the new fields —
-  // the in-repo file currently has only the old shape.
-  const s = await loadStack();
-  expect(Array.isArray(s.objectives)).toBe(true);
-  expect(s.objectives.length).toBe(0);
-  expect(s.presetSlug).toBeNull();
+test("parseStackData: defaults objectives to [] and presetSlug to null when absent", () => {
+  const parsed = parseStackData({
+    entries: ["a"],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+  });
+  expect(parsed).not.toBeNull();
+  expect(parsed?.objectives).toEqual([]);
+  expect(parsed?.presetSlug).toBeNull();
+});
+
+test("parseStackData: filters bad objective entries", () => {
+  const parsed = parseStackData({
+    entries: [],
+    threads: [],
+    turn: 0,
+    objectives: [
+      { text: "good", achieved: false },
+      { text: "missing achieved" },
+      "not an object",
+      null,
+      { achieved: true },
+    ],
+  });
+  expect(parsed?.objectives).toEqual([{ text: "good", achieved: false }]);
+});
+
+test("parseStackData: returns null for malformed input", () => {
+  expect(parseStackData(null)).toBeNull();
+  expect(parseStackData({ entries: "not array", turn: 0 })).toBeNull();
+  expect(parseStackData({ entries: [], turn: "not number" })).toBeNull();
 });
 
 test("formatStackForNarrator: includes MISSION BRIEFING when briefing is provided", () => {

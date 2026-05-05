@@ -50,52 +50,58 @@ function emptyStack(): WorldStack {
   };
 }
 
+export function parseStackData(data: any): WorldStack | null {
+  if (
+    data === null ||
+    typeof data !== "object" ||
+    !Array.isArray(data.entries) ||
+    typeof data.turn !== "number"
+  ) {
+    return null;
+  }
+  const position: Position =
+    Array.isArray(data.position) &&
+    data.position.length === 2 &&
+    typeof data.position[0] === "number" &&
+    typeof data.position[1] === "number"
+      ? [data.position[0], data.position[1]]
+      : [0, 0];
+  const places: Record<string, string> =
+    data.places !== null && typeof data.places === "object" && !Array.isArray(data.places)
+      ? data.places
+      : {};
+  const objectives: Objective[] = Array.isArray(data.objectives)
+    ? data.objectives
+        .filter(
+          (o: any) =>
+            o &&
+            typeof o === "object" &&
+            typeof o.text === "string" &&
+            typeof o.achieved === "boolean"
+        )
+        .map((o: any) => ({ text: o.text, achieved: o.achieved }))
+    : [];
+  const presetSlug: string | null =
+    typeof data.presetSlug === "string" ? data.presetSlug : null;
+
+  return {
+    entries: data.entries,
+    threads: Array.isArray(data.threads) ? data.threads : [],
+    turn: data.turn,
+    position,
+    places,
+    objectives,
+    presetSlug,
+  };
+}
+
 export async function loadStack(): Promise<WorldStack> {
   const file = Bun.file(STACK_FILE);
   if (!(await file.exists())) return emptyStack();
   try {
     const data = await file.json();
-    if (
-      data !== null &&
-      typeof data === "object" &&
-      Array.isArray(data.entries) &&
-      typeof data.turn === "number"
-    ) {
-      const position: Position =
-        Array.isArray(data.position) &&
-        data.position.length === 2 &&
-        typeof data.position[0] === "number" &&
-        typeof data.position[1] === "number"
-          ? [data.position[0], data.position[1]]
-          : [0, 0];
-      const places: Record<string, string> =
-        data.places !== null && typeof data.places === "object" && !Array.isArray(data.places)
-          ? data.places
-          : {};
-      const objectives: Objective[] = Array.isArray(data.objectives)
-        ? data.objectives
-            .filter(
-              (o: any) =>
-                o &&
-                typeof o === "object" &&
-                typeof o.text === "string" &&
-                typeof o.achieved === "boolean"
-            )
-            .map((o: any) => ({ text: o.text, achieved: o.achieved }))
-        : [];
-      const presetSlug: string | null =
-        typeof data.presetSlug === "string" ? data.presetSlug : null;
-
-      return {
-        entries: data.entries,
-        threads: Array.isArray(data.threads) ? data.threads : [],
-        turn: data.turn,
-        position,
-        places,
-        objectives,
-        presetSlug,
-      };
-    }
+    const parsed = parseStackData(data);
+    if (parsed) return parsed;
     console.error("Stack file has unexpected shape, starting fresh.");
     return emptyStack();
   } catch {
