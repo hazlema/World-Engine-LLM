@@ -154,13 +154,29 @@ function App() {
         return;
       }
       if (msg.type === "stack-update") {
-        setStack((s) => ({
-          ...s,
-          entries: msg.entries,
-          threads: msg.threads,
-          objectives: msg.objectives,
-          turn: s.turn + 1,
-        }));
+        setStack((s) => {
+          const flips = diffAchievedTexts(s.objectives, msg.objectives);
+          if (flips.length > 0) {
+            // Defer the addTurn to the next tick to avoid setState-during-setState.
+            queueMicrotask(() => {
+              for (const text of flips) {
+                addTurn({
+                  id: nextIdRef.current++,
+                  kind: "system",
+                  title: "✓ Objective complete",
+                  items: [text],
+                });
+              }
+            });
+          }
+          return {
+            ...s,
+            entries: msg.entries,
+            threads: msg.threads,
+            objectives: msg.objectives,
+            turn: s.turn + 1,
+          };
+        });
         updateLastInputTurn((t) => ({ ...t, pending: false }));
         setPending(false);
         return;
@@ -466,6 +482,22 @@ function WinView(props: {
       <button className="action-button" onClick={props.onNewGame}>new game</button>
     </>
   );
+}
+
+export function diffAchievedTexts(
+  prev: Objective[],
+  curr: Objective[]
+): string[] {
+  const flips: string[] = [];
+  const upTo = Math.min(prev.length, curr.length);
+  for (let i = 0; i < upTo; i++) {
+    const p = prev[i];
+    const c = curr[i];
+    if (p && c && !p.achieved && c.achieved) {
+      flips.push(c.text);
+    }
+  }
+  return flips;
 }
 
 const root = createRoot(document.getElementById("root")!);
