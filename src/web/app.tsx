@@ -134,6 +134,20 @@ function App() {
           presetSlug: msg.presetSlug,
         });
         setPresets(msg.presets);
+        // Surface the briefing whenever a preset run is loaded — survives reloads.
+        if (msg.presetSlug !== null) {
+          const p = msg.presets.find((x) => x.slug === msg.presetSlug);
+          if (p) {
+            nextIdRef.current = 1;
+            setTurns([{
+              id: nextIdRef.current++,
+              kind: "system",
+              title: p.title.toUpperCase(),
+              items: [p.body],
+              variant: "briefing",
+            }]);
+          }
+        }
         // Auto-open select view on a truly fresh world.
         if (msg.presetSlug === null && msg.turn === 0 && msg.entries.length === 0) {
           setModal("select");
@@ -262,19 +276,50 @@ function App() {
     setInputValue("");
   }, [send, inputValue]);
 
+  const activePreset = stack.presetSlug
+    ? presets.find((p) => p.slug === stack.presetSlug)
+    : null;
+  const presetTitle = activePreset?.title ?? null;
+  const hasObjectives = stack.objectives.length > 0;
+  const hasWorldState = stack.entries.length > 0 || stack.threads.length > 0;
+
   return (
     <>
-      <div className="app">
-        <div className="app-header">W O R L D &nbsp;&nbsp; E N G I N E</div>
-        <div className={`connection-status ${connected ? "connected" : ""}`}>
-          {connected ? "■ CONNECTED" : "□ CONNECTING…"}
-        </div>
-        <div className="turn-list">
-          {turns.map((t) => (isSystemTurn(t) ? (
-            <SystemBlock key={t.id} turn={t} />
-          ) : (
-            <TurnBlock key={t.id} turn={t} />
-          )))}
+      <div className="page">
+        <header className="masthead">
+          <div className="app-header">World Engine</div>
+          <div className={`connection-status ${connected ? "connected" : ""}`}>
+            {connected ? "Connected" : "Connecting…"}
+          </div>
+        </header>
+
+        <div className="dashboard">
+          <aside className={`rail rail-left ${hasObjectives ? "" : "rail-empty"}`}>
+            {hasObjectives && (
+              <ObjectivesRail
+                title={presetTitle ?? "Objectives"}
+                objectives={stack.objectives}
+                turn={stack.turn}
+                position={null}
+              />
+            )}
+          </aside>
+
+          <main className="reading">
+            <div className="turn-list">
+              {turns.map((t) => (isSystemTurn(t) ? (
+                <SystemBlock key={t.id} turn={t} />
+              ) : (
+                <TurnBlock key={t.id} turn={t} />
+              )))}
+            </div>
+          </main>
+
+          <aside className={`rail rail-right ${hasWorldState ? "" : "rail-empty"}`}>
+            {hasWorldState && (
+              <WorldRail entries={stack.entries} threads={stack.threads} />
+            )}
+          </aside>
         </div>
       </div>
 
@@ -332,19 +377,8 @@ function App() {
                   wsRef.current?.send(JSON.stringify({ type: "start", presetSlug: slug }));
                   setTurns([]);
                   nextIdRef.current = 1;
-                  if (slug !== null) {
-                    const p = presets.find((x) => x.slug === slug);
-                    if (p) {
-                      addTurn({
-                        id: nextIdRef.current++,
-                        kind: "system",
-                        title: `BRIEFING — ${p.title.toUpperCase()}`,
-                        items: [p.body],
-                        variant: "briefing",
-                      });
-                    }
-                  }
                   setModal(null);
+                  // briefing is emitted by the incoming snapshot
                 }}
                 onCancel={() => setModal(null)}
               />
@@ -379,11 +413,11 @@ function App() {
 }
 
 function TurnBlock({ turn }: { turn: Turn }) {
+  const num = String(turn.id).padStart(2, "0");
   return (
     <div className="turn-block">
-      <div className="turn-image placeholder" />
+      <div className="turn-margin" aria-hidden>{num}</div>
       <div className="turn-content">
-        <div className="turn-header">Turn #{turn.id}</div>
         <p className="turn-input-echo">{turn.input}</p>
         {turn.narrative && <p className="turn-narrative">{turn.narrative}</p>}
         {turn.pending && !turn.narrative && !turn.error && (
@@ -397,7 +431,10 @@ function TurnBlock({ turn }: { turn: Turn }) {
 
 function SystemBlock({ turn }: { turn: SystemTurn }) {
   return (
-    <div className="turn-block system">
+    <div className={`turn-block system ${turn.variant || ""}`}>
+      <div className="turn-margin" aria-hidden>
+        {turn.variant === "briefing" ? "❦" : "§"}
+      </div>
       <div className="turn-content">
         <div className="turn-header">{turn.title}</div>
         {turn.variant === "briefing" ? (
@@ -494,6 +531,78 @@ function WinView(props: {
       <button className="action-button" onClick={props.onKeepExploring}>keep exploring</button>
       <button className="action-button" onClick={props.onNewGame}>new game</button>
     </>
+  );
+}
+
+function ObjectivesRail(props: {
+  title: string;
+  objectives: Objective[];
+  turn: number;
+  position: [number, number] | null;
+}) {
+  const total = props.objectives.length;
+  const done = props.objectives.filter((o) => o.achieved).length;
+  return (
+    <div className="rail-card">
+      <div className="rail-eyebrow">Mission</div>
+      <div className="rail-title">{props.title}</div>
+      <div className="rail-progress">
+        <span className="rail-progress-num">{done}</span>
+        <span className="rail-progress-sep"> / </span>
+        <span className="rail-progress-total">{total}</span>
+        <span className="rail-progress-label"> objectives</span>
+      </div>
+      <ul className="rail-objectives">
+        {props.objectives.map((o, i) => (
+          <li
+            key={i}
+            className={`rail-objective ${o.achieved ? "achieved" : ""}`}
+          >
+            <span className="rail-objective-mark" aria-hidden>
+              {o.achieved ? "◉" : "◯"}
+            </span>
+            <span className="rail-objective-text">{o.text}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="rail-meta">
+        <span className="rail-meta-label">Turn</span>
+        <span className="rail-meta-value">{String(props.turn).padStart(2, "0")}</span>
+      </div>
+    </div>
+  );
+}
+
+function WorldRail(props: { entries: string[]; threads: string[] }) {
+  return (
+    <div className="rail-card">
+      {props.entries.length > 0 && (
+        <>
+          <div className="rail-eyebrow">Established</div>
+          <ul className="rail-entries">
+            {props.entries.map((e, i) => (
+              <li key={i} className="rail-entry">
+                <span className="rail-entry-mark" aria-hidden>◆</span>
+                <span>{e}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {props.threads.length > 0 && (
+        <>
+          <div className="rail-eyebrow rail-eyebrow-secondary">Loose threads</div>
+          <ul className="rail-threads">
+            {props.threads.map((t, i) => (
+              <li key={i} className="rail-thread">
+                <span className="rail-thread-mark" aria-hidden>❦</span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }
 
