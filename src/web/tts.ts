@@ -1,5 +1,3 @@
-import { KokoroTTS } from "kokoro-js";
-
 export class AudioCache {
   private map = new Map<number, string>();
   constructor(private capacity = 32) {}
@@ -41,20 +39,14 @@ export class RenderQueue {
   }
 }
 
-export const DEFAULT_VOICE = "af_heart";
-export const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
-
 export type EngineStatus =
   | { kind: "idle" }
-  | { kind: "loading"; progress: number }
   | { kind: "ready" }
   | { kind: "error"; message: string };
 
 export type RenderResult = { url: string; durationMs: number };
 
 export class TTSEngine {
-  private model: KokoroTTS | null = null;
-  private loadPromise: Promise<void> | null = null;
   private queue = new RenderQueue();
   cache = new AudioCache();
   status: EngineStatus = { kind: "idle" };
@@ -66,47 +58,35 @@ export class TTSEngine {
     this.onStatus(s);
   }
 
+  // No model to load — engine is "ready" the moment the toggle flips on.
+  // Kept as an async method so the existing call-site (`await ttsRef.current?.load()`)
+  // doesn't need to change.
   async load(): Promise<void> {
-    if (this.model) return;
-    if (this.loadPromise) return this.loadPromise;
-    this.setStatus({ kind: "loading", progress: 0 });
-    const onProgress = (p: { progress?: number }) => {
-      if (typeof p.progress === "number") {
-        this.setStatus({ kind: "loading", progress: p.progress });
-      }
-    };
-    const tryLoad = (device: "webgpu" | "wasm", dtype: "fp16" | "q8") =>
-      KokoroTTS.from_pretrained(MODEL_ID, { dtype, device, progress_callback: onProgress });
-    this.loadPromise = (async () => {
-      try {
-        this.model = await tryLoad("webgpu", "fp16");
-        console.info("[tts] using webgpu");
-      } catch (gpuErr) {
-        console.warn("[tts] webgpu unavailable, falling back to wasm:", gpuErr);
-        try {
-          this.model = await tryLoad("wasm", "q8");
-        } catch (err) {
-          this.setStatus({ kind: "error", message: (err as Error).message });
-          throw err;
-        }
-      }
-      this.setStatus({ kind: "ready" });
-    })();
-    return this.loadPromise;
+    if (this.status.kind === "ready") return;
+    this.setStatus({ kind: "ready" });
   }
 
-  render(turnId: number, text: string, voice: string = DEFAULT_VOICE): Promise<RenderResult> {
+  render(turnId: number, text: string): Promise<RenderResult> {
     return this.queue.enqueue(async () => {
       const cached = this.cache.get(turnId);
       if (cached) return { url: cached, durationMs: 0 };
-      await this.load();
-      if (!this.model) throw new Error("model not loaded");
       const t0 = performance.now();
-      const audio = await this.model.generate(text, { voice });
-      const blob = audio.toBlob();
+      const res = await fetch("/api/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) {
+        const message = `speak failed: ${res.status}`;
+        this.setStatus({ kind: "error", message });
+        throw new Error(message);
+      }
+      const blob = await res.blob();
+      const dur = performance.now() - t0;
+      console.info(`[tts] render turn ${turnId}: ${text.length} chars in ${Math.round(dur)}ms`);
       const url = URL.createObjectURL(blob);
       this.cache.set(turnId, url);
-      return { url, durationMs: performance.now() - t0 };
+      return { url, durationMs: dur };
     });
   }
 }
