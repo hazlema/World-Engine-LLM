@@ -542,6 +542,16 @@ button {
   margin: 0 0 0.7rem;
 }
 
+/* briefing card: header + speaker icon on the same line */
+.briefing-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+.briefing-header-row .turn-header { margin: 0; }
+
 .system-list {
   list-style: none;
   margin: 0;

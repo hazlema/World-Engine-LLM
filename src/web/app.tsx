@@ -72,6 +72,13 @@ function isSystemTurn(t: AnyTurn): t is SystemTurn {
   return (t as SystemTurn).kind === "system";
 }
 
+function narratableText(t: AnyTurn): string | null {
+  if (isSystemTurn(t)) {
+    return t.variant === "briefing" ? t.items.join("\n\n") : null;
+  }
+  return t.narrative ?? null;
+}
+
 function App() {
   const [connected, setConnected] = useState(false);
   const [turns, setTurns] = useState<AnyTurn[]>([]);
@@ -278,11 +285,14 @@ function App() {
   const [lastNarratedId, setLastNarratedId] = useState<number | null>(null);
   useEffect(() => {
     if (!narrationOn) return;
-    // Walk from newest to find the most recent non-system turn with a narrative but no audio
+    // Walk from newest to find the most recent narratable turn with no audio yet.
+    // Narratable = a regular turn with `narrative` OR a system "briefing" turn (preset opening).
     for (let i = turns.length - 1; i >= 0; i--) {
       const t = turns[i];
-      if (t && !isSystemTurn(t) && t.narrative && !(t.id in audioByTurn)) {
-        renderTurn(t.id, t.narrative);
+      if (!t) continue;
+      const text = narratableText(t);
+      if (text && !(t.id in audioByTurn)) {
+        renderTurn(t.id, text);
         setLastNarratedId(t.id);
         break;
       }
@@ -418,7 +428,16 @@ function App() {
           <main className="reading">
             <div className="turn-list">
               {turns.map((t) => (isSystemTurn(t) ? (
-                <SystemBlock key={t.id} turn={t} />
+                <SystemBlock
+                  key={t.id}
+                  turn={t}
+                  audioUrl={audioByTurn[t.id]}
+                  autoPlay={t.id === lastNarratedId}
+                  onPlay={() => {
+                    const text = narratableText(t);
+                    if (text) { setLastNarratedId(t.id); renderTurn(t.id, text); }
+                  }}
+                />
               ) : (
                 <TurnBlock
                   key={t.id}
@@ -585,12 +604,39 @@ function TurnBlock({ turn, audioUrl, autoPlay, onPlay }: {
   );
 }
 
-function SystemBlock({ turn }: { turn: SystemTurn }) {
+function SystemBlock({ turn, audioUrl, autoPlay, onPlay }: {
+  turn: SystemTurn;
+  audioUrl?: string;
+  autoPlay?: boolean;
+  onPlay?: () => void;
+}) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    if (autoPlay && audioUrl && audioRef.current) {
+      audioRef.current.play().catch((err: unknown) => {
+        if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
+      });
+    }
+  }, [autoPlay, audioUrl]);
+  const isBriefing = turn.variant === "briefing";
   return (
     <div className={`turn-block system ${turn.variant || ""}`}>
       <div className="turn-content">
-        <div className="turn-header">{turn.title}</div>
-        {turn.variant === "briefing" ? (
+        <div className={isBriefing ? "briefing-header-row" : ""}>
+          <div className="turn-header">{turn.title}</div>
+          {isBriefing && onPlay && (
+            <button
+              type="button"
+              className={`turn-speaker ${audioUrl ? "ready" : ""}`}
+              onClick={onPlay}
+              aria-label={audioUrl ? "Play narration" : "Generate narration"}
+              title={audioUrl ? "Play narration" : "Generate narration"}
+            >
+              ◐
+            </button>
+          )}
+        </div>
+        {isBriefing ? (
           turn.items.map((item, idx) => (
             <p key={idx} className="turn-narrative">{item}</p>
           ))
@@ -601,6 +647,7 @@ function SystemBlock({ turn }: { turn: SystemTurn }) {
             ))}
           </ul>
         )}
+        {isBriefing && audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" />}
       </div>
     </div>
   );
