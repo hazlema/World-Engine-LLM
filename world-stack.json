@@ -1,17 +1,23 @@
 {
   "entries": [
-    "metal frame groaning under train jolt",
-    "plum wine spills across floor",
-    "conductor's cap on empty seat"
+    "four masked passengers in compartment",
+    "leather satchel on seat",
+    "plum wine bottle on floor",
+    "conductor's cap near doorway",
+    "train groaning under floorboards"
   ],
-  "threads": [],
-  "turn": 1,
+  "threads": [
+    "find out where the conductor went",
+    "identify who owns the leather satchel",
+    "convince another passenger to help stop train"
+  ],
+  "turn": 2,
   "position": [
     0,
     0
   ],
   "places": {
-    "0,0": "dark compartment with flickering overhead lamps and broken metal frame, wooden seats facing window"
+    "0,0": "A cramped train compartment with wooden seats, flickering overhead light casting shadows, and the distinct scent of plum wine."
   },
   "objectives": [
     {

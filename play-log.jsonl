@@ -513,3 +513,29 @@
 {"ts":"2026-05-05T22:28:26.446Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
 {"ts":"2026-05-05T22:28:26.446Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
 {"ts":"2026-05-05T22:42:34.594Z","turn":1,"input":"look around","position":[0,0],"narrative":"The flickering light casts long, distorted shadows across the compartment. You notice the five other passengers remain perfectly still, their gazes fixed on the window or the floor. The smell of stale wine and damp wool hangs heavy in the air. Near your feet, the spilled plum wine catches a brief flash of light as the train jolts violently, causing the metal frame to groan. The silence is oppressive, broken only by the rhythmic clatter of the wheels against the tracks and the erratic flicker of the overhead lamps. A faint scratching sound comes from the compartment"}
+{"ts":"2026-05-05T22:50:44.489Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T22:50:44.490Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T22:50:44.490Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T22:50:44.490Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T22:50:44.490Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T22:50:44.490Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T22:50:44.491Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:50:44.491Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:50:44.491Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:50:44.491Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:50:44.491Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:50:44.492Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:52:30.948Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T22:52:30.949Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T22:52:30.949Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T22:52:30.949Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T22:52:30.949Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T22:52:30.949Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T22:52:30.950Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:52:30.950Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:52:30.950Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:52:30.950Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:52:30.950Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:52:30.950Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:54:25.315Z","turn":1,"input":"look around","position":[0,0],"narrative":"The flickering overhead light casts dancing shadows across the compartment. You see four other faces—all masks of weary silence—staring fixedly ahead or toward the window. The scent of stale wine hangs heavy in the air. To your left, the leather satchel rests on the seat beside you. On the floor, the plum wine bottle reflects the erratic light. A faint groan echoes from the wheels beneath the floorboards as the train shifts. You can hear nothing but the rhythmic rattle and the distant rush of the forest."}
+{"ts":"2026-05-05T22:55:30.542Z","turn":2,"input":"look around","position":[0,0],"narrative":"The flickering light illuminates the faces of the four masked passengers, their silence deeper than mere avoidance. The scent of plum wine is sharp in the confined space. Your gaze settles on the leather satchel resting on the seat beside you, and the empty conductor's cap catching a brief flash of light near the doorway. A low, metallic groan echoes from beneath the floorboards, vibrating through the compartment.\n\nA passenger across the aisle shifts slightly, their masked face turning toward you before immediately looking away, still silent. The train continues its slow, rhythmic shudder. You can reach for the leather satchel or look toward the door leading to the hallway."}
