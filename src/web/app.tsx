@@ -86,6 +86,7 @@ function App() {
   type ModalView = null | "select" | "objectives" | "win";
   const [modal, setModal] = useState<ModalView>(null);
   const [presets, setPresets] = useState<PresetSummary[]>([]);
+  const [hasStarted, setHasStarted] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const nextIdRef = useRef(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -142,15 +143,11 @@ function App() {
             setTurns([{
               id: nextIdRef.current++,
               kind: "system",
-              title: p.title.toUpperCase(),
+              title: p.title,
               items: [p.body],
               variant: "briefing",
             }]);
           }
-        }
-        // Auto-open select view on a truly fresh world.
-        if (msg.presetSlug === null && msg.turn === 0 && msg.entries.length === 0) {
-          setModal("select");
         }
         return;
       }
@@ -283,6 +280,41 @@ function App() {
   const hasObjectives = stack.objectives.length > 0;
   const hasWorldState = stack.entries.length > 0 || stack.threads.length > 0;
 
+  const startGame = useCallback((slug: string | null) => {
+    wsRef.current?.send(JSON.stringify({ type: "start", presetSlug: slug }));
+    setTurns([]);
+    nextIdRef.current = 1;
+    setHasStarted(true);
+    setModal(null);
+  }, []);
+
+  const resumeGame = useCallback(() => {
+    setHasStarted(true);
+  }, []);
+
+  const savedGame: { title: string; turn: number; isEmpty: boolean } | null = (() => {
+    if (stack.presetSlug !== null) {
+      const p = presets.find((x) => x.slug === stack.presetSlug);
+      return p ? { title: p.title, turn: stack.turn, isEmpty: false } : null;
+    }
+    if (stack.turn > 0 || stack.entries.length > 0) {
+      return { title: "Empty world", turn: stack.turn, isEmpty: true };
+    }
+    return null;
+  })();
+
+  if (!hasStarted) {
+    return (
+      <TitlePage
+        presets={presets}
+        onPick={startGame}
+        onResume={resumeGame}
+        savedGame={savedGame}
+        connected={connected}
+      />
+    );
+  }
+
   return (
     <>
       <div className="page">
@@ -372,13 +404,7 @@ function App() {
             {modal === "select" && (
               <SelectView
                 presets={presets}
-                onPick={(slug) => {
-                  wsRef.current?.send(JSON.stringify({ type: "start", presetSlug: slug }));
-                  setTurns([]);
-                  nextIdRef.current = 1;
-                  setModal(null);
-                  // briefing is emitted by the incoming snapshot
-                }}
+                onPick={startGame}
                 onCancel={() => setModal(null)}
               />
             )}
@@ -431,9 +457,6 @@ function TurnBlock({ turn }: { turn: Turn }) {
 function SystemBlock({ turn }: { turn: SystemTurn }) {
   return (
     <div className={`turn-block system ${turn.variant || ""}`}>
-      <div className="turn-margin" aria-hidden>
-        {turn.variant === "briefing" ? "❦" : "§"}
-      </div>
       <div className="turn-content">
         <div className="turn-header">{turn.title}</div>
         {turn.variant === "briefing" ? (
@@ -466,10 +489,10 @@ function SelectView(props: {
   return (
     <>
       <div className="modal-body">
-        <div className="modal-title">PICK A STORY</div>
+        <div className="modal-title">Start a new story</div>
         <div className="preset-row" onClick={surprise}>
-          <span className="title">🎲 Surprise me</span>
-          <span className="description">random preset</span>
+          <span className="title">Surprise me</span>
+          <span className="description">a random opening</span>
         </div>
         {presets.map((p) => (
           <div key={p.slug} className="preset-row" onClick={() => onPick(p.slug)}>
@@ -488,12 +511,86 @@ function SelectView(props: {
   );
 }
 
+function TitlePage(props: {
+  presets: PresetSummary[];
+  onPick: (slug: string | null) => void;
+  onResume: () => void;
+  savedGame: { title: string; turn: number; isEmpty: boolean } | null;
+  connected: boolean;
+}) {
+  const { presets, onPick, onResume, savedGame, connected } = props;
+  const surprise = () => {
+    if (presets.length === 0) return;
+    const p = presets[Math.floor(Math.random() * presets.length)];
+    if (p) onPick(p.slug);
+  };
+  return (
+    <main className="title-page">
+      <div className="title-page-inner">
+        <span className="title-eyebrow">World Engine · Text adventure</span>
+        <h1 className="title-page-title">Pick a world,<br />make it move.</h1>
+        <p className="title-page-subtitle">
+          A model writes the room. You decide what happens next. Choose a starting
+          situation or open an empty world and shape it from the first sentence.
+        </p>
+
+        {savedGame && (
+          <button type="button" className="continue-card" onClick={onResume}>
+            <div className="continue-card-meta">
+              <span className="continue-card-eyebrow">Continue</span>
+              <span className="continue-card-title">{savedGame.title}</span>
+              <span className="continue-card-sub">
+                {savedGame.isEmpty ? "Empty world" : "In progress"} · Turn {savedGame.turn}
+              </span>
+            </div>
+            <span className="continue-card-cta">Resume</span>
+          </button>
+        )}
+
+        <div className="title-section-label">{savedGame ? "Or start a new story" : "Stories"}</div>
+
+        <div className="story-grid">
+          <button type="button" className="story-card surprise" onClick={surprise}>
+            <span className="story-card-tag">Random</span>
+            <h3 className="story-card-title">Surprise me</h3>
+            <p className="story-card-desc">Pick a starting situation at random and dive in.</p>
+          </button>
+          {presets.map((p) => (
+            <button
+              type="button"
+              key={p.slug}
+              className="story-card"
+              onClick={() => onPick(p.slug)}
+            >
+              <h3 className="story-card-title">{p.title}</h3>
+              <p className="story-card-desc">{p.description}</p>
+            </button>
+          ))}
+        </div>
+
+        <button type="button" className="empty-world-row" onClick={() => onPick(null)}>
+          <span className="label">Empty world</span>
+          <span className="desc">No preset — make your own way</span>
+        </button>
+
+        <div className="title-page-footer">
+          <span>{presets.length} {presets.length === 1 ? "story" : "stories"} loaded</span>
+          <span className={`connection-status ${connected ? "connected" : ""}`}>
+            {connected ? "Connected" : "Connecting…"}
+          </span>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function ObjectivesList({ objectives }: { objectives: Objective[] }) {
   return (
-    <ul className="system-list">
+    <ul className="rail-objectives">
       {objectives.map((o, i) => (
-        <li key={i} className="objective-line">
-          [{o.achieved ? "x" : " "}] {o.text}
+        <li key={i} className={`rail-objective ${o.achieved ? "achieved" : ""}`}>
+          <span className="rail-objective-mark" aria-hidden />
+          <span className="rail-objective-text">{o.text}</span>
         </li>
       ))}
     </ul>
@@ -508,7 +605,7 @@ function ObjectivesView(props: {
   return (
     <>
       <div className="modal-body">
-        <div className="modal-title">{props.title.toUpperCase()}</div>
+        <div className="modal-title">{props.title}</div>
         <ObjectivesList objectives={props.objectives} />
       </div>
       <button className="action-button" onClick={props.onClose}>close</button>
@@ -524,11 +621,11 @@ function WinView(props: {
   return (
     <>
       <div className="modal-body">
-        <div className="modal-title">MISSION COMPLETE</div>
+        <div className="modal-title">Mission complete</div>
         <ObjectivesList objectives={props.objectives} />
       </div>
       <button className="action-button" onClick={props.onKeepExploring}>keep exploring</button>
-      <button className="action-button" onClick={props.onNewGame}>new game</button>
+      <button className="action-button critical" onClick={props.onNewGame}>new game</button>
     </>
   );
 }
@@ -557,9 +654,7 @@ function ObjectivesRail(props: {
             key={i}
             className={`rail-objective ${o.achieved ? "achieved" : ""}`}
           >
-            <span className="rail-objective-mark" aria-hidden>
-              {o.achieved ? "◉" : "◯"}
-            </span>
+            <span className="rail-objective-mark" aria-hidden />
             <span className="rail-objective-text">{o.text}</span>
           </li>
         ))}
@@ -581,7 +676,7 @@ function WorldRail(props: { entries: string[]; threads: string[] }) {
           <ul className="rail-entries">
             {props.entries.map((e, i) => (
               <li key={i} className="rail-entry">
-                <span className="rail-entry-mark" aria-hidden>◆</span>
+                <span className="rail-entry-mark" aria-hidden>·</span>
                 <span>{e}</span>
               </li>
             ))}
@@ -594,7 +689,7 @@ function WorldRail(props: { entries: string[]; threads: string[] }) {
           <ul className="rail-threads">
             {props.threads.map((t, i) => (
               <li key={i} className="rail-thread">
-                <span className="rail-thread-mark" aria-hidden>❦</span>
+                <span className="rail-thread-mark" aria-hidden>→</span>
                 <span>{t}</span>
               </li>
             ))}
