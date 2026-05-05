@@ -38,6 +38,20 @@ describe("AudioCache", () => {
     expect(c.get(1)).toBe("blob:a-new");
     expect(c.get(2)).toBe("blob:b");
   });
+
+  test("re-setting the same id revokes the prior URL", () => {
+    const revoked: string[] = [];
+    const original = URL.revokeObjectURL;
+    (URL as any).revokeObjectURL = (url: string) => revoked.push(url);
+    try {
+      const c = new AudioCache();
+      c.set(1, "blob:a");
+      c.set(1, "blob:b");
+      expect(revoked).toContain("blob:a");
+    } finally {
+      (URL as any).revokeObjectURL = original;
+    }
+  });
 });
 
 describe("RenderQueue", () => {
