@@ -1,0 +1,21 @@
+{
+  "entries": [
+    "rusted iron lantern half-buried in roots",
+    "thick smoke clings lower oak boughs",
+    "cool damp air under largest oak boughs"
+  ],
+  "threads": [
+    "who lit the distant fire",
+    "why smoke thickens near black oak",
+    "find dripping sound source in woods"
+  ],
+  "turn": 5,
+  "position": [
+    1,
+    0
+  ],
+  "places": {
+    "0,0": "The room features a rough-hewn wooden door scarred by weather, dry brittle leaves scattered on stone floor, and dense shadowed path leading left with dripping water source.",
+    "1,0": "A narrow ravine between dry shale and a thicket of stunted black oaks, with stone steps leading upward. Thin smoke drifts over the ridge to the west."
+  }
+}
