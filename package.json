@@ -1,8 +1,13 @@
 {
-  "name": "adventure",
+  "name": "world-engine-llm",
+  "description": "A text adventure where the world is generated turn by turn by an LLM.",
+  "license": "MIT",
   "module": "index.ts",
   "type": "module",
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hazlema/World-Engine-LLM.git"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/react": "^19.2.14",
