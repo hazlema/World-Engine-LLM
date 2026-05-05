@@ -21,7 +21,12 @@ type AnyTurn = Turn | SystemTurn;
 
 type Objective = { text: string; achieved: boolean };
 
-type PresetSummary = { slug: string; title: string; description: string };
+type PresetSummary = {
+  slug: string;
+  title: string;
+  description: string;
+  body: string;
+};
 
 type Stack = {
   turn: number;
@@ -284,6 +289,13 @@ function App() {
               </button>
             ))}
             <button
+              className="action-button"
+              onClick={() => setModal("briefing")}
+              disabled={!connected || stack.presetSlug === null}
+            >
+              mission
+            </button>
+            <button
               className="action-button critical"
               onClick={() => setModal("select")}
               disabled={!connected}
@@ -309,11 +321,28 @@ function App() {
                 onCancel={() => setModal(null)}
               />
             )}
-            {modal === "briefing" && (
-              <div className="modal-body">briefing view (next task)</div>
-            )}
+            {modal === "briefing" && (() => {
+              const p = presets.find((x) => x.slug === stack.presetSlug);
+              return p ? (
+                <BriefingView
+                  title={p.title}
+                  body={p.body}
+                  objectives={stack.objectives}
+                  onClose={() => setModal(null)}
+                />
+              ) : (
+                <div className="modal-body">No mission active.</div>
+              );
+            })()}
             {modal === "win" && (
-              <div className="modal-body">win view (later task)</div>
+              <WinView
+                objectives={stack.objectives}
+                onKeepExploring={() => {
+                  wsRef.current?.send(JSON.stringify({ type: "keep-exploring" }));
+                  setModal(null);
+                }}
+                onNewGame={() => setModal("select")}
+              />
             )}
           </div>
         </div>
@@ -386,6 +415,55 @@ function SelectView(props: {
         </div>
       </div>
       <button className="action-button" onClick={onCancel}>cancel</button>
+    </>
+  );
+}
+
+function ObjectivesList({ objectives }: { objectives: Objective[] }) {
+  return (
+    <ul className="system-list">
+      {objectives.map((o, i) => (
+        <li key={i} className="objective-line">
+          [{o.achieved ? "x" : " "}] {o.text}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function BriefingView(props: {
+  title: string;
+  body: string;
+  objectives: Objective[];
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="modal-body">
+        <div className="modal-title">{props.title.toUpperCase()}</div>
+        <p>{props.body}</p>
+        <div className="modal-divider" />
+        <div>OBJECTIVES</div>
+        <ObjectivesList objectives={props.objectives} />
+      </div>
+      <button className="action-button" onClick={props.onClose}>close</button>
+    </>
+  );
+}
+
+function WinView(props: {
+  objectives: Objective[];
+  onKeepExploring: () => void;
+  onNewGame: () => void;
+}) {
+  return (
+    <>
+      <div className="modal-body">
+        <div className="modal-title">MISSION COMPLETE</div>
+        <ObjectivesList objectives={props.objectives} />
+      </div>
+      <button className="action-button" onClick={props.onKeepExploring}>keep exploring</button>
+      <button className="action-button" onClick={props.onNewGame}>new game</button>
     </>
   );
 }

@@ -30,6 +30,7 @@ export interface PresetSummary {
   slug: string;
   title: string;
   description: string;
+  body: string;
 }
 
 export type ServerMessage =
@@ -173,6 +174,7 @@ function presetSummaries(): PresetSummary[] {
     slug: p.slug,
     title: p.title,
     description: p.description,
+    body: p.body,
   }));
 }
 
