@@ -27,6 +27,12 @@ You'll need [Bun](https://bun.com) and an OpenAI-compatible local model server. 
 
    First load shows the title screen. Pick a story and start typing what you do.
 
+### Narration (optional)
+
+The web app can read each turn aloud using [Piper](https://github.com/rhasspy/piper) — a small, fast, Linux-friendly TTS. On first start, the server downloads the piper binary (~25 MB) and the `en_US-lessac-medium` voice (~38 MB) into `bin/`. Subsequent starts skip the download. The download is one-time and Linux x86_64 only; on other platforms install piper manually and place the binary at `bin/piper/piper`.
+
+Toggle narration in-app via the **voice off / voice on** button in the action bar. Audio renders are cached per turn; replays are instant. Disable any time — settings persist via `localStorage`.
+
 ## How it works
 
 Each turn runs three model passes:
