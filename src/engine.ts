@@ -24,7 +24,9 @@ Plausibility — non-negotiable:
 - The player can only interact with elements actually present in the established world. If they reach for water in a desert, a door in an open field, or any object the world does not contain, describe its absence — the world does not invent it on demand.
 - Physics, distance, and time apply. The player cannot cross continents in a step or skip ahead through narration. Out-of-scale actions resolve as small concrete movements within the immediate scene.
 - Honor what is already established. Contradicting an entry (e.g. an "unarmed" player suddenly wielding a blade) does not happen unless the world supplies the means.
-- If the input contains a "CURRENT LOCATION (canonical description)" section, the player is at that established location. Honor that description: do not contradict it, do not invent a different layout, do not reinvent its core features. Build on it — describe what changes or what the player notices on this visit, but the place itself is fixed.`;
+- If the input contains a "CURRENT LOCATION (canonical description)" section, the player is at that established location. Honor that description: do not contradict it, do not invent a different layout, do not reinvent its core features. Build on it — describe what changes or what the player notices on this visit, but the place itself is fixed.
+- If the input contains a "MISSION BRIEFING (durable premise)" section, that is the durable premise of this run. Honor it. Do not contradict the setting (no trees on a lunar surface, no spacecraft in a medieval cellar). Build on it.
+- If the input contains an "OBJECTIVES" section with checkboxes, those are concrete things the player is trying to accomplish. Do not list them at the player. Do not tell them what to do. Surface them through the world — what they encounter, what they notice — when their actions head that way. The player solves; you describe.`;
 
 export const ARCHIVIST_SYSTEM = `You are a world archivist. You extract facts AND active narrative threads from narrative passages.
 
@@ -83,8 +85,12 @@ const ARCHIVIST_SCHEMA = {
   additionalProperties: false,
 };
 
-export async function narratorTurn(stack: WorldStack, playerInput: string): Promise<string> {
-  const input = `${formatStackForNarrator(stack)}PLAYER ACTION: ${playerInput}`;
+export async function narratorTurn(
+  stack: WorldStack,
+  playerInput: string,
+  briefing?: string
+): Promise<string> {
+  const input = `${formatStackForNarrator(stack, briefing)}PLAYER ACTION: ${playerInput}`;
   return await api.callModel(NARRATOR_SYSTEM, input);
 }
 

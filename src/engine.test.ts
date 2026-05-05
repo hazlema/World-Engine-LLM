@@ -218,3 +218,40 @@ test("archivistTurn: missing moved/locationDescription default safely", async ()
   expect(result.moved).toBe(false);
   expect(result.locationDescription).toBe("");
 });
+
+test("narratorTurn: omits MISSION BRIEFING when briefing is undefined", async () => {
+  let captured = "";
+  callModelSpy.mockImplementationOnce(async (_sys: string, inp: string) => {
+    captured = inp;
+    return "ok";
+  });
+  await narratorTurn(emptyStack, "look");
+  expect(captured).not.toContain("MISSION BRIEFING");
+});
+
+test("narratorTurn: includes MISSION BRIEFING and OBJECTIVES when provided", async () => {
+  const stackWithObjectives: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [{ text: "Find the transmitter", achieved: false }],
+    presetSlug: "lunar-rescue",
+  };
+  let captured = "";
+  callModelSpy.mockImplementationOnce(async (_sys: string, inp: string) => {
+    captured = inp;
+    return "ok";
+  });
+  await narratorTurn(stackWithObjectives, "look", "You are an astronaut.");
+  expect(captured).toContain("MISSION BRIEFING (durable premise):");
+  expect(captured).toContain("You are an astronaut.");
+  expect(captured).toContain("OBJECTIVES:");
+  expect(captured).toContain("[ ] Find the transmitter");
+});
+
+test("NARRATOR_SYSTEM: instructs the narrator to honor the mission briefing", () => {
+  expect(NARRATOR_SYSTEM).toContain("MISSION BRIEFING");
+  expect(NARRATOR_SYSTEM).toContain("OBJECTIVES");
+});
