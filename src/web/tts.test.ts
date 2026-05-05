@@ -29,6 +29,15 @@ describe("AudioCache", () => {
     c.clear();
     expect(c.get(1)).toBeNull();
   });
+
+  test("re-setting the same id replaces the value without evicting others", () => {
+    const c = new AudioCache(2);
+    c.set(1, "blob:a");
+    c.set(2, "blob:b");
+    c.set(1, "blob:a-new");
+    expect(c.get(1)).toBe("blob:a-new");
+    expect(c.get(2)).toBe("blob:b");
+  });
 });
 
 describe("RenderQueue", () => {

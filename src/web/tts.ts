@@ -7,6 +7,11 @@ export class AudioCache {
   }
 
   set(id: number, url: string): void {
+    const prev = this.map.get(id);
+    if (prev) {
+      URL.revokeObjectURL(prev);
+      this.map.delete(id);
+    }
     if (this.map.size >= this.capacity) {
       const oldest = this.map.keys().next().value;
       if (oldest !== undefined) {
