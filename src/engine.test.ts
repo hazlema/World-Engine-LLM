@@ -255,3 +255,44 @@ test("NARRATOR_SYSTEM: instructs the narrator to honor the mission briefing", ()
   expect(NARRATOR_SYSTEM).toContain("MISSION BRIEFING");
   expect(NARRATOR_SYSTEM).toContain("OBJECTIVES");
 });
+
+test("archivistTurn: returns achievedObjectiveIndices from model", async () => {
+  callModelStructuredSpy.mockImplementationOnce(async () => ({
+    entries: [],
+    threads: [],
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [0, 2],
+  }));
+  const result = await archivistTurn(emptyStack, "narrative");
+  expect(result.achievedObjectiveIndices).toEqual([0, 2]);
+});
+
+test("archivistTurn: defaults achievedObjectiveIndices to [] when missing", async () => {
+  callModelStructuredSpy.mockImplementationOnce(async () => ({
+    entries: [],
+    threads: [],
+    moved: false,
+    locationDescription: "",
+  } as any));
+  const result = await archivistTurn(emptyStack, "narrative");
+  expect(result.achievedObjectiveIndices).toEqual([]);
+});
+
+test("archivistTurn: filters non-integer or negative achievedObjectiveIndices", async () => {
+  callModelStructuredSpy.mockImplementationOnce(async () => ({
+    entries: [],
+    threads: [],
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [0, -1, 1.5, 3, "bad" as any],
+  }));
+  const result = await archivistTurn(emptyStack, "narrative");
+  expect(result.achievedObjectiveIndices).toEqual([0, 3]);
+});
+
+test("ARCHIVIST_SYSTEM: instructs the archivist on conservative objective completion", async () => {
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  expect(ARCHIVIST_SYSTEM).toContain("achievedObjectiveIndices");
+  expect(ARCHIVIST_SYSTEM.toLowerCase()).toContain("when in doubt");
+});

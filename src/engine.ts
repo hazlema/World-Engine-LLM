@@ -59,29 +59,25 @@ Rules for "locationDescription":
 - If the location is already established and unchanged, you may keep the description identical to the previous canonical (the server will deduplicate).
 - Do not include atmosphere, NPCs, or transient events — only durable physical features of the place itself.
 
+Rules for "achievedObjectiveIndices":
+- The OBJECTIVES list (if present) is shown with its indices: "0: [ ] Find the transmitter".
+- Return an index ONLY if THIS narrative passage explicitly depicts that objective being completed.
+- "Approached the transmitter" or "saw the transmitter" is NOT completion. "Repaired the transmitter" or "the transmitter chimes back to life" is.
+- When in doubt, return [].
+- Do not invent indices outside the provided list. Return [] if no OBJECTIVES section is present.
+
 Return only the JSON object. No preamble, no markdown fences, no commentary.`;
 
 const ARCHIVIST_SCHEMA = {
   type: "object",
   properties: {
-    entries: {
-      type: "array",
-      items: { type: "string" },
-      maxItems: MAX_STACK_ENTRIES,
-    },
-    threads: {
-      type: "array",
-      items: { type: "string" },
-      maxItems: MAX_THREADS,
-    },
-    moved: {
-      type: "boolean",
-    },
-    locationDescription: {
-      type: "string",
-    },
+    entries: { type: "array", items: { type: "string" }, maxItems: MAX_STACK_ENTRIES },
+    threads: { type: "array", items: { type: "string" }, maxItems: MAX_THREADS },
+    moved: { type: "boolean" },
+    locationDescription: { type: "string" },
+    achievedObjectiveIndices: { type: "array", items: { type: "integer", minimum: 0 } },
   },
-  required: ["entries", "threads", "moved", "locationDescription"],
+  required: ["entries", "threads", "moved", "locationDescription", "achievedObjectiveIndices"],
   additionalProperties: false,
 };
 
@@ -100,30 +96,39 @@ export interface ArchivistResult {
   turn: number;
   moved: boolean;
   locationDescription: string;
+  achievedObjectiveIndices: number[];
 }
 
-export async function archivistTurn(stack: WorldStack, narrative: string): Promise<ArchivistResult> {
-  const input = `${formatStackForArchivist(stack)}NEW NARRATIVE:\n${narrative}\n\nReturn updated entries, threads, whether the player moved to a new location, and a 1-2 sentence canonical description of the place the player is now at:`;
+export async function archivistTurn(
+  stack: WorldStack,
+  narrative: string
+): Promise<ArchivistResult> {
+  const input = `${formatStackForArchivist(stack)}NEW NARRATIVE:\n${narrative}\n\nReturn updated entries, threads, whether the player moved to a new location, a 1-2 sentence canonical description of the place the player is now at, and the indices of any objectives just completed:`;
   const result = await api.callModelStructured<{
     entries: string[];
     threads: string[];
     moved?: boolean;
     locationDescription?: string;
-  }>(
-    ARCHIVIST_SYSTEM,
-    input,
-    "world_stack",
-    ARCHIVIST_SCHEMA
-  );
+    achievedObjectiveIndices?: unknown;
+  }>(ARCHIVIST_SYSTEM, input, "world_stack", ARCHIVIST_SCHEMA);
+
   if (!Array.isArray(result.entries) || !Array.isArray(result.threads)) {
     throw new Error(`Archivist returned unexpected shape: ${JSON.stringify(result)}`);
   }
+
+  const indices = Array.isArray(result.achievedObjectiveIndices)
+    ? result.achievedObjectiveIndices.filter(
+        (i): i is number => typeof i === "number" && Number.isInteger(i) && i >= 0
+      )
+    : [];
+
   return {
     entries: result.entries.slice(0, MAX_STACK_ENTRIES),
     threads: result.threads.slice(0, MAX_THREADS),
     turn: stack.turn + 1,
     moved: typeof result.moved === "boolean" ? result.moved : false,
     locationDescription: typeof result.locationDescription === "string" ? result.locationDescription : "",
+    achievedObjectiveIndices: indices,
   };
 }
 
