@@ -1,4 +1,4 @@
-import { mkdir, chmod } from "node:fs/promises";
+import { mkdir, chmod, readdir } from "node:fs/promises";
 import { $ } from "bun";
 
 export const PIPER_VERSION = "2023.11.14-2";
@@ -72,9 +72,34 @@ export async function ensurePiperReady(binDir: string): Promise<void> {
   console.log(`[piper] ready.`);
 }
 
-export async function synthesize(binDir: string, text: string): Promise<Uint8Array> {
+export async function listVoices(binDir: string): Promise<string[]> {
+  try {
+    const files = await readdir(`${binDir}/voices`);
+    const voices = files
+      .filter((f) => f.endsWith(".onnx"))
+      .map((f) => f.slice(0, -".onnx".length))
+      .sort();
+    // Surface the default voice first if installed.
+    const idx = voices.indexOf(VOICE_NAME);
+    if (idx > 0) {
+      voices.splice(idx, 1);
+      voices.unshift(VOICE_NAME);
+    }
+    return voices;
+  } catch {
+    return [];
+  }
+}
+
+const VOICE_NAME_RE = /^[a-zA-Z0-9_+.-]+$/;
+
+export async function synthesize(binDir: string, text: string, voice?: string): Promise<Uint8Array> {
+  const requested = voice ?? VOICE_NAME;
+  if (!VOICE_NAME_RE.test(requested)) throw new Error(`invalid voice name: ${requested}`);
+  const voiceModel = `${binDir}/voices/${requested}.onnx`;
+  if (!(await Bun.file(voiceModel).exists())) throw new Error(`voice not installed: ${requested}`);
   const p = piperPaths(binDir);
-  const proc = Bun.spawn([p.binary, "--model", p.voiceModel, "--output_file", "-"], {
+  const proc = Bun.spawn([p.binary, "--model", voiceModel, "--output_file", "-"], {
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",

@@ -12,7 +12,7 @@ import {
   type Objective,
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
-import { ensurePiperReady, synthesize } from "./piper";
+import { ensurePiperReady, listVoices, synthesize, VOICE_NAME } from "./piper";
 
 const PIPER_BIN_DIR = new URL("../bin", import.meta.url).pathname;
 
@@ -288,13 +288,18 @@ async function main() {
         if (server.upgrade(req)) return;
         return new Response("Upgrade required", { status: 426 });
       }
+      if (url.pathname === "/api/voices" && req.method === "GET") {
+        const voices = await listVoices(PIPER_BIN_DIR);
+        return Response.json({ voices, default: VOICE_NAME });
+      }
       if (url.pathname === "/api/speak" && req.method === "POST") {
         try {
-          const body = await req.json() as { text?: unknown };
+          const body = await req.json() as { text?: unknown; voice?: unknown };
           const text = typeof body.text === "string" ? body.text.trim() : "";
           if (!text) return new Response("text required", { status: 400 });
           if (text.length > 4000) return new Response("text too long", { status: 413 });
-          const wav = await synthesize(PIPER_BIN_DIR, text);
+          const voice = typeof body.voice === "string" ? body.voice : undefined;
+          const wav = await synthesize(PIPER_BIN_DIR, text, voice);
           return new Response(wav, {
             headers: {
               "Content-Type": "audio/wav",
