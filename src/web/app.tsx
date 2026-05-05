@@ -436,9 +436,9 @@ function App() {
               className={`action-button ${narrationOn ? "critical" : ""}`}
               onClick={toggleNarration}
               disabled={!connected}
-              title={engineStatus.kind === "loading" ? `loading model… ${Math.round((engineStatus.progress ?? 0) * 100)}%` : ""}
+              title={engineStatus.kind === "error" ? engineStatus.message : ""}
             >
-              {engineStatus.kind === "loading" ? `voice ${Math.round((engineStatus.progress ?? 0) * 100)}%` : `voice ${narrationOn ? "on" : "off"}`}
+              voice {narrationOn ? "on" : "off"}
             </button>
             <button
               className="action-button"
