@@ -70,22 +70,27 @@ export class TTSEngine {
     if (this.model) return;
     if (this.loadPromise) return this.loadPromise;
     this.setStatus({ kind: "loading", progress: 0 });
+    const onProgress = (p: { progress?: number }) => {
+      if (typeof p.progress === "number") {
+        this.setStatus({ kind: "loading", progress: p.progress });
+      }
+    };
+    const tryLoad = (device: "webgpu" | "wasm", dtype: "fp16" | "q8") =>
+      KokoroTTS.from_pretrained(MODEL_ID, { dtype, device, progress_callback: onProgress });
     this.loadPromise = (async () => {
       try {
-        this.model = await KokoroTTS.from_pretrained(MODEL_ID, {
-          dtype: "q8",
-          device: "wasm",
-          progress_callback: (p: { progress?: number }) => {
-            if (typeof p.progress === "number") {
-              this.setStatus({ kind: "loading", progress: p.progress });
-            }
-          },
-        });
-        this.setStatus({ kind: "ready" });
-      } catch (err) {
-        this.setStatus({ kind: "error", message: (err as Error).message });
-        throw err;
+        this.model = await tryLoad("webgpu", "fp16");
+        console.info("[tts] using webgpu");
+      } catch (gpuErr) {
+        console.warn("[tts] webgpu unavailable, falling back to wasm:", gpuErr);
+        try {
+          this.model = await tryLoad("wasm", "q8");
+        } catch (err) {
+          this.setStatus({ kind: "error", message: (err as Error).message });
+          throw err;
+        }
       }
+      this.setStatus({ kind: "ready" });
     })();
     return this.loadPromise;
   }
