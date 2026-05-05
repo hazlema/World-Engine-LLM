@@ -98,13 +98,16 @@ export async function synthesize(binDir: string, text: string, voice?: string): 
   if (!VOICE_NAME_RE.test(requested)) throw new Error(`invalid voice name: ${requested}`);
   const voiceModel = `${binDir}/voices/${requested}.onnx`;
   if (!(await Bun.file(voiceModel).exists())) throw new Error(`voice not installed: ${requested}`);
+  // Piper emits one WAV per line of stdin; browsers only play the first one when concatenated.
+  // Collapse all whitespace (including newlines) into single spaces so the whole passage is one utterance.
+  const normalized = text.replace(/\s+/g, " ").trim();
   const p = piperPaths(binDir);
   const proc = Bun.spawn([p.binary, "--model", voiceModel, "--output_file", "-"], {
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
   });
-  proc.stdin.write(text);
+  proc.stdin.write(normalized);
   await proc.stdin.end();
   const wav = await new Response(proc.stdout).bytes();
   const exitCode = await proc.exited;
