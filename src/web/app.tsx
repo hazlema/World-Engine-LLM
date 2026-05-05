@@ -93,16 +93,34 @@ function App() {
   });
   const [engineStatus, setEngineStatus] = useState<EngineStatus>({ kind: "idle" });
   const [audioByTurn, setAudioByTurn] = useState<Record<number, string>>({});
+  const [voices, setVoices] = useState<string[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>(() => {
+    try { return localStorage.getItem("narrationVoice") || ""; } catch { return ""; }
+  });
   const ttsRef = useRef<TTSEngine | null>(null);
   if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
+
+  // One-time voice list fetch; falls back silently if the server isn't ready.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/voices")
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`)))
+      .then((data: { voices: string[]; default: string }) => {
+        if (cancelled) return;
+        setVoices(data.voices);
+        setSelectedVoice((prev) => prev && data.voices.includes(prev) ? prev : data.default);
+      })
+      .catch(() => { /* voices stays empty; picker hides */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const renderTurn = useCallback((turnId: number, text: string) => {
     const tts = ttsRef.current;
     if (!tts) return;
-    tts.render(turnId, text)
+    tts.render(turnId, text, selectedVoice || undefined)
       .then(({ url }) => setAudioByTurn((prev) => ({ ...prev, [turnId]: url })))
       .catch(() => { /* surfaced via engineStatus */ });
-  }, []);
+  }, [selectedVoice]);
 
   const toggleNarration = useCallback(async () => {
     const next = !narrationOn;
@@ -112,6 +130,15 @@ function App() {
       try { await ttsRef.current?.load(); } catch {}
     }
   }, [narrationOn]);
+
+  const changeVoice = useCallback((voice: string) => {
+    setSelectedVoice(voice);
+    try { localStorage.setItem("narrationVoice", voice); } catch {}
+    // Drop cached audio so the next render uses the new voice.
+    setAudioByTurn({});
+    setLastNarratedId(null);
+    ttsRef.current?.cache.clear();
+  }, []);
 
   const wsRef = useRef<WebSocket | null>(null);
   const nextIdRef = useRef(1);
@@ -440,6 +467,19 @@ function App() {
             >
               voice {narrationOn ? "on" : "off"}
             </button>
+            {voices.length > 1 && (
+              <select
+                className="voice-select"
+                value={selectedVoice}
+                onChange={(e) => changeVoice(e.target.value)}
+                disabled={!connected}
+                title="narrator voice"
+              >
+                {voices.map((v) => (
+                  <option key={v} value={v}>{v.replace(/^en_..-/, "").replace(/-medium$|-high$/, "")}</option>
+                ))}
+              </select>
+            )}
             <button
               className="action-button"
               onClick={() => setModal("objectives")}

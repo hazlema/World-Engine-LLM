@@ -66,7 +66,7 @@ export class TTSEngine {
     this.setStatus({ kind: "ready" });
   }
 
-  render(turnId: number, text: string): Promise<RenderResult> {
+  render(turnId: number, text: string, voice?: string): Promise<RenderResult> {
     return this.queue.enqueue(async () => {
       const cached = this.cache.get(turnId);
       if (cached) return { url: cached, durationMs: 0 };
@@ -74,7 +74,7 @@ export class TTSEngine {
       const res = await fetch("/api/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice }),
       });
       if (!res.ok) {
         const message = `speak failed: ${res.status}`;
@@ -83,7 +83,7 @@ export class TTSEngine {
       }
       const blob = await res.blob();
       const dur = performance.now() - t0;
-      console.info(`[tts] render turn ${turnId}: ${text.length} chars in ${Math.round(dur)}ms`);
+      console.info(`[tts] render turn ${turnId}: ${text.length} chars in ${Math.round(dur)}ms (${voice ?? "default"})`);
       const url = URL.createObjectURL(blob);
       this.cache.set(turnId, url);
       return { url, durationMs: dur };
