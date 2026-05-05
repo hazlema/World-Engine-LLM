@@ -91,6 +91,8 @@ export async function processInput(
     turn: archived.turn,
     position: finalPosition,
     places,
+    objectives: stack.objectives,
+    presetSlug: stack.presetSlug,
   };
 
   await appendPlayLog(archived.turn, input, narrative, finalPosition);
@@ -126,7 +128,7 @@ async function handleClientMessage(raw: string, send: Send, broadcast: Send): Pr
   }
 
   if (msg.type === "reset") {
-    const fresh: WorldStack = { entries: [], threads: [], turn: 0, position: [0, 0], places: {} };
+    const fresh: WorldStack = { entries: [], threads: [], turn: 0, position: [0, 0], places: {}, objectives: [], presetSlug: null };
     try {
       await saveStack(fresh);
       currentStack = fresh;

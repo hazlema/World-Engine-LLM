@@ -161,6 +161,6 @@ export function unionAchievedIndices(
     }
   }
   return current.map((o, i) =>
-    flips.has(i) && !o.achieved ? { ...o, achieved: true } : o
+    flips.has(i) && !o.achieved ? { ...o, achieved: true } : { ...o }
   );
 }

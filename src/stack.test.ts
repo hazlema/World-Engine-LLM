@@ -150,8 +150,10 @@ test("unionAchievedIndices: monotonic — already-achieved stays achieved when i
     { text: "b", achieved: false },
   ];
   const after = unionAchievedIndices(before, [1]);
-  expect(after[0].achieved).toBe(true);
-  expect(after[1].achieved).toBe(true);
+  expect(after).toEqual([
+    { text: "a", achieved: true },
+    { text: "b", achieved: true },
+  ]);
 });
 
 test("unionAchievedIndices: ignores out-of-range and non-integer indices", () => {
@@ -163,8 +165,8 @@ test("unionAchievedIndices: ignores out-of-range and non-integer indices", () =>
 test("unionAchievedIndices: returns a new array (does not mutate input)", () => {
   const before = [{ text: "a", achieved: false }];
   const after = unionAchievedIndices(before, [0]);
-  expect(before[0].achieved).toBe(false);
-  expect(after[0].achieved).toBe(true);
+  expect(before[0]?.achieved).toBe(false);
+  expect(after[0]?.achieved).toBe(true);
 });
 
 test("loadStack: defaults objectives to [] and presetSlug to null when absent", async () => {
