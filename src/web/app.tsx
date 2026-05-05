@@ -19,13 +19,37 @@ type SystemTurn = {
 
 type AnyTurn = Turn | SystemTurn;
 
-type Stack = { turn: number; entries: string[]; threads: string[] };
+type Objective = { text: string; achieved: boolean };
+
+type PresetSummary = { slug: string; title: string; description: string };
+
+type Stack = {
+  turn: number;
+  entries: string[];
+  threads: string[];
+  objectives: Objective[];
+  presetSlug: string | null;
+};
 
 type ServerMessage =
-  | { type: "snapshot"; turn: number; entries: string[]; threads: string[] }
+  | {
+      type: "snapshot";
+      turn: number;
+      entries: string[];
+      threads: string[];
+      objectives: Objective[];
+      presetSlug: string | null;
+      presets: PresetSummary[];
+    }
   | { type: "turn-start"; input: string }
   | { type: "narrative"; text: string }
-  | { type: "stack-update"; entries: string[]; threads: string[] }
+  | {
+      type: "stack-update";
+      entries: string[];
+      threads: string[];
+      objectives: Objective[];
+    }
+  | { type: "win" }
   | { type: "error"; source: "narrator" | "archivist"; message: string };
 
 const QUICK_ACTIONS = [
@@ -45,9 +69,18 @@ function isSystemTurn(t: AnyTurn): t is SystemTurn {
 function App() {
   const [connected, setConnected] = useState(false);
   const [turns, setTurns] = useState<AnyTurn[]>([]);
-  const [stack, setStack] = useState<Stack>({ turn: 0, entries: [], threads: [] });
+  const [stack, setStack] = useState<Stack>({
+    turn: 0,
+    entries: [],
+    threads: [],
+    objectives: [],
+    presetSlug: null,
+  });
   const [pending, setPending] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  type ModalView = null | "select" | "briefing" | "win";
+  const [modal, setModal] = useState<ModalView>(null);
+  const [presets, setPresets] = useState<PresetSummary[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const nextIdRef = useRef(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -88,7 +121,18 @@ function App() {
     ws.addEventListener("message", (event) => {
       const msg: ServerMessage = JSON.parse(event.data);
       if (msg.type === "snapshot") {
-        setStack({ turn: msg.turn, entries: msg.entries, threads: msg.threads });
+        setStack({
+          turn: msg.turn,
+          entries: msg.entries,
+          threads: msg.threads,
+          objectives: msg.objectives,
+          presetSlug: msg.presetSlug,
+        });
+        setPresets(msg.presets);
+        // Auto-open select view on a truly fresh world.
+        if (msg.presetSlug === null && msg.turn === 0 && msg.entries.length === 0) {
+          setModal("select");
+        }
         return;
       }
       if (msg.type === "turn-start") {
@@ -105,9 +149,19 @@ function App() {
         return;
       }
       if (msg.type === "stack-update") {
-        setStack((s) => ({ ...s, entries: msg.entries, threads: msg.threads, turn: s.turn + 1 }));
+        setStack((s) => ({
+          ...s,
+          entries: msg.entries,
+          threads: msg.threads,
+          objectives: msg.objectives,
+          turn: s.turn + 1,
+        }));
         updateLastInputTurn((t) => ({ ...t, pending: false }));
         setPending(false);
+        return;
+      }
+      if (msg.type === "win") {
+        setModal("win");
         return;
       }
       if (msg.type === "error") {
@@ -249,6 +303,15 @@ function App() {
           </div>
         </div>
       </div>
+
+      {modal !== null && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-body">{modal} view (placeholder)</div>
+            <button className="action-button" onClick={() => setModal(null)}>close</button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -295,3 +295,26 @@ body {
 .action-button.critical:hover {
   box-shadow: var(--glow-violet);
 }
+
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: #111; border: 1px solid #444;
+  padding: 1.5rem; min-width: 320px; max-width: 600px;
+  font-family: monospace;
+}
+.modal-body { margin-bottom: 1rem; white-space: pre-wrap; }
+.preset-row {
+  display: flex; gap: 1rem; padding: 0.5rem;
+  cursor: pointer; align-items: baseline;
+}
+.preset-row:hover { background: #222; }
+.preset-row .title { color: #fff; min-width: 12rem; }
+.preset-row .description { color: #888; }
+.modal-divider { border-top: 1px solid #333; margin: 0.5rem 0; }
+.objective-line { display: block; }
+.modal-title { font-size: 1.1rem; margin-bottom: 0.75rem; letter-spacing: 0.05em; }
