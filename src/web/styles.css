@@ -1120,3 +1120,44 @@ button {
   .continue-card { grid-template-columns: 1fr; }
   .continue-card-cta { justify-self: start; }
 }
+
+/* per-turn narration */
+.turn-margin {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+.turn-speaker {
+  background: transparent;
+  border: 1px solid var(--stroke);
+  color: var(--fg-faint);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 140ms, border-color 140ms, background 140ms;
+}
+
+.turn-speaker:hover {
+  color: var(--fg);
+  border-color: var(--stroke-strong);
+  background: var(--surface-2);
+}
+
+.turn-speaker.ready {
+  color: var(--ember);
+  border-color: var(--ember-tint-2);
+  background: var(--ember-tint);
+}
+
+.turn-speaker.ready:hover {
+  color: var(--ember-soft);
+  border-color: var(--ember);
+  box-shadow: 0 0 12px var(--ember-tint-2);
+}
