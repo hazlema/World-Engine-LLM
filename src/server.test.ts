@@ -1,7 +1,8 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
-import { processInput, type ServerMessage } from "./server";
+import { processInput, startWithPreset, keepExploring, emptyWorld, type ServerMessage } from "./server";
 import type { WorldStack } from "./stack";
+import type { Preset } from "./presets";
 
 let interpreterSpy: any;
 let narratorSpy: any;
@@ -38,6 +39,7 @@ test("processInput: stay action does not change position", async () => {
     turn: 1,
     moved: false,
     locationDescription: "A flat expanse of sand.",
+    achievedObjectiveIndices: [],
   }));
 
   const messages: ServerMessage[] = [];
@@ -56,6 +58,7 @@ test("processInput: successful move updates position and captures new place", as
     turn: 1,
     moved: true,
     locationDescription: "A windswept dune crowned by a single dead tree.",
+    achievedObjectiveIndices: [],
   }));
 
   const newStack = await processInput(emptyStack, "go north", () => {});
@@ -73,6 +76,7 @@ test("processInput: blocked move (moved=false) keeps original position", async (
     turn: 1,
     moved: false,
     locationDescription: "A flat expanse of sand.",
+    achievedObjectiveIndices: [],
   }));
 
   const newStack = await processInput(emptyStack, "go north", () => {});
@@ -99,6 +103,7 @@ test("processInput: narrator receives the target tile's stored description as an
     turn: 6,
     moved: true,
     locationDescription: "A windswept dune crowned by a single dead tree.",
+    achievedObjectiveIndices: [],
   }));
 
   await processInput(stackWithKnownPlace, "north", () => {});
@@ -127,6 +132,7 @@ test("processInput: return visit does NOT overwrite stored description", async (
     turn: 6,
     moved: true,
     locationDescription: "DIFFERENT DESCRIPTION",
+    achievedObjectiveIndices: [],
   }));
 
   const newStack = await processInput(stackWithKnownPlace, "north", () => {});
@@ -143,6 +149,7 @@ test("processInput: emits turn-start, narrative, stack-update on happy path", as
     turn: 1,
     moved: false,
     locationDescription: "An empty void.",
+    achievedObjectiveIndices: [],
   }));
 
   const messages: ServerMessage[] = [];
@@ -201,6 +208,7 @@ test("processInput: on interpreter failure, falls back to stay (still runs narra
     turn: 1,
     moved: false,
     locationDescription: "",
+    achievedObjectiveIndices: [],
   }));
 
   const newStack = await processInput(emptyStack, "go north", () => {});
@@ -208,4 +216,187 @@ test("processInput: on interpreter failure, falls back to stay (still runs narra
   expect(newStack.position).toEqual([0, 0]);
   // narrator was still called
   expect(narratorSpy).toHaveBeenCalled();
+});
+
+const lunarPreset: Preset = {
+  slug: "lunar-rescue",
+  title: "Lunar Rescue",
+  description: "test",
+  objects: ["damaged transmitter", "oxygen cache"],
+  objectives: ["Find the transmitter", "Send the signal"],
+  body: "You are an astronaut.",
+};
+
+test("startWithPreset: seeds a stack from the preset", () => {
+  const s = startWithPreset(lunarPreset);
+  expect(s.entries).toEqual(["damaged transmitter", "oxygen cache"]);
+  expect(s.objectives).toEqual([
+    { text: "Find the transmitter", achieved: false },
+    { text: "Send the signal", achieved: false },
+  ]);
+  expect(s.presetSlug).toBe("lunar-rescue");
+  expect(s.turn).toBe(0);
+  expect(s.position).toEqual([0, 0]);
+});
+
+test("emptyWorld: returns a fresh empty stack", () => {
+  const s = emptyWorld();
+  expect(s.entries).toEqual([]);
+  expect(s.threads).toEqual([]);
+  expect(s.objectives).toEqual([]);
+  expect(s.presetSlug).toBeNull();
+  expect(s.turn).toBe(0);
+  expect(s.position).toEqual([0, 0]);
+  expect(s.places).toEqual({});
+});
+
+test("keepExploring: clears presetSlug, leaves objectives intact", () => {
+  const s: WorldStack = {
+    entries: ["x"],
+    threads: ["y"],
+    turn: 5,
+    position: [1, 0],
+    places: { "1,0": "p" },
+    objectives: [
+      { text: "a", achieved: true },
+      { text: "b", achieved: true },
+    ],
+    presetSlug: "lunar-rescue",
+  };
+  const after = keepExploring(s);
+  expect(after.presetSlug).toBeNull();
+  expect(after.objectives).toEqual(s.objectives);
+  expect(after.entries).toEqual(s.entries);
+  expect(after.turn).toBe(5);
+});
+
+test("processInput: stack-update includes objectives", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  narratorSpy.mockImplementationOnce(async () => "ok");
+  archivistSpy.mockImplementationOnce(async () => ({
+    entries: [],
+    threads: [],
+    turn: 1,
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [],
+  }));
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [{ text: "a", achieved: false }],
+    presetSlug: "x",
+  };
+  const messages: ServerMessage[] = [];
+  await processInput(stack, "look", (m) => messages.push(m));
+  const update = messages.find((m) => m.type === "stack-update");
+  expect(update).toBeDefined();
+  if (update?.type === "stack-update") {
+    expect(update.objectives).toEqual([{ text: "a", achieved: false }]);
+  }
+});
+
+test("processInput: applies achievedObjectiveIndices monotonically", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  narratorSpy.mockImplementationOnce(async () => "ok");
+  archivistSpy.mockImplementationOnce(async () => ({
+    entries: [],
+    threads: [],
+    turn: 1,
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [0],
+  }));
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "a", achieved: false },
+      { text: "b", achieved: false },
+    ],
+    presetSlug: "x",
+  };
+  const newStack = await processInput(stack, "look", () => {});
+  expect(newStack.objectives).toEqual([
+    { text: "a", achieved: true },
+    { text: "b", achieved: false },
+  ]);
+});
+
+test("processInput: emits win when last objective is achieved", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  narratorSpy.mockImplementationOnce(async () => "ok");
+  archivistSpy.mockImplementationOnce(async () => ({
+    entries: [],
+    threads: [],
+    turn: 1,
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [1],
+  }));
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "a", achieved: true },
+      { text: "b", achieved: false },
+    ],
+    presetSlug: "x",
+  };
+  const messages: ServerMessage[] = [];
+  await processInput(stack, "look", (m) => messages.push(m));
+  expect(messages.some((m) => m.type === "win")).toBe(true);
+});
+
+test("processInput: does NOT re-emit win on subsequent turns when already won", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  narratorSpy.mockImplementationOnce(async () => "ok");
+  archivistSpy.mockImplementationOnce(async () => ({
+    entries: [],
+    threads: [],
+    turn: 2,
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [],
+  }));
+  const alreadyWon: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "a", achieved: true },
+      { text: "b", achieved: true },
+    ],
+    presetSlug: "x",
+  };
+  const messages: ServerMessage[] = [];
+  await processInput(alreadyWon, "look", (m) => messages.push(m));
+  expect(messages.some((m) => m.type === "win")).toBe(false);
+});
+
+test("processInput: free-play (no objectives) never emits win", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  narratorSpy.mockImplementationOnce(async () => "ok");
+  archivistSpy.mockImplementationOnce(async () => ({
+    entries: [],
+    threads: [],
+    turn: 1,
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [],
+  }));
+  const messages: ServerMessage[] = [];
+  await processInput(emptyStack, "look", (m) => messages.push(m));
+  expect(messages.some((m) => m.type === "win")).toBe(false);
 });

@@ -1,6 +1,17 @@
 import { appendFile } from "node:fs/promises";
 import { narratorTurn, archivistTurn, interpreterTurn, type InterpretedAction } from "./engine";
-import { posKey, applyDirection, loadStack, saveStack, type WorldStack, type Direction } from "./stack";
+import {
+  posKey,
+  applyDirection,
+  loadStack,
+  saveStack,
+  applyPresetToStack,
+  unionAchievedIndices,
+  type WorldStack,
+  type Direction,
+  type Objective,
+} from "./stack";
+import type { Preset } from "./presets";
 
 const PLAY_LOG_FILE = new URL("../play-log.jsonl", import.meta.url).pathname;
 
@@ -13,16 +24,38 @@ async function appendPlayLog(turn: number, input: string, narrative: string, pos
   }
 }
 
+export interface PresetSummary {
+  slug: string;
+  title: string;
+  description: string;
+}
+
 export type ServerMessage =
-  | { type: "snapshot"; turn: number; entries: string[]; threads: string[] }
+  | {
+      type: "snapshot";
+      turn: number;
+      entries: string[];
+      threads: string[];
+      objectives: Objective[];
+      presetSlug: string | null;
+      presets: PresetSummary[];
+    }
   | { type: "turn-start"; input: string }
   | { type: "narrative"; text: string }
-  | { type: "stack-update"; entries: string[]; threads: string[] }
+  | {
+      type: "stack-update";
+      entries: string[];
+      threads: string[];
+      objectives: Objective[];
+    }
+  | { type: "win" }
   | { type: "error"; source: "narrator" | "archivist"; message: string };
 
 export type ClientMessage =
   | { type: "input"; text: string }
-  | { type: "reset" }
+  | { type: "start"; presetSlug: string | null }
+  | { type: "keep-exploring" }
+  | { type: "reset" }   // TODO Task 7: remove when handleClientMessage rewrites the reset branch
   | { type: "hello" };
 
 export type Send = (message: ServerMessage) => void;
@@ -34,14 +67,34 @@ const ACTION_TO_DIRECTION: Record<string, Direction> = {
   "move-west": "west",
 };
 
+export function startWithPreset(preset: Preset): WorldStack {
+  return applyPresetToStack(preset);
+}
+
+export function emptyWorld(): WorldStack {
+  return {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+  };
+}
+
+export function keepExploring(stack: WorldStack): WorldStack {
+  return { ...stack, presetSlug: null };
+}
+
 export async function processInput(
   stack: WorldStack,
   input: string,
-  send: Send
+  send: Send,
+  briefing?: string
 ): Promise<WorldStack> {
   send({ type: "turn-start", input });
 
-  // 1. Interpret intent — fall back to stay on failure.
   let action: InterpretedAction;
   try {
     action = await interpreterTurn(input);
@@ -49,24 +102,19 @@ export async function processInput(
     action = { action: "stay" };
   }
 
-  // 2. Compute prospective target tile.
   const dir = ACTION_TO_DIRECTION[action.action];
   const prospective = dir ? applyDirection(stack.position, dir) : stack.position;
-
-  // 3. Build a stack for the narrator with position pre-set to the prospective target,
-  //    so formatStackForNarrator surfaces the canonical description (if any).
   const narratorStack: WorldStack = { ...stack, position: prospective };
 
   let narrative: string;
   try {
-    narrative = await narratorTurn(narratorStack, input);
+    narrative = await narratorTurn(narratorStack, input, briefing);
     send({ type: "narrative", text: narrative });
   } catch (err) {
     send({ type: "error", source: "narrator", message: String(err) });
     return stack;
   }
 
-  // 4. Archive — extracts entries, threads, moved confirmation, location description.
   let archived;
   try {
     archived = await archivistTurn(stack, narrative);
@@ -75,15 +123,21 @@ export async function processInput(
     return stack;
   }
 
-  // 5. Resolve final position: only commit the move if archivist confirms.
   const finalPosition = dir && archived.moved ? prospective : stack.position;
-
-  // 6. Capture canonical description on first visit only.
   const finalKey = posKey(finalPosition);
   const places = { ...stack.places };
   if (!places[finalKey] && archived.locationDescription) {
     places[finalKey] = archived.locationDescription;
   }
+
+  const wasAllDone =
+    stack.objectives.length > 0 && stack.objectives.every((o) => o.achieved);
+  const newObjectives = unionAchievedIndices(
+    stack.objectives,
+    archived.achievedObjectiveIndices
+  );
+  const isAllDone =
+    newObjectives.length > 0 && newObjectives.every((o) => o.achieved);
 
   const newStack: WorldStack = {
     entries: archived.entries,
@@ -91,7 +145,7 @@ export async function processInput(
     turn: archived.turn,
     position: finalPosition,
     places,
-    objectives: stack.objectives,
+    objectives: newObjectives,
     presetSlug: stack.presetSlug,
   };
 
@@ -101,7 +155,12 @@ export async function processInput(
     type: "stack-update",
     entries: newStack.entries,
     threads: newStack.threads,
+    objectives: newStack.objectives,
   });
+
+  if (isAllDone && !wasAllDone) {
+    send({ type: "win" });
+  }
 
   return newStack;
 }
@@ -123,6 +182,9 @@ async function handleClientMessage(raw: string, send: Send, broadcast: Send): Pr
       turn: currentStack.turn,
       entries: currentStack.entries,
       threads: currentStack.threads,
+      objectives: currentStack.objectives,
+      presetSlug: currentStack.presetSlug,
+      presets: [],
     });
     return;
   }
@@ -137,6 +199,9 @@ async function handleClientMessage(raw: string, send: Send, broadcast: Send): Pr
         turn: 0,
         entries: [],
         threads: [],
+        objectives: [],
+        presetSlug: null,
+        presets: [],
       });
     } catch (err) {
       send({ type: "error", source: "archivist", message: `Reset failed: ${err}` });
