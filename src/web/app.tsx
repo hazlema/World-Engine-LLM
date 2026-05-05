@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { TTSEngine, type EngineStatus } from "./tts";
 import { createRoot } from "react-dom/client";
 
 type Turn = {
@@ -87,6 +88,31 @@ function App() {
   const [modal, setModal] = useState<ModalView>(null);
   const [presets, setPresets] = useState<PresetSummary[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
+  const [narrationOn, setNarrationOn] = useState<boolean>(() => {
+    try { return localStorage.getItem("narrationOn") === "1"; } catch { return false; }
+  });
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>({ kind: "idle" });
+  const [audioByTurn, setAudioByTurn] = useState<Record<number, string>>({});
+  const ttsRef = useRef<TTSEngine | null>(null);
+  if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
+
+  const renderTurn = useCallback((turnId: number, text: string) => {
+    const tts = ttsRef.current;
+    if (!tts) return;
+    tts.render(turnId, text)
+      .then(({ url }) => setAudioByTurn((prev) => ({ ...prev, [turnId]: url })))
+      .catch(() => { /* surfaced via engineStatus */ });
+  }, []);
+
+  const toggleNarration = useCallback(async () => {
+    const next = !narrationOn;
+    setNarrationOn(next);
+    try { localStorage.setItem("narrationOn", next ? "1" : "0"); } catch {}
+    if (next) {
+      try { await ttsRef.current?.load(); } catch {}
+    }
+  }, [narrationOn]);
+
   const wsRef = useRef<WebSocket | null>(null);
   const nextIdRef = useRef(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -219,6 +245,23 @@ function App() {
     });
   }, [turns]);
 
+  // Auto-render narration audio when narrationOn and a turn has narrative but no audio yet.
+  // Using useEffect (not inline in the WS handler) avoids stale-closure bugs: narrationOn
+  // is always current here because this effect re-runs whenever either turns or narrationOn changes.
+  const [lastNarratedId, setLastNarratedId] = useState<number | null>(null);
+  useEffect(() => {
+    if (!narrationOn) return;
+    // Walk from newest to find the most recent non-system turn with a narrative but no audio
+    for (let i = turns.length - 1; i >= 0; i--) {
+      const t = turns[i];
+      if (t && !isSystemTurn(t) && t.narrative && !(t.id in audioByTurn)) {
+        renderTurn(t.id, t.narrative);
+        setLastNarratedId(t.id);
+        break;
+      }
+    }
+  }, [turns, narrationOn, audioByTurn, renderTurn]);
+
   // Restore focus to the input when it becomes interactive again
   useEffect(() => {
     if (!pending && connected) inputRef.current?.focus();
@@ -347,7 +390,13 @@ function App() {
               {turns.map((t) => (isSystemTurn(t) ? (
                 <SystemBlock key={t.id} turn={t} />
               ) : (
-                <TurnBlock key={t.id} turn={t} />
+                <TurnBlock
+                  key={t.id}
+                  turn={t}
+                  audioUrl={audioByTurn[t.id]}
+                  autoPlay={narrationOn && t.id === lastNarratedId}
+                  onPlay={() => { if (t.narrative) renderTurn(t.id, t.narrative); }}
+                />
               )))}
             </div>
           </main>
@@ -380,6 +429,14 @@ function App() {
                 {a}
               </button>
             ))}
+            <button
+              className={`action-button ${narrationOn ? "critical" : ""}`}
+              onClick={toggleNarration}
+              disabled={!connected}
+              title={engineStatus.kind === "loading" ? `loading model… ${Math.round((engineStatus.progress ?? 0) * 100)}%` : ""}
+            >
+              {engineStatus.kind === "loading" ? `voice ${Math.round((engineStatus.progress ?? 0) * 100)}%` : `voice ${narrationOn ? "on" : "off"}`}
+            </button>
             <button
               className="action-button"
               onClick={() => setModal("objectives")}
@@ -437,11 +494,37 @@ function App() {
   );
 }
 
-function TurnBlock({ turn }: { turn: Turn }) {
+function TurnBlock({ turn, audioUrl, autoPlay, onPlay }: {
+  turn: Turn;
+  audioUrl?: string;
+  autoPlay?: boolean;
+  onPlay: () => void;
+}) {
   const num = String(turn.id).padStart(2, "0");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Auto-play when the audio URL first becomes available and autoPlay is true
+  useEffect(() => {
+    if (audioUrl && autoPlay && audioRef.current) {
+      audioRef.current.play().catch(() => { /* ignore autoplay policy errors */ });
+    }
+  }, [audioUrl, autoPlay]);
+
   return (
     <div className="turn-block">
-      <div className="turn-margin" aria-hidden>{num}</div>
+      <div className="turn-margin" aria-hidden>
+        <span>{num}</span>
+        {turn.narrative && (
+          <button
+            type="button"
+            className={`turn-speaker ${audioUrl ? "ready" : ""}`}
+            onClick={() => { onPlay(); audioRef.current?.play(); }}
+            title={audioUrl ? "Play narration" : "Generate narration"}
+          >
+            ◐
+          </button>
+        )}
+      </div>
       <div className="turn-content">
         <p className="turn-input-echo">{turn.input}</p>
         {turn.narrative && <p className="turn-narrative">{turn.narrative}</p>}
@@ -449,6 +532,7 @@ function TurnBlock({ turn }: { turn: Turn }) {
           <p className="turn-pending">the world is responding…</p>
         )}
         {turn.error && <p className="turn-error">{turn.error}</p>}
+        {audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" />}
       </div>
     </div>
   );
