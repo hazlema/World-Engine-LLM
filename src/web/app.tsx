@@ -224,24 +224,14 @@ function App() {
         kind: "system",
         title: "Commands",
         items: [
-          "stack    show world state",
-          "threads  show active threads",
-          "reset    wipe the world",
-          "help     this list",
-          "(or type any action)",
+          "stack       show world state",
+          "threads     show active threads",
+          "help        this list",
+          "(or type any action — use the new game button to switch stories)",
         ],
       });
       return;
     }
-    if (lower === "reset") {
-      if (confirm("Wipe the world?")) {
-        wsRef.current.send(JSON.stringify({ type: "reset" }));
-        setTurns([]);
-        nextIdRef.current = 1;
-      }
-      return;
-    }
-
     wsRef.current.send(JSON.stringify({ type: "input", text: trimmed }));
   }, [addTurn, pending, stack]);
 
@@ -295,10 +285,10 @@ function App() {
             ))}
             <button
               className="action-button critical"
-              onClick={() => send("reset")}
+              onClick={() => setModal("select")}
               disabled={!connected}
             >
-              reset
+              new game
             </button>
           </div>
         </div>
@@ -307,8 +297,24 @@ function App() {
       {modal !== null && (
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-body">{modal} view (placeholder)</div>
-            <button className="action-button" onClick={() => setModal(null)}>close</button>
+            {modal === "select" && (
+              <SelectView
+                presets={presets}
+                onPick={(slug) => {
+                  wsRef.current?.send(JSON.stringify({ type: "start", presetSlug: slug }));
+                  setTurns([]);
+                  nextIdRef.current = 1;
+                  setModal(slug === null ? null : "briefing");
+                }}
+                onCancel={() => setModal(null)}
+              />
+            )}
+            {modal === "briefing" && (
+              <div className="modal-body">briefing view (next task)</div>
+            )}
+            {modal === "win" && (
+              <div className="modal-body">win view (later task)</div>
+            )}
           </div>
         </div>
       )}
@@ -345,6 +351,42 @@ function SystemBlock({ turn }: { turn: SystemTurn }) {
         </ul>
       </div>
     </div>
+  );
+}
+
+function SelectView(props: {
+  presets: PresetSummary[];
+  onPick: (slug: string | null) => void;
+  onCancel: () => void;
+}) {
+  const { presets, onPick, onCancel } = props;
+  const surprise = () => {
+    if (presets.length === 0) return;
+    const p = presets[Math.floor(Math.random() * presets.length)];
+    if (p) onPick(p.slug);
+  };
+  return (
+    <>
+      <div className="modal-body">
+        <div className="modal-title">PICK A STORY</div>
+        <div className="preset-row" onClick={surprise}>
+          <span className="title">🎲 Surprise me</span>
+          <span className="description">random preset</span>
+        </div>
+        {presets.map((p) => (
+          <div key={p.slug} className="preset-row" onClick={() => onPick(p.slug)}>
+            <span className="title">{p.title}</span>
+            <span className="description">{p.description}</span>
+          </div>
+        ))}
+        <div className="modal-divider" />
+        <div className="preset-row" onClick={() => onPick(null)}>
+          <span className="title">Empty world</span>
+          <span className="description">No preset — make your own way.</span>
+        </div>
+      </div>
+      <button className="action-button" onClick={onCancel}>cancel</button>
+    </>
   );
 }
 
