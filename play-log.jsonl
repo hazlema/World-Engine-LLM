@@ -452,3 +452,64 @@
 {"ts":"2026-05-05T21:27:40.619Z","turn":1,"input":"look around","position":[0,0],"narrative":"The flickering light casts long, distorted shadows across the compartment. The air is thick with the smell of stale smoke and cheap plum wine. The five other passengers remain perfectly still, their faces obscured by shadow or averted gazes. On the seat opposite you, a woman with tightly pulled-back hair shifts slightly, her eyes darting toward the window. Near the door, a faint, rhythmic click echoes from the corridor outside. A narrow service door is visible near the floor, leading into deeper darkness."}
 {"ts":"2026-05-05T21:31:55.170Z","turn":1,"input":"look around","position":[0,0],"narrative":"The flickering yellow light casts long, jumping shadows across the compartment. The other four passengers remain perfectly still, their faces obscured by the gloom or turned toward the window. The scent of stale tobacco and damp wool hangs heavy in the air. On the seat directly across from you, a young woman with dark, tightly braided hair stares blankly ahead, clutching a thick book to her chest. A low, rhythmic groan emanates from the engine, punctuated by the screech of the wheels against the track outside. The silence is brittle and suffocating.\n\nA narrow aisle leads to the next car on the left."}
 {"ts":"2026-05-05T21:34:50.834Z","turn":1,"input":"look around","position":[0,0],"narrative":"The flickering fluorescent lights cast long, stuttering shadows across the cramped car. The silence is heavy, broken only by the rhythmic groan of the train and the hiss of the dying heat in the cabin. You note that the other five passengers remain perfectly still, their gazes fixed on the dark window panes or the floor. The smell of stale sweat and old tobacco hangs in the air. Near your feet, the half-empty bottle of plum wine catches the weak light. A door handle near the aisle is cold and unlatched."}
+{"ts":"2026-05-05T21:59:04.091Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T21:59:04.092Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T21:59:04.092Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T21:59:04.092Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T21:59:04.092Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T21:59:04.092Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T21:59:04.092Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T21:59:04.093Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T21:59:04.093Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T21:59:04.093Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T21:59:04.093Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T21:59:04.093Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:23:58.840Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T22:23:58.841Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T22:23:58.841Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T22:23:58.841Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T22:23:58.841Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T22:23:58.841Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T22:23:58.841Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:23:58.842Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:23:58.842Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:23:58.842Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:23:58.842Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:23:58.842Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:24:41.474Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T22:24:41.474Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T22:24:41.474Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T22:24:41.474Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T22:24:41.474Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T22:24:41.475Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T22:24:41.475Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:24:41.475Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:24:41.475Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:24:41.476Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:24:41.476Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:24:41.476Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:25:55.797Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T22:25:55.797Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T22:25:55.798Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T22:25:55.798Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T22:25:55.798Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T22:25:55.798Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T22:25:55.798Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:25:55.799Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:25:55.799Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:25:55.799Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:25:55.799Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:25:55.799Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:28:26.444Z","turn":1,"input":"look around","position":[0,0],"narrative":"You look around."}
+{"ts":"2026-05-05T22:28:26.444Z","turn":1,"input":"go north","position":[1,0],"narrative":"You walk north into the dunes."}
+{"ts":"2026-05-05T22:28:26.444Z","turn":1,"input":"go north","position":[0,0],"narrative":"A wall of thorns blocks the way."}
+{"ts":"2026-05-05T22:28:26.445Z","turn":6,"input":"north","position":[1,0],"narrative":"You return to the dune."}
+{"ts":"2026-05-05T22:28:26.445Z","turn":6,"input":"north","position":[1,0],"narrative":"You return."}
+{"ts":"2026-05-05T22:28:26.445Z","turn":1,"input":"look","position":[0,0],"narrative":"The world stirs."}
+{"ts":"2026-05-05T22:28:26.445Z","turn":1,"input":"go north","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:28:26.446Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:28:26.446Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:28:26.446Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:28:26.446Z","turn":2,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:28:26.446Z","turn":1,"input":"look","position":[0,0],"narrative":"ok"}
+{"ts":"2026-05-05T22:42:34.594Z","turn":1,"input":"look around","position":[0,0],"narrative":"The flickering light casts long, distorted shadows across the compartment. You notice the five other passengers remain perfectly still, their gazes fixed on the window or the floor. The smell of stale wine and damp wool hangs heavy in the air. Near your feet, the spilled plum wine catches a brief flash of light as the train jolts violently, causing the metal frame to groan. The silence is oppressive, broken only by the rhythmic clatter of the wheels against the tracks and the erratic flicker of the overhead lamps. A faint scratching sound comes from the compartment"}

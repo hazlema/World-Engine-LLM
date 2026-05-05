@@ -1,9 +1,8 @@
 {
   "entries": [
-    "leather satchel on window seat",
-    "half-empty plum wine bottle on floor",
-    "conductor's cap on empty seat",
-    "door handle cold and unlatched near aisle"
+    "metal frame groaning under train jolt",
+    "plum wine spills across floor",
+    "conductor's cap on empty seat"
   ],
   "threads": [],
   "turn": 1,
@@ -12,7 +11,7 @@
     0
   ],
   "places": {
-    "0,0": "cramped train car with flickering fluorescent lights, crumbling wooden seats, and a single half-empty plum wine bottle near the floor."
+    "0,0": "dark compartment with flickering overhead lamps and broken metal frame, wooden seats facing window"
   },
   "objectives": [
     {
