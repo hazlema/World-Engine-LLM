@@ -12,6 +12,9 @@ import {
   type Objective,
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
+import { ensurePiperReady, synthesize } from "./piper";
+
+const PIPER_BIN_DIR = new URL("../bin", import.meta.url).pathname;
 
 let presets: Map<string, Preset> = new Map();
 
@@ -272,16 +275,36 @@ async function main() {
 
   const indexHtml = await import("./web/index.html");
 
+  await ensurePiperReady(PIPER_BIN_DIR);
+
   const server = Bun.serve({
     port: 3000,
     routes: {
       "/": indexHtml.default,
     },
-    fetch(req, server) {
+    async fetch(req, server) {
       const url = new URL(req.url);
       if (url.pathname === "/ws") {
         if (server.upgrade(req)) return;
         return new Response("Upgrade required", { status: 426 });
+      }
+      if (url.pathname === "/api/speak" && req.method === "POST") {
+        try {
+          const body = await req.json() as { text?: unknown };
+          const text = typeof body.text === "string" ? body.text.trim() : "";
+          if (!text) return new Response("text required", { status: 400 });
+          if (text.length > 4000) return new Response("text too long", { status: 413 });
+          const wav = await synthesize(PIPER_BIN_DIR, text);
+          return new Response(wav, {
+            headers: {
+              "Content-Type": "audio/wav",
+              "Cache-Control": "no-store",
+            },
+          });
+        } catch (err) {
+          console.error("[/api/speak]", err);
+          return new Response("speak failed", { status: 500 });
+        }
       }
       return new Response("Not found", { status: 404 });
     },
