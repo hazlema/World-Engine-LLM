@@ -113,29 +113,47 @@ export async function saveStack(stack: WorldStack): Promise<void> {
   }
 }
 
-export function formatStackForNarrator(stack: WorldStack): string {
+export function formatStackForNarrator(stack: WorldStack, briefing?: string): string {
   const parts: string[] = [];
+  if (briefing && briefing.trim().length > 0) {
+    parts.push(`MISSION BRIEFING (durable premise):\n${briefing.trim()}`);
+  }
+  if (stack.objectives.length > 0) {
+    const lines = stack.objectives.map(
+      (o) => `[${o.achieved ? "x" : " "}] ${o.text}`
+    );
+    parts.push(`OBJECTIVES:\n${lines.join("\n")}`);
+  }
   const here = stack.places[posKey(stack.position)];
   if (here) {
     parts.push(`CURRENT LOCATION (canonical description):\n${here}`);
   }
   if (stack.entries.length > 0) {
-    parts.push(`ESTABLISHED WORLD:\n${stack.entries.map(e => `- ${e}`).join("\n")}`);
+    parts.push(`ESTABLISHED WORLD:\n${stack.entries.map((e) => `- ${e}`).join("\n")}`);
   }
   if (stack.threads.length > 0) {
-    parts.push(`ACTIVE THREADS:\n${stack.threads.map(t => `- ${t}`).join("\n")}`);
+    parts.push(`ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`);
   }
   return parts.length === 0 ? "" : `${parts.join("\n\n")}\n\n`;
 }
 
 export function formatStackForArchivist(stack: WorldStack): string {
-  const facts = stack.entries.length === 0
-    ? "CURRENT STACK: (empty)"
-    : `CURRENT STACK:\n${stack.entries.map(e => `- ${e}`).join("\n")}`;
-  const threads = stack.threads.length === 0
-    ? "ACTIVE THREADS: (none)"
-    : `ACTIVE THREADS:\n${stack.threads.map(t => `- ${t}`).join("\n")}`;
-  return `${facts}\n\n${threads}\n\n`;
+  const facts =
+    stack.entries.length === 0
+      ? "CURRENT STACK: (empty)"
+      : `CURRENT STACK:\n${stack.entries.map((e) => `- ${e}`).join("\n")}`;
+  const threads =
+    stack.threads.length === 0
+      ? "ACTIVE THREADS: (none)"
+      : `ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`;
+  const parts = [facts, threads];
+  if (stack.objectives.length > 0) {
+    const lines = stack.objectives.map(
+      (o, i) => `${i}: [${o.achieved ? "x" : " "}] ${o.text}`
+    );
+    parts.push(`OBJECTIVES:\n${lines.join("\n")}`);
+  }
+  return `${parts.join("\n\n")}\n\n`;
 }
 
 export function applyPresetToStack(preset: Preset): WorldStack {

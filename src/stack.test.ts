@@ -177,3 +177,96 @@ test("loadStack: defaults objectives to [] and presetSlug to null when absent", 
   expect(s.objectives.length).toBe(0);
   expect(s.presetSlug).toBeNull();
 });
+
+test("formatStackForNarrator: includes MISSION BRIEFING when briefing is provided", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: "lunar-rescue",
+  };
+  const out = formatStackForNarrator(stack, "You are an astronaut.");
+  expect(out).toContain("MISSION BRIEFING (durable premise):");
+  expect(out).toContain("You are an astronaut.");
+});
+
+test("formatStackForNarrator: omits MISSION BRIEFING when briefing is undefined", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).not.toContain("MISSION BRIEFING");
+});
+
+test("formatStackForNarrator: renders OBJECTIVES checkboxes when objectives present", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "Find the transmitter", achieved: true },
+      { text: "Send the signal", achieved: false },
+    ],
+    presetSlug: "lunar-rescue",
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("OBJECTIVES:");
+  expect(out).toContain("[x] Find the transmitter");
+  expect(out).toContain("[ ] Send the signal");
+});
+
+test("formatStackForNarrator: omits OBJECTIVES when none", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+  };
+  expect(formatStackForNarrator(stack)).not.toContain("OBJECTIVES:");
+});
+
+test("formatStackForArchivist: includes OBJECTIVES with indices when present", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "Find the transmitter", achieved: false },
+      { text: "Send the signal", achieved: false },
+    ],
+    presetSlug: "lunar-rescue",
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("OBJECTIVES:");
+  expect(out).toContain("0: [ ] Find the transmitter");
+  expect(out).toContain("1: [ ] Send the signal");
+});
+
+test("formatStackForArchivist: omits OBJECTIVES section when empty", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+  };
+  expect(formatStackForArchivist(stack)).not.toContain("OBJECTIVES:");
+});
