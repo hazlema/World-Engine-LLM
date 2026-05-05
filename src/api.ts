@@ -2,7 +2,7 @@ const ENDPOINT = "http://localhost:1234/v1/chat/completions";
 const NARRATOR_MODEL = "google/gemma-4-e2b";
 const ARCHIVIST_MODEL = "nvidia/nemotron-3-nano-4b";
 const TIMEOUT_MS = 15_000;
-const MAX_TOKENS = 500;
+const MAX_TOKENS = 1500;
 
 interface CompletionsResponse {
   choices: Array<{
