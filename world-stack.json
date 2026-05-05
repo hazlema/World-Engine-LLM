@@ -1,37 +1,32 @@
 {
   "entries": [
-    "shard of fractured aluminum beside severed wiring",
-    "oxygen cache strapped to lander hull",
-    "damaged transmitter half-buried in regolith",
-    "abandoned rover wreck on eastern crater rim",
-    "no rain in three moons"
+    "leather satchel on window seat",
+    "half-empty plum wine bottle on floor",
+    "conductor's cap on empty seat",
+    "door handle cold and unlatched near aisle"
   ],
-  "threads": [
-    "why does scraping continue outside?",
-    "restore comm array before signal loss",
-    "find out what caused the silence"
-  ],
-  "turn": 4,
+  "threads": [],
+  "turn": 1,
   "position": [
     0,
     0
   ],
   "places": {
-    "0,0": "Player is inside a buckled lunar cabin illuminated by red emergency LEDs, with exposed wiring harnesses and a path toward the rear hatch."
+    "0,0": "cramped train car with flickering fluorescent lights, crumbling wooden seats, and a single half-empty plum wine bottle near the floor."
   },
   "objectives": [
     {
-      "text": "Find the transmitter",
+      "text": "Find out where the conductor went",
       "achieved": false
     },
     {
-      "text": "Restore power to the comm array",
+      "text": "Identify the owner of the leather satchel",
       "achieved": false
     },
     {
-      "text": "Send the distress signal",
+      "text": "Convince another passenger to help you stop the train",
       "achieved": false
     }
   ],
-  "presetSlug": "lunar-rescue"
+  "presetSlug": "the-last-train"
 }
