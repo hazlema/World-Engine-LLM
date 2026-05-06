@@ -1,9 +1,16 @@
+import type { Position } from "./stack";
+
+export interface PresetObjective {
+  text: string;
+  position?: Position;
+}
+
 export interface Preset {
   slug: string;
   title: string;
   description: string;
   objects: string[];
-  objectives: string[];
+  objectives: PresetObjective[];
   body: string;
 }
 
@@ -36,14 +43,23 @@ export function parsePresetText(text: string, slug: string): Preset {
   }
   if (!body) throw new Error(`Preset ${slug}: body is empty`);
 
+  const objectives: PresetObjective[] = fields.lists.objectives!.map(parseObjectiveLine);
+
   return {
     slug,
     title: fields.strings.title!,
     description: fields.strings.description!,
     objects: fields.lists.objects!,
-    objectives: fields.lists.objectives!,
+    objectives,
     body,
   };
+}
+
+function parseObjectiveLine(raw: string): PresetObjective {
+  const m = raw.match(/^(.*?)\s*@\s*(-?\d+)\s*,\s*(-?\d+)\s*$/);
+  if (!m) return { text: raw };
+  const [, text, x, y] = m;
+  return { text: text.trim(), position: [Number(x), Number(y)] };
 }
 
 function parseFrontmatter(

@@ -112,7 +112,10 @@ const samplePreset: Preset = {
   title: "Lunar Rescue",
   description: "test",
   objects: ["damaged transmitter", "oxygen cache"],
-  objectives: ["Find the transmitter", "Send the signal"],
+  objectives: [
+    { text: "Find the transmitter" },
+    { text: "Send the signal" },
+  ],
   body: "You are an astronaut.",
 };
 
@@ -127,6 +130,25 @@ test("applyPresetToStack: seeds entries from objects, objectives from objectives
   expect(s.objectives).toEqual([
     { text: "Find the transmitter", achieved: false },
     { text: "Send the signal", achieved: false },
+  ]);
+});
+
+test("applyPresetToStack: forwards objective position from preset", () => {
+  const preset: Preset = {
+    slug: "demo",
+    title: "Demo",
+    description: "test",
+    objects: [],
+    objectives: [
+      { text: "Open chest", position: [1, 0] },
+      { text: "Wander" },
+    ],
+    body: "body",
+  };
+  const s = applyPresetToStack(preset);
+  expect(s.objectives).toEqual([
+    { text: "Open chest", achieved: false, position: [1, 0] },
+    { text: "Wander", achieved: false },
   ]);
 });
 

@@ -223,7 +223,10 @@ const lunarPreset: Preset = {
   title: "Lunar Rescue",
   description: "test",
   objects: ["damaged transmitter", "oxygen cache"],
-  objectives: ["Find the transmitter", "Send the signal"],
+  objectives: [
+    { text: "Find the transmitter" },
+    { text: "Send the signal" },
+  ],
   body: "You are an astronaut.",
 };
 

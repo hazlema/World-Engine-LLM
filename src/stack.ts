@@ -187,7 +187,11 @@ export function applyPresetToStack(preset: Preset): WorldStack {
     turn: 0,
     position: [0, 0],
     places: {},
-    objectives: preset.objectives.map((text) => ({ text, achieved: false })),
+    objectives: preset.objectives.map((o) => {
+      const obj: Objective = { text: o.text, achieved: false };
+      if (o.position) obj.position = [o.position[0], o.position[1]];
+      return obj;
+    }),
     presetSlug: preset.slug,
   };
 }
