@@ -4,6 +4,8 @@ A text adventure where the world is generated turn by turn by an LLM.
 
 You type what you do; a **narrator** model writes what happens next; an **archivist** model distills the result into stable facts that anchor future turns. The world remembers what it established and pushes back against impossible actions. Runs entirely against a local OpenAI-compatible endpoint — no API keys, no usage charges.
 
+> **Status:** still being shaped. The engine grows sharper between sessions; expect occasional rough edges and behavior that changes as it learns.
+
 ## Quickstart
 
 You'll need [Bun](https://bun.com) and an OpenAI-compatible local model server. The defaults assume [LM Studio](https://lmstudio.ai/) on port 1234.
@@ -13,11 +15,9 @@ You'll need [Bun](https://bun.com) and an OpenAI-compatible local model server. 
    bun install
    ```
 
-2. **Start your local model server.** In LM Studio, load these two models and start the server on the default port (`http://localhost:1234`):
-   - Narrator: `google/gemma-4-e2b`
-   - Archivist: `nvidia/nemotron-3-nano-4b`
+2. **Start your local model server.** In LM Studio, load a capable instruction-tuned model and start the server on the default port (`http://localhost:1234`). The defaults in `src/api.ts` point both narrator and archivist at `google/gemma-3-12b` — a 12B-class model that handles the locality and objective rules well on modest hardware.
 
-   Other OpenAI-compatible servers (Ollama with the OpenAI shim, llama.cpp's `llama-server`, vLLM, etc.) work the same way. The endpoint and model names are constants at the top of `src/api.ts` — edit those two lines to point at whatever you're running.
+   Smaller 4B-class models often work too but tend to drift on nuanced rules. Larger models (Gemma 3 27B, Llama 3.1 70B, etc.) handle the rules with even more nuance if you have the VRAM. Other OpenAI-compatible servers (Ollama with the OpenAI shim, llama.cpp's `llama-server`, vLLM, etc.) work the same way. The endpoint and model names are constants at the top of `src/api.ts` — edit those lines to point at whatever you're running.
 
 3. **Run the web app**
    ```bash
@@ -43,23 +43,33 @@ Each turn runs three model passes:
 
 The world state lives in `world-stack.json` — an append-mostly list of established facts (`damaged transmitter half-buried in regolith`), an active-threads list, an objectives list, and a position. Every turn appends to a single `play-log.jsonl` for postmortem.
 
+## Recent changes
+
+- **Smarter objective handling.** The world now recognises when you've actually accomplished something even if the narrator phrases it differently. "The lid yields" counts as opening a chest; "you reach for the lock but it holds firm" doesn't.
+- **Spatial objectives.** Goals can be tied to a specific tile on the map. To complete one, you actually have to be there — no more solving the whole story from your starting room.
+- **Locality enforcement.** The world refuses to let you reach across the map. If the journal is in a deeper alcove and you're in the cellar, you'll need to walk over before you can read it. You can still see, hear, or call toward distant features.
+- **Sector distribution.** The bundled stories Cellar of Glass and Lunar Rescue now scatter their goals across multiple tiles. Exploration matters again. The Last Train remains a single-room scene by design.
+
 ## Stories (presets)
 
 Presets in `presets/*.md` define a starting situation: a few seed facts, optional objectives, and a briefing the player reads on turn zero. Format:
 
 ```markdown
 ---
-title: The Last Train
-description: One car, six strangers, ninety minutes.
+title: Cellar of Glass
+description: A locksmith's tomb beneath the cathedral.
 objects:
-  - leather satchel left on a window seat
-  - half-empty bottle of plum wine on the floor
+  - brass key tarnished green at the bow
+  - iron-bound chest with a broken lock plate
 objectives:
-  - Find out where the conductor went
-  - Identify the owner of the leather satchel
+  - Find the locksmith's journal @ -1,0
+  - Open the iron-bound chest @ 0,0
+  - Escape the cellar before the candles burn out @ 0,1
 ---
-You are a passenger on the last train out of a city you no longer trust...
+You are a thief who descended into the cellar of an abandoned cathedral...
 ```
+
+Append `@ x,y` to an objective to anchor it to a tile — players have to actually be there to complete it. Objectives without a coordinate stay achievable anywhere.
 
 Drop a new `.md` in `presets/` and it'll appear on the title screen on the next page load.
 
