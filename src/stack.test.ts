@@ -365,3 +365,21 @@ test("unionAchievedIndices: preserves position when flipping achieved", () => {
     { text: "b", achieved: false },
   ]);
 });
+
+test("parseStackData: rejects NaN and Infinity in position", () => {
+  const parsed = parseStackData({
+    entries: [],
+    threads: [],
+    turn: 0,
+    objectives: [
+      { text: "a", achieved: false, position: [NaN, 0] },
+      { text: "b", achieved: false, position: [0, Infinity] },
+      { text: "c", achieved: false, position: [-Infinity, NaN] },
+    ],
+  });
+  expect(parsed?.objectives).toEqual([
+    { text: "a", achieved: false },
+    { text: "b", achieved: false },
+    { text: "c", achieved: false },
+  ]);
+});

@@ -90,7 +90,9 @@ export function parseStackData(data: any): WorldStack | null {
             Array.isArray(o.position) &&
             o.position.length === 2 &&
             typeof o.position[0] === "number" &&
-            typeof o.position[1] === "number"
+            typeof o.position[1] === "number" &&
+            Number.isFinite(o.position[0]) &&
+            Number.isFinite(o.position[1])
           ) {
             base.position = [o.position[0], o.position[1]];
           }
