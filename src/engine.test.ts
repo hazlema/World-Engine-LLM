@@ -247,7 +247,7 @@ test("narratorTurn: includes MISSION BRIEFING and OBJECTIVES when provided", asy
   await narratorTurn(stackWithObjectives, "look", "You are an astronaut.");
   expect(captured).toContain("MISSION BRIEFING (durable premise):");
   expect(captured).toContain("You are an astronaut.");
-  expect(captured).toContain("OBJECTIVES:");
+  expect(captured).toContain("OBJECTIVES (active this turn):");
   expect(captured).toContain("[ ] Find the transmitter");
 });
 

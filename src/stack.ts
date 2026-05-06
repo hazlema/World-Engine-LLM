@@ -170,10 +170,18 @@ export function formatStackForNarrator(stack: WorldStack, briefing?: string): st
     parts.push(`MISSION BRIEFING (durable premise):\n${briefing.trim()}`);
   }
   if (stack.objectives.length > 0) {
-    const lines = stack.objectives.map(
-      (o) => `[${o.achieved ? "x" : " "}] ${o.text}`
-    );
-    parts.push(`OBJECTIVES:\n${lines.join("\n")}`);
+    const { active, distant } = partitionObjectivesByReach(stack.objectives, stack.position);
+    if (active.length > 0) {
+      const lines = active.map(({ obj }) => `[${obj.achieved ? "x" : " "}] ${obj.text}`);
+      parts.push(`OBJECTIVES (active this turn):\n${lines.join("\n")}`);
+    }
+    if (distant.length > 0) {
+      const lines = distant.map(({ obj, distance }) => {
+        const word = distance === 1 ? "move" : "moves";
+        return `[${obj.achieved ? "x" : " "}] ${obj.text} (${distance} ${word} away)`;
+      });
+      parts.push(`DISTANT OBJECTIVES (require travel):\n${lines.join("\n")}`);
+    }
   }
   const here = stack.places[posKey(stack.position)];
   if (here) {

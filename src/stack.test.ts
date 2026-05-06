@@ -269,7 +269,7 @@ test("formatStackForNarrator: renders OBJECTIVES checkboxes when objectives pres
     presetSlug: "lunar-rescue",
   };
   const out = formatStackForNarrator(stack);
-  expect(out).toContain("OBJECTIVES:");
+  expect(out).toContain("OBJECTIVES (active this turn):");
   expect(out).toContain("[x] Find the transmitter");
   expect(out).toContain("[ ] Send the signal");
 });
@@ -450,4 +450,74 @@ test("partitionObjectivesByReach: preserves original index for archivist mapping
   const out = partitionObjectivesByReach(obs, [0, 0]);
   expect(out.active.map((e) => e.index)).toEqual([1, 2]);
   expect(out.distant.map((e) => e.index)).toEqual([0]);
+});
+
+test("formatStackForNarrator: positionless objectives still render under OBJECTIVES (active this turn)", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [{ text: "Find the journal", achieved: false }],
+    presetSlug: null,
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("OBJECTIVES (active this turn):");
+  expect(out).toContain("[ ] Find the journal");
+  expect(out).not.toContain("DISTANT OBJECTIVES");
+});
+
+test("formatStackForNarrator: positioned objective at current tile is active", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [2, 1],
+    places: {},
+    objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
+    presetSlug: null,
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("OBJECTIVES (active this turn):");
+  expect(out).toContain("[ ] Open the chest");
+  expect(out).not.toContain("DISTANT OBJECTIVES");
+});
+
+test("formatStackForNarrator: positioned objective elsewhere is distant with travel hint", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
+    presetSlug: null,
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("DISTANT OBJECTIVES (require travel):");
+  expect(out).toContain("[ ] Open the chest (3 moves away)");
+  expect(out).not.toContain("OBJECTIVES (active this turn):");
+});
+
+test("formatStackForNarrator: mixed active and distant render in their own sections", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "Find the journal", achieved: false },
+      { text: "Open the chest", achieved: false, position: [1, 0] },
+      { text: "Escape", achieved: false, position: [0, 0] },
+    ],
+    presetSlug: null,
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("OBJECTIVES (active this turn):");
+  expect(out).toContain("[ ] Find the journal");
+  expect(out).toContain("[ ] Escape");
+  expect(out).toContain("DISTANT OBJECTIVES (require travel):");
+  expect(out).toContain("[ ] Open the chest (1 move away)");
 });
