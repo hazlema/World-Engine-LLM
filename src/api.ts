@@ -77,6 +77,7 @@ export async function callModelStructured<T>(
           type: "json_schema",
           json_schema: { name: schemaName, schema },
         },
+        max_tokens: 800,
       }),
       signal: controller.signal,
     });
