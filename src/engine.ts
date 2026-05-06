@@ -85,13 +85,18 @@ const ARCHIVIST_SCHEMA = {
   additionalProperties: false,
 };
 
+export function stripNarratorMarkup(text: string): string {
+  return text.replace(/\*/g, "");
+}
+
 export async function narratorTurn(
   stack: WorldStack,
   playerInput: string,
   briefing?: string
 ): Promise<string> {
   const input = `${formatStackForNarrator(stack, briefing)}PLAYER ACTION: ${playerInput}`;
-  return await api.callModel(NARRATOR_SYSTEM, input);
+  const raw = await api.callModel(NARRATOR_SYSTEM, input);
+  return stripNarratorMarkup(raw);
 }
 
 export interface ArchivistResult {

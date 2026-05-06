@@ -36,6 +36,13 @@ test("narratorTurn: returns narrative from callModel", async () => {
   expect(result).toBe("Dust drifts across cracked earth.");
 });
 
+test("narratorTurn: strips asterisk emphasis from narrator output", async () => {
+  callModelSpy.mockImplementationOnce(async () => "A faint *ping* echoes; the lock holds **firm**.");
+  const result = await narratorTurn(emptyStack, "use key");
+  expect(result).toBe("A faint ping echoes; the lock holds firm.");
+  expect(result).not.toContain("*");
+});
+
 test("narratorTurn: propagates callModel rejection", async () => {
   callModelSpy.mockImplementationOnce(async () => {
     throw new Error("API timeout");
