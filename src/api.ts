@@ -1,4 +1,6 @@
 const ENDPOINT = "http://localhost:1234/v1/chat/completions";
+// google/gemma-3-12b
+// Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF
 const NARRATOR_MODEL = "google/gemma-3-12b";
 const ARCHIVIST_MODEL = "google/gemma-3-12b";
 const TIMEOUT_MS = 30_000;
