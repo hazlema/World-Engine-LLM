@@ -62,8 +62,10 @@ Rules for "locationDescription":
 
 Rules for "achievedObjectiveIndices":
 - The OBJECTIVES list (if present) is shown with its indices: "0: [ ] Find the transmitter".
-- Return an index ONLY if THIS narrative passage explicitly depicts that objective being completed.
-- "Approached the transmitter" or "saw the transmitter" is NOT completion. "Repaired the transmitter" or "the transmitter chimes back to life" is.
+- Some objectives may carry the suffix "[DISTANT — cannot be completed this turn]". NEVER return their index, regardless of what the narrative says — the player is not at that tile.
+- For non-distant objectives, judge completion SEMANTICALLY, not by literal phrasing. Match intent and outcome, not exact words.
+- Examples that DO complete "open the iron-bound chest": "the heavy lid shifts and creaks open", "the latch yields, the lid swings up", "you pry the chest apart". Examples that DO NOT complete it: "you reach for the chest, but the lock holds firm", "you imagine the lid lifting", "the chest looms, untouched".
+- A passage that depicts attempt-without-success, observation, or approach is NOT completion. Only a depicted, successful, accomplished action counts.
 - When in doubt, return [].
 - Do not invent indices outside the provided list. Return [] if no OBJECTIVES section is present.
 
