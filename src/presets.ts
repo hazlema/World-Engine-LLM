@@ -57,9 +57,8 @@ export function parsePresetText(text: string, slug: string): Preset {
 
 function parseObjectiveLine(raw: string): PresetObjective {
   const m = raw.match(/^(.*?)\s*@\s*(-?\d+)\s*,\s*(-?\d+)\s*$/);
-  if (!m) return { text: raw };
-  const [, text, x, y] = m;
-  return { text: text.trim(), position: [Number(x), Number(y)] };
+  if (!m || m[1].length === 0) return { text: raw };
+  return { text: m[1], position: [Number(m[2]), Number(m[3])] };
 }
 
 function parseFrontmatter(

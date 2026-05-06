@@ -128,3 +128,17 @@ body`;
     { text: "Find the key", position: [4, -2] },
   ]);
 });
+
+test("parsePresetText: bare '@ x,y' with no descriptive text is left as raw text", () => {
+  const text = `---
+title: T
+description: D
+objects:
+  - a
+objectives:
+  - @ 1,2
+---
+body`;
+  const p = parsePresetText(text, "x");
+  expect(p.objectives).toEqual([{ text: "@ 1,2" }]);
+});
