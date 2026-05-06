@@ -521,3 +521,51 @@ test("formatStackForNarrator: mixed active and distant render in their own secti
   expect(out).toContain("DISTANT OBJECTIVES (require travel):");
   expect(out).toContain("[ ] Open the chest (1 move away)");
 });
+
+test("formatStackForArchivist: positionless objective shows no flag", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [{ text: "Find the journal", achieved: false }],
+    presetSlug: null,
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("0: [ ] Find the journal");
+  expect(out).not.toContain("[DISTANT");
+});
+
+test("formatStackForArchivist: positioned-at-current-tile objective shows no flag", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [2, 1],
+    places: {},
+    objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
+    presetSlug: null,
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("0: [ ] Open the chest");
+  expect(out).not.toContain("[DISTANT");
+});
+
+test("formatStackForArchivist: positioned-elsewhere objective is flagged [DISTANT — cannot be completed this turn]", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "Open the chest", achieved: false, position: [2, 1] },
+      { text: "Find the journal", achieved: false },
+    ],
+    presetSlug: null,
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("0: [ ] Open the chest [DISTANT — cannot be completed this turn]");
+  expect(out).toContain("1: [ ] Find the journal");
+});

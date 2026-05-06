@@ -207,9 +207,14 @@ export function formatStackForArchivist(stack: WorldStack): string {
       : `ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`;
   const parts = [facts, threads];
   if (stack.objectives.length > 0) {
-    const lines = stack.objectives.map(
-      (o, i) => `${i}: [${o.achieved ? "x" : " "}] ${o.text}`
-    );
+    const lines = stack.objectives.map((o, i) => {
+      const status = o.achieved ? "x" : " ";
+      const distantFlag =
+        o.position && manhattan(stack.position, o.position) > 0
+          ? " [DISTANT — cannot be completed this turn]"
+          : "";
+      return `${i}: [${status}] ${o.text}${distantFlag}`;
+    });
     parts.push(`OBJECTIVES:\n${lines.join("\n")}`);
   }
   return `${parts.join("\n\n")}\n\n`;
