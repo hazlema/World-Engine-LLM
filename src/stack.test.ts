@@ -296,3 +296,21 @@ test("formatStackForArchivist: omits OBJECTIVES section when empty", () => {
   };
   expect(formatStackForArchivist(stack)).not.toContain("OBJECTIVES:");
 });
+
+import { manhattan } from "./stack";
+
+test("manhattan: zero when positions match", () => {
+  expect(manhattan([0, 0], [0, 0])).toBe(0);
+  expect(manhattan([3, -2], [3, -2])).toBe(0);
+});
+
+test("manhattan: sum of cardinal step counts", () => {
+  expect(manhattan([0, 0], [0, 1])).toBe(1);
+  expect(manhattan([0, 0], [1, 0])).toBe(1);
+  expect(manhattan([0, 0], [2, 3])).toBe(5);
+  expect(manhattan([-1, -1], [1, 1])).toBe(4);
+});
+
+test("manhattan: symmetric", () => {
+  expect(manhattan([5, 2], [-3, 4])).toBe(manhattan([-3, 4], [5, 2]));
+});

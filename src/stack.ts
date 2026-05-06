@@ -33,6 +33,10 @@ export function posKey(p: Position): string {
   return `${p[0]},${p[1]}`;
 }
 
+export function manhattan(a: Position, b: Position): number {
+  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+}
+
 export function applyDirection(p: Position, dir: Direction): Position {
   const d = DELTAS[dir];
   return [p[0] + d[0], p[1] + d[1]];
