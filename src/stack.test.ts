@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, partitionObjectivesByReach, type WorldStack } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, type WorldStack } from "./stack";
 import type { Preset } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
@@ -318,8 +318,6 @@ test("formatStackForArchivist: omits OBJECTIVES section when empty", () => {
   };
   expect(formatStackForArchivist(stack)).not.toContain("OBJECTIVES:");
 });
-
-import { manhattan } from "./stack";
 
 test("manhattan: zero when positions match", () => {
   expect(manhattan([0, 0], [0, 0])).toBe(0);
