@@ -34,6 +34,39 @@ export async function isPiperReady(binDir: string): Promise<boolean> {
   return checks.every(Boolean);
 }
 
+export async function streamDownload(url: string, dest: string, label: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${label} failed: ${res.status} ${res.statusText}`);
+  if (!res.body) throw new Error(`${label} failed: response has no body`);
+  const total = Number(res.headers.get("content-length") ?? 0);
+  const reader = res.body.getReader();
+  const sink = Bun.file(dest).writer();
+  let received = 0;
+  let lastPct = -1;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      sink.write(value);
+      received += value.byteLength;
+      if (total > 0) {
+        const pct = Math.floor((received / total) * 20) * 5; // 5% steps
+        if (pct !== lastPct) {
+          const mb = (received / 1e6).toFixed(1);
+          const totalMb = (total / 1e6).toFixed(1);
+          console.log(`[${label}] ${pct}% (${mb} / ${totalMb} MB)`);
+          lastPct = pct;
+        }
+      }
+    }
+  } finally {
+    await sink.end();
+  }
+  if (total > 0 && received !== total) {
+    throw new Error(`${label} truncated: received ${received} of ${total} bytes`);
+  }
+}
+
 export async function ensurePiperReady(binDir: string): Promise<void> {
   if (await isPiperReady(binDir)) return;
 
@@ -47,9 +80,7 @@ export async function ensurePiperReady(binDir: string): Promise<void> {
   const tarPath = `${binDir}/piper.tar.gz`;
   if (!(await Bun.file(p.binary).exists())) {
     console.log(`[piper] fetching ${PIPER_BINARY_URL}`);
-    const res = await fetch(PIPER_BINARY_URL);
-    if (!res.ok) throw new Error(`piper download failed: ${res.status} ${res.statusText}`);
-    await Bun.write(tarPath, res);
+    await streamDownload(PIPER_BINARY_URL, tarPath, "piper");
     await $`tar -xzf ${tarPath} -C ${binDir}`.quiet();
     await chmod(p.binary, 0o755);
     await Bun.file(tarPath).delete();
@@ -57,15 +88,13 @@ export async function ensurePiperReady(binDir: string): Promise<void> {
   }
 
   // 2. Download voice model + config
-  for (const [url, dest] of [
-    [VOICE_MODEL_URL, p.voiceModel],
-    [VOICE_CONFIG_URL, p.voiceConfig],
+  for (const [url, dest, label] of [
+    [VOICE_MODEL_URL, p.voiceModel, "voice-model"],
+    [VOICE_CONFIG_URL, p.voiceConfig, "voice-config"],
   ] as const) {
     if (await Bun.file(dest).exists()) continue;
     console.log(`[piper] fetching ${url}`);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`voice download failed (${url}): ${res.status}`);
-    await Bun.write(dest, res);
+    await streamDownload(url, dest, label);
   }
 
   console.log(`[piper] voice ready at ${p.voiceModel}`);
