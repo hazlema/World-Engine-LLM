@@ -20,7 +20,8 @@ type SystemTurn = {
 
 type AnyTurn = Turn | SystemTurn;
 
-type Objective = { text: string; achieved: boolean };
+type Position = [number, number];
+type Objective = { text: string; achieved: boolean; position?: Position };
 
 type PresetSummary = {
   slug: string;
