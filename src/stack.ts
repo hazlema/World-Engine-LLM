@@ -10,6 +10,7 @@ export type Direction = "north" | "south" | "east" | "west";
 export interface Objective {
   text: string;
   achieved: boolean;
+  position?: Position;
 }
 
 export interface WorldStack {
@@ -83,7 +84,18 @@ export function parseStackData(data: any): WorldStack | null {
             typeof o.text === "string" &&
             typeof o.achieved === "boolean"
         )
-        .map((o: any) => ({ text: o.text, achieved: o.achieved }))
+        .map((o: any) => {
+          const base: Objective = { text: o.text, achieved: o.achieved };
+          if (
+            Array.isArray(o.position) &&
+            o.position.length === 2 &&
+            typeof o.position[0] === "number" &&
+            typeof o.position[1] === "number"
+          ) {
+            base.position = [o.position[0], o.position[1]];
+          }
+          return base;
+        })
     : [];
   const presetSlug: string | null =
     typeof data.presetSlug === "string" ? data.presetSlug : null;

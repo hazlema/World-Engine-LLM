@@ -314,3 +314,54 @@ test("manhattan: sum of cardinal step counts", () => {
 test("manhattan: symmetric", () => {
   expect(manhattan([5, 2], [-3, 4])).toBe(manhattan([-3, 4], [5, 2]));
 });
+
+test("Objective accepts an optional position", () => {
+  const o: import("./stack").Objective = { text: "Open the chest", achieved: false, position: [2, 1] };
+  expect(o.position).toEqual([2, 1]);
+});
+
+test("parseStackData: preserves objective position when valid", () => {
+  const parsed = parseStackData({
+    entries: [],
+    threads: [],
+    turn: 0,
+    objectives: [
+      { text: "a", achieved: false, position: [3, -2] },
+      { text: "b", achieved: false },
+    ],
+  });
+  expect(parsed?.objectives).toEqual([
+    { text: "a", achieved: false, position: [3, -2] },
+    { text: "b", achieved: false },
+  ]);
+});
+
+test("parseStackData: drops malformed position (wrong shape) but keeps objective", () => {
+  const parsed = parseStackData({
+    entries: [],
+    threads: [],
+    turn: 0,
+    objectives: [
+      { text: "a", achieved: false, position: [1, "x"] },
+      { text: "b", achieved: false, position: "nope" },
+      { text: "c", achieved: false, position: [1, 2, 3] },
+    ],
+  });
+  expect(parsed?.objectives).toEqual([
+    { text: "a", achieved: false },
+    { text: "b", achieved: false },
+    { text: "c", achieved: false },
+  ]);
+});
+
+test("unionAchievedIndices: preserves position when flipping achieved", () => {
+  const before = [
+    { text: "a", achieved: false, position: [1, 1] as [number, number] },
+    { text: "b", achieved: false },
+  ];
+  const after = unionAchievedIndices(before, [0]);
+  expect(after).toEqual([
+    { text: "a", achieved: true, position: [1, 1] },
+    { text: "b", achieved: false },
+  ]);
+});
