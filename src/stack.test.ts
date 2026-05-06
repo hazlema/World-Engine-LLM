@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, type WorldStack } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, partitionObjectivesByReach, type WorldStack } from "./stack";
 import type { Preset } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
@@ -404,4 +404,50 @@ test("parseStackData: rejects NaN and Infinity in position", () => {
     { text: "b", achieved: false },
     { text: "c", achieved: false },
   ]);
+});
+
+test("partitionObjectivesByReach: positionless objectives are always active", () => {
+  const obs = [
+    { text: "global a", achieved: false },
+    { text: "global b", achieved: true },
+  ];
+  const out = partitionObjectivesByReach(obs, [3, 4]);
+  expect(out.active).toEqual([
+    { obj: { text: "global a", achieved: false }, index: 0, distance: null },
+    { obj: { text: "global b", achieved: true }, index: 1, distance: null },
+  ]);
+  expect(out.distant).toEqual([]);
+});
+
+test("partitionObjectivesByReach: positioned at current tile is active with distance 0", () => {
+  const obs = [{ text: "open chest", achieved: false, position: [2, 1] as [number, number] }];
+  const out = partitionObjectivesByReach(obs, [2, 1]);
+  expect(out.active).toEqual([
+    { obj: obs[0], index: 0, distance: 0 },
+  ]);
+  expect(out.distant).toEqual([]);
+});
+
+test("partitionObjectivesByReach: positioned elsewhere is distant with manhattan distance", () => {
+  const obs = [
+    { text: "open chest", achieved: false, position: [2, 1] as [number, number] },
+    { text: "find key", achieved: false, position: [-1, 0] as [number, number] },
+  ];
+  const out = partitionObjectivesByReach(obs, [0, 0]);
+  expect(out.active).toEqual([]);
+  expect(out.distant).toEqual([
+    { obj: obs[0], index: 0, distance: 3 },
+    { obj: obs[1], index: 1, distance: 1 },
+  ]);
+});
+
+test("partitionObjectivesByReach: preserves original index for archivist mapping", () => {
+  const obs = [
+    { text: "a", achieved: false, position: [5, 5] as [number, number] },
+    { text: "b", achieved: false },
+    { text: "c", achieved: false, position: [0, 0] as [number, number] },
+  ];
+  const out = partitionObjectivesByReach(obs, [0, 0]);
+  expect(out.active.map((e) => e.index)).toEqual([1, 2]);
+  expect(out.distant.map((e) => e.index)).toEqual([0]);
 });

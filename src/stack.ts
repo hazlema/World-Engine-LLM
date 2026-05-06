@@ -38,6 +38,33 @@ export function manhattan(a: Position, b: Position): number {
   return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
 }
 
+export interface ReachEntry {
+  obj: Objective;
+  index: number;
+  distance: number | null;
+}
+
+export function partitionObjectivesByReach(
+  objectives: Objective[],
+  here: Position
+): { active: ReachEntry[]; distant: ReachEntry[] } {
+  const active: ReachEntry[] = [];
+  const distant: ReachEntry[] = [];
+  objectives.forEach((obj, index) => {
+    if (!obj.position) {
+      active.push({ obj, index, distance: null });
+      return;
+    }
+    const d = manhattan(here, obj.position);
+    if (d === 0) {
+      active.push({ obj, index, distance: 0 });
+    } else {
+      distant.push({ obj, index, distance: d });
+    }
+  });
+  return { active, distant };
+}
+
 export function applyDirection(p: Position, dir: Direction): Position {
   const d = DELTAS[dir];
   return [p[0] + d[0], p[1] + d[1]];
