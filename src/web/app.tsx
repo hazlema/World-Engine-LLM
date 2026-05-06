@@ -864,33 +864,75 @@ function ObjectivesRail(props: {
   );
 }
 
+function useCollapsed(key: string, initial: boolean): [boolean, () => void] {
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored === null ? initial : stored === "1";
+    } catch {
+      return initial;
+    }
+  });
+  const toggle = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(key, next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }, [key]);
+  return [collapsed, toggle];
+}
+
 function WorldRail(props: { entries: string[]; threads: string[] }) {
+  const [entriesCollapsed, toggleEntries] = useCollapsed("rail.entriesCollapsed", true);
+  const [threadsCollapsed, toggleThreads] = useCollapsed("rail.threadsCollapsed", true);
+
   return (
     <div className="rail-card">
       {props.entries.length > 0 && (
         <>
-          <div className="rail-eyebrow">Established</div>
-          <ul className="rail-entries">
-            {props.entries.map((e, i) => (
-              <li key={i} className="rail-entry">
-                <span className="rail-entry-mark" aria-hidden>·</span>
-                <span>{e}</span>
-              </li>
-            ))}
-          </ul>
+          <button
+            type="button"
+            className="rail-eyebrow rail-eyebrow-toggle"
+            onClick={toggleEntries}
+            aria-expanded={!entriesCollapsed}
+          >
+            <span className="rail-eyebrow-caret" aria-hidden>{entriesCollapsed ? "▸" : "▾"}</span>
+            <span>Established ({props.entries.length})</span>
+          </button>
+          {!entriesCollapsed && (
+            <ul className="rail-entries">
+              {props.entries.map((e, i) => (
+                <li key={i} className="rail-entry">
+                  <span className="rail-entry-mark" aria-hidden>·</span>
+                  <span>{e}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
       {props.threads.length > 0 && (
         <>
-          <div className="rail-eyebrow rail-eyebrow-secondary">Loose threads</div>
-          <ul className="rail-threads">
-            {props.threads.map((t, i) => (
-              <li key={i} className="rail-thread">
-                <span className="rail-thread-mark" aria-hidden>→</span>
-                <span>{t}</span>
-              </li>
-            ))}
-          </ul>
+          <button
+            type="button"
+            className="rail-eyebrow rail-eyebrow-secondary rail-eyebrow-toggle"
+            onClick={toggleThreads}
+            aria-expanded={!threadsCollapsed}
+          >
+            <span className="rail-eyebrow-caret" aria-hidden>{threadsCollapsed ? "▸" : "▾"}</span>
+            <span>Loose threads ({props.threads.length})</span>
+          </button>
+          {!threadsCollapsed && (
+            <ul className="rail-threads">
+              {props.threads.map((t, i) => (
+                <li key={i} className="rail-thread">
+                  <span className="rail-thread-mark" aria-hidden>→</span>
+                  <span>{t}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </div>

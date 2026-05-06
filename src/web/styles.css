@@ -269,6 +269,42 @@ button {
   border-top: 1px solid var(--stroke);
 }
 
+.rail-eyebrow-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+
+.rail-eyebrow-toggle:hover {
+  color: var(--fg);
+}
+
+.rail-eyebrow-toggle:focus-visible {
+  outline: 1px solid var(--ember);
+  outline-offset: 3px;
+}
+
+.rail-eyebrow-toggle.rail-eyebrow-secondary {
+  padding-top: 0.85rem;
+}
+
+.rail-eyebrow-caret {
+  display: inline-block;
+  width: 0.75rem;
+  font-size: 9px;
+  color: var(--fg-faint);
+}
+
 .rail-title {
   font-family: var(--font-sans);
   font-weight: 600;
