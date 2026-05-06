@@ -38,6 +38,18 @@ export function manhattan(a: Position, b: Position): number {
   return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
 }
 
+export function travelHint(from: Position, to: Position): string {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const total = Math.abs(dx) + Math.abs(dy);
+  if (total === 0) return "here";
+  const ns = dx > 0 ? `${dx} north` : dx < 0 ? `${-dx} south` : "";
+  const ew = dy > 0 ? `${dy} east` : dy < 0 ? `${-dy} west` : "";
+  if (!ns) return `${total} ${total === 1 ? "move" : "moves"} ${ew.split(" ")[1]}`;
+  if (!ew) return `${total} ${total === 1 ? "move" : "moves"} ${ns.split(" ")[1]}`;
+  return `${total} moves: ${ns}, ${ew}`;
+}
+
 export interface ReachEntry {
   obj: Objective;
   index: number;
@@ -176,9 +188,9 @@ export function formatStackForNarrator(stack: WorldStack, briefing?: string): st
       parts.push(`OBJECTIVES (active this turn):\n${lines.join("\n")}`);
     }
     if (distant.length > 0) {
-      const lines = distant.map(({ obj, distance }) => {
-        const word = distance === 1 ? "move" : "moves";
-        return `[${obj.achieved ? "x" : " "}] ${obj.text} (${distance} ${word} away)`;
+      const lines = distant.map(({ obj }) => {
+        const hint = obj.position ? travelHint(stack.position, obj.position) : "elsewhere";
+        return `[${obj.achieved ? "x" : " "}] ${obj.text} (${hint})`;
       });
       parts.push(`DISTANT OBJECTIVES (require travel):\n${lines.join("\n")}`);
     }

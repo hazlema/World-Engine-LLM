@@ -494,7 +494,7 @@ test("formatStackForNarrator: positioned objective elsewhere is distant with tra
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("DISTANT OBJECTIVES (require travel):");
-  expect(out).toContain("[ ] Open the chest (3 moves away)");
+  expect(out).toContain("[ ] Open the chest (3 moves: 2 north, 1 east)");
   expect(out).not.toContain("OBJECTIVES (active this turn):");
 });
 
@@ -517,7 +517,29 @@ test("formatStackForNarrator: mixed active and distant render in their own secti
   expect(out).toContain("[ ] Find the journal");
   expect(out).toContain("[ ] Escape");
   expect(out).toContain("DISTANT OBJECTIVES (require travel):");
-  expect(out).toContain("[ ] Open the chest (1 move away)");
+  expect(out).toContain("[ ] Open the chest (1 move north)");
+});
+
+test("formatStackForNarrator: distant objectives include cardinal direction in hint", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "Find the journal", achieved: false, position: [-1, 0] },
+      { text: "Reach the well", achieved: false, position: [0, -2] },
+      { text: "Climb the spire", achieved: false, position: [3, 0] },
+      { text: "Cross the bridge", achieved: false, position: [0, 1] },
+    ],
+    presetSlug: null,
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("[ ] Find the journal (1 move south)");
+  expect(out).toContain("[ ] Reach the well (2 moves west)");
+  expect(out).toContain("[ ] Climb the spire (3 moves north)");
+  expect(out).toContain("[ ] Cross the bridge (1 move east)");
 });
 
 test("formatStackForArchivist: positionless objective shows no flag", () => {
