@@ -62,11 +62,11 @@ type ServerMessage =
 const QUICK_ACTIONS = [
   "look around",
   "wait",
-  "inventory",
   "north",
   "south",
   "east",
   "west",
+  "inventory",
 ];
 
 function isSystemTurn(t: AnyTurn): t is SystemTurn {
