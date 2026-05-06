@@ -584,7 +584,16 @@ function TurnBlock({ turn, audioUrl, autoPlay, onPlay }: {
           <button
             type="button"
             className={`turn-speaker ${audioUrl ? "ready" : ""}`}
-            onClick={() => { onPlay(); }}
+            onClick={() => {
+              if (audioUrl && audioRef.current) {
+                audioRef.current.currentTime = 0;
+                audioRef.current.play().catch((err: unknown) => {
+                  if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
+                });
+              } else {
+                onPlay();
+              }
+            }}
             title={audioUrl ? "Play narration" : "Generate narration"}
             aria-label={audioUrl ? "Play narration" : "Generate narration"}
           >
@@ -629,7 +638,16 @@ function SystemBlock({ turn, audioUrl, autoPlay, onPlay }: {
             <button
               type="button"
               className={`turn-speaker ${audioUrl ? "ready" : ""}`}
-              onClick={onPlay}
+              onClick={() => {
+                if (audioUrl && audioRef.current) {
+                  audioRef.current.currentTime = 0;
+                  audioRef.current.play().catch((err: unknown) => {
+                    if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
+                  });
+                } else {
+                  onPlay();
+                }
+              }}
               aria-label={audioUrl ? "Play narration" : "Generate narration"}
               title={audioUrl ? "Play narration" : "Generate narration"}
             >
