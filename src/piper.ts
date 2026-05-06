@@ -122,16 +122,38 @@ export async function listVoices(binDir: string): Promise<string[]> {
 
 const VOICE_NAME_RE = /^[a-zA-Z0-9_+.-]+$/;
 
-export async function synthesize(binDir: string, text: string, voice?: string): Promise<Uint8Array> {
-  const requested = voice ?? VOICE_NAME;
+// Piper's length_scale: lower = faster, higher = slower (default 1.0 = original pace).
+// We bound generously here; the UI clamps tighter (0.85–1.15).
+export const LENGTH_SCALE_MIN = 0.5;
+export const LENGTH_SCALE_MAX = 2.0;
+export const LENGTH_SCALE_DEFAULT = 1.0;
+
+export interface SynthesizeOptions {
+  voice?: string;
+  lengthScale?: number;
+}
+
+export async function synthesize(
+  binDir: string,
+  text: string,
+  options: SynthesizeOptions = {}
+): Promise<Uint8Array> {
+  const requested = options.voice ?? VOICE_NAME;
   if (!VOICE_NAME_RE.test(requested)) throw new Error(`invalid voice name: ${requested}`);
   const voiceModel = `${binDir}/voices/${requested}.onnx`;
   if (!(await Bun.file(voiceModel).exists())) throw new Error(`voice not installed: ${requested}`);
+
+  const lengthScale = options.lengthScale ?? LENGTH_SCALE_DEFAULT;
+  if (!Number.isFinite(lengthScale) || lengthScale < LENGTH_SCALE_MIN || lengthScale > LENGTH_SCALE_MAX) {
+    throw new Error(`invalid lengthScale: ${lengthScale}`);
+  }
+
   // Piper emits one WAV per line of stdin; browsers only play the first one when concatenated.
   // Collapse all whitespace (including newlines) into single spaces so the whole passage is one utterance.
   const normalized = text.replace(/\s+/g, " ").trim();
   const p = piperPaths(binDir);
-  const proc = Bun.spawn([p.binary, "--model", voiceModel, "--output_file", "-"], {
+  const args = [p.binary, "--model", voiceModel, "--length_scale", String(lengthScale), "--output_file", "-"];
+  const proc = Bun.spawn(args, {
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",

@@ -772,6 +772,86 @@ button {
   font-family: var(--font-mono);
 }
 
+/* Split button — face toggles, arrow opens modal */
+.split-button {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.split-button .split-face {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right-width: 0;
+}
+
+.split-button .split-arrow {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+  border-left: 1px solid var(--stroke);
+}
+
+.split-button .split-face.critical + .split-arrow.critical {
+  border-left-color: var(--ember-tint-2);
+}
+
+/* Voice modal rows */
+.voice-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.95rem;
+}
+
+.voice-row:first-of-type { margin-top: 0.5rem; }
+
+.voice-row-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.voice-row-value {
+  color: var(--fg);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.voice-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.voice-slider-wrap input[type="range"] {
+  flex: 1;
+  accent-color: var(--ember);
+}
+
+.voice-slider-end {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-faint);
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+  min-width: 2.5rem;
+}
+
+.voice-slider-end:last-child { text-align: right; }
+
+.voice-row-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-faint);
+  letter-spacing: 0.02em;
+}
+
 /* ---------- modal ---------- */
 
 .modal-overlay {

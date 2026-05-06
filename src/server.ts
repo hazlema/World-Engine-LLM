@@ -12,7 +12,15 @@ import {
   type Objective,
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
-import { ensurePiperReady, listVoices, synthesize, VOICE_NAME } from "./piper";
+import {
+  ensurePiperReady,
+  listVoices,
+  synthesize,
+  VOICE_NAME,
+  LENGTH_SCALE_MIN,
+  LENGTH_SCALE_MAX,
+  LENGTH_SCALE_DEFAULT,
+} from "./piper";
 
 const PIPER_BIN_DIR = new URL("../bin", import.meta.url).pathname;
 
@@ -294,12 +302,22 @@ async function main() {
       }
       if (url.pathname === "/api/speak" && req.method === "POST") {
         try {
-          const body = await req.json() as { text?: unknown; voice?: unknown };
+          const body = await req.json() as { text?: unknown; voice?: unknown; lengthScale?: unknown };
           const text = typeof body.text === "string" ? body.text.trim() : "";
           if (!text) return new Response("text required", { status: 400 });
           if (text.length > 4000) return new Response("text too long", { status: 413 });
           const voice = typeof body.voice === "string" ? body.voice : undefined;
-          const wav = await synthesize(PIPER_BIN_DIR, text, voice);
+          let lengthScale: number | undefined;
+          if (body.lengthScale !== undefined) {
+            if (typeof body.lengthScale !== "number" || !Number.isFinite(body.lengthScale)) {
+              return new Response("lengthScale must be a number", { status: 400 });
+            }
+            if (body.lengthScale < LENGTH_SCALE_MIN || body.lengthScale > LENGTH_SCALE_MAX) {
+              return new Response(`lengthScale out of range [${LENGTH_SCALE_MIN}, ${LENGTH_SCALE_MAX}]`, { status: 400 });
+            }
+            lengthScale = body.lengthScale;
+          }
+          const wav = await synthesize(PIPER_BIN_DIR, text, { voice, lengthScale });
           return new Response(wav, {
             headers: {
               "Content-Type": "audio/wav",
@@ -310,6 +328,11 @@ async function main() {
           console.error("[/api/speak]", err);
           return new Response("speak failed", { status: 500 });
         }
+      }
+      if (url.pathname === "/api/voice-config" && req.method === "GET") {
+        return Response.json({
+          lengthScale: { min: LENGTH_SCALE_MIN, max: LENGTH_SCALE_MAX, default: LENGTH_SCALE_DEFAULT },
+        });
       }
       return new Response("Not found", { status: 404 });
     },

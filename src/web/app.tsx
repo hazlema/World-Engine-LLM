@@ -92,7 +92,7 @@ function App() {
   });
   const [pending, setPending] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  type ModalView = null | "select" | "objectives" | "win";
+  type ModalView = null | "select" | "objectives" | "win" | "voice";
   const [modal, setModal] = useState<ModalView>(null);
   const [presets, setPresets] = useState<PresetSummary[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
@@ -104,6 +104,20 @@ function App() {
   const [voices, setVoices] = useState<string[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(() => {
     try { return localStorage.getItem("narrationVoice") || ""; } catch { return ""; }
+  });
+  const SPEED_MIN = 0.85;
+  const SPEED_MAX = 1.15;
+  const [speed, setSpeed] = useState<number>(() => {
+    try {
+      const v = parseFloat(localStorage.getItem("narrationSpeed") || "");
+      return Number.isFinite(v) && v >= SPEED_MIN && v <= SPEED_MAX ? v : 1.0;
+    } catch { return 1.0; }
+  });
+  const [volume, setVolume] = useState<number>(() => {
+    try {
+      const v = parseFloat(localStorage.getItem("narrationVolume") || "");
+      return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 1.0;
+    } catch { return 1.0; }
   });
   const ttsRef = useRef<TTSEngine | null>(null);
   if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
@@ -125,10 +139,10 @@ function App() {
   const renderTurn = useCallback((turnId: number, text: string) => {
     const tts = ttsRef.current;
     if (!tts) return;
-    tts.render(turnId, text, selectedVoice || undefined)
+    tts.render(turnId, text, selectedVoice || undefined, speed)
       .then(({ url }) => setAudioByTurn((prev) => ({ ...prev, [turnId]: url })))
       .catch(() => { /* surfaced via engineStatus */ });
-  }, [selectedVoice]);
+  }, [selectedVoice, speed]);
 
   const toggleNarration = useCallback(async () => {
     const next = !narrationOn;
@@ -139,13 +153,27 @@ function App() {
     }
   }, [narrationOn]);
 
-  const changeVoice = useCallback((voice: string) => {
-    setSelectedVoice(voice);
-    try { localStorage.setItem("narrationVoice", voice); } catch {}
-    // Drop cached audio so the next render uses the new voice.
+  const invalidateAudioCache = useCallback(() => {
     setAudioByTurn({});
     setLastNarratedId(null);
     ttsRef.current?.cache.clear();
+  }, []);
+
+  const changeVoice = useCallback((voice: string) => {
+    setSelectedVoice(voice);
+    try { localStorage.setItem("narrationVoice", voice); } catch {}
+    invalidateAudioCache();
+  }, [invalidateAudioCache]);
+
+  const changeSpeed = useCallback((next: number) => {
+    setSpeed(next);
+    try { localStorage.setItem("narrationSpeed", String(next)); } catch {}
+    invalidateAudioCache();
+  }, [invalidateAudioCache]);
+
+  const changeVolume = useCallback((next: number) => {
+    setVolume(next);
+    try { localStorage.setItem("narrationVolume", String(next)); } catch {}
   }, []);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -434,6 +462,7 @@ function App() {
                   turn={t}
                   audioUrl={audioByTurn[t.id]}
                   autoPlay={t.id === lastNarratedId}
+                  volume={volume}
                   onPlay={() => {
                     const text = narratableText(t);
                     if (text) { setLastNarratedId(t.id); renderTurn(t.id, text); }
@@ -445,6 +474,7 @@ function App() {
                   turn={t}
                   audioUrl={audioByTurn[t.id]}
                   autoPlay={t.id === lastNarratedId}
+                  volume={volume}
                   onPlay={() => { if (t.narrative) { setLastNarratedId(t.id); renderTurn(t.id, t.narrative); } }}
                 />
               )))}
@@ -479,27 +509,25 @@ function App() {
                 {a}
               </button>
             ))}
-            <button
-              className={`action-button ${narrationOn ? "critical" : ""}`}
-              onClick={toggleNarration}
-              disabled={!connected}
-              title={engineStatus.kind === "error" ? engineStatus.message : ""}
-            >
-              voice {narrationOn ? "on" : "off"}
-            </button>
-            {voices.length > 1 && (
-              <select
-                className="voice-select"
-                value={selectedVoice}
-                onChange={(e) => changeVoice(e.target.value)}
+            <div className="split-button">
+              <button
+                className={`action-button split-face ${narrationOn ? "critical" : ""}`}
+                onClick={toggleNarration}
                 disabled={!connected}
-                title="narrator voice"
+                title={engineStatus.kind === "error" ? engineStatus.message : "toggle narration"}
               >
-                {voices.map((v) => (
-                  <option key={v} value={v}>{v.replace(/^en_..-/, "").replace(/-medium$|-high$/, "")}</option>
-                ))}
-              </select>
-            )}
+                voice {narrationOn ? "on" : "off"}
+              </button>
+              <button
+                className={`action-button split-arrow ${narrationOn ? "critical" : ""}`}
+                onClick={() => setModal("voice")}
+                disabled={!connected}
+                title="narration settings"
+                aria-label="narration settings"
+              >
+                ▾
+              </button>
+            </div>
             <button
               className="action-button"
               onClick={() => setModal("objectives")}
@@ -550,6 +578,20 @@ function App() {
                 onNewGame={() => setModal("select")}
               />
             )}
+            {modal === "voice" && (
+              <VoiceView
+                voices={voices}
+                selectedVoice={selectedVoice}
+                onPickVoice={changeVoice}
+                speed={speed}
+                speedMin={SPEED_MIN}
+                speedMax={SPEED_MAX}
+                onChangeSpeed={changeSpeed}
+                volume={volume}
+                onChangeVolume={changeVolume}
+                onClose={() => setModal(null)}
+              />
+            )}
           </div>
         </div>
       )}
@@ -557,14 +599,20 @@ function App() {
   );
 }
 
-function TurnBlock({ turn, audioUrl, autoPlay, onPlay }: {
+function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
   turn: Turn;
   audioUrl?: string;
   autoPlay?: boolean;
+  volume?: number;
   onPlay: () => void;
 }) {
   const num = String(turn.id).padStart(2, "0");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Apply volume changes live (no re-render needed).
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume;
+  }, [volume, audioUrl]);
 
   // Auto-play when the audio URL first becomes available and autoPlay is true,
   // or when autoPlay flips true for an already-cached URL (manual speaker click).
@@ -614,13 +662,17 @@ function TurnBlock({ turn, audioUrl, autoPlay, onPlay }: {
   );
 }
 
-function SystemBlock({ turn, audioUrl, autoPlay, onPlay }: {
+function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
   turn: SystemTurn;
   audioUrl?: string;
   autoPlay?: boolean;
+  volume?: number;
   onPlay?: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume;
+  }, [volume, audioUrl]);
   useEffect(() => {
     if (autoPlay && audioUrl && audioRef.current) {
       audioRef.current.play().catch((err: unknown) => {
@@ -806,6 +858,83 @@ function ObjectivesView(props: {
         <ObjectivesList objectives={props.objectives} />
       </div>
       <button className="action-button" onClick={props.onClose}>close</button>
+    </>
+  );
+}
+
+function VoiceView(props: {
+  voices: string[];
+  selectedVoice: string;
+  onPickVoice: (voice: string) => void;
+  speed: number;
+  speedMin: number;
+  speedMax: number;
+  onChangeSpeed: (next: number) => void;
+  volume: number;
+  onChangeVolume: (next: number) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="modal-body">
+        <div className="modal-title">Narration settings</div>
+
+        {props.voices.length > 1 && (
+          <div className="voice-row">
+            <label className="voice-row-label">Voice</label>
+            <select
+              className="voice-select"
+              value={props.selectedVoice}
+              onChange={(e) => props.onPickVoice(e.target.value)}
+            >
+              {props.voices.map((v) => (
+                <option key={v} value={v}>
+                  {v.replace(/^en_..-/, "").replace(/-medium$|-high$/, "")}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="voice-row">
+          <label className="voice-row-label">
+            Speed <span className="voice-row-value">{props.speed.toFixed(2)}×</span>
+          </label>
+          <div className="voice-slider-wrap">
+            <span className="voice-slider-end">faster</span>
+            <input
+              type="range"
+              min={props.speedMin}
+              max={props.speedMax}
+              step={0.05}
+              value={props.speed}
+              onChange={(e) => props.onChangeSpeed(parseFloat(e.target.value))}
+            />
+            <span className="voice-slider-end">slower</span>
+          </div>
+          <div className="voice-row-hint">Re-renders cached audio.</div>
+        </div>
+
+        <div className="voice-row">
+          <label className="voice-row-label">
+            Volume <span className="voice-row-value">{Math.round(props.volume * 100)}%</span>
+          </label>
+          <div className="voice-slider-wrap">
+            <span className="voice-slider-end">0</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={props.volume}
+              onChange={(e) => props.onChangeVolume(parseFloat(e.target.value))}
+            />
+            <span className="voice-slider-end">100</span>
+          </div>
+          <div className="voice-row-hint">Adjusts playback live.</div>
+        </div>
+      </div>
+      <button className="action-button" onClick={props.onClose}>done</button>
     </>
   );
 }
