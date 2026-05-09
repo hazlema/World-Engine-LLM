@@ -39,6 +39,12 @@ type Stack = {
   presetSlug: string | null;
 };
 
+type ToastData = {
+  entries: string[];
+  threads: string[];
+  id: number;
+};
+
 type ServerMessage =
   | {
       type: "snapshot";
@@ -122,6 +128,16 @@ function App() {
   });
   const ttsRef = useRef<TTSEngine | null>(null);
   if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
+
+  const [entriesCollapsed, toggleEntries] = useCollapsed("rail.entriesCollapsed", true);
+  const [threadsCollapsed, toggleThreads] = useCollapsed("rail.threadsCollapsed", true);
+  // Refs so the WebSocket handler (set up once on mount) always reads current values.
+  const entriesCollapsedRef = useRef(entriesCollapsed);
+  const threadsCollapsedRef = useRef(threadsCollapsed);
+  entriesCollapsedRef.current = entriesCollapsed;
+  threadsCollapsedRef.current = threadsCollapsed;
+
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   // One-time voice list fetch; falls back silently if the server isn't ready.
   useEffect(() => {
@@ -451,7 +467,14 @@ function App() {
               />
             )}
             {hasWorldState && (
-              <WorldRail entries={stack.entries} threads={stack.threads} />
+              <WorldRail
+                entries={stack.entries}
+                threads={stack.threads}
+                entriesCollapsed={entriesCollapsed}
+                toggleEntries={toggleEntries}
+                threadsCollapsed={threadsCollapsed}
+                toggleThreads={toggleThreads}
+              />
             )}
           </aside>
 
@@ -1016,10 +1039,14 @@ function useCollapsed(key: string, initial: boolean): [boolean, () => void] {
   return [collapsed, toggle];
 }
 
-function WorldRail(props: { entries: string[]; threads: string[] }) {
-  const [entriesCollapsed, toggleEntries] = useCollapsed("rail.entriesCollapsed", true);
-  const [threadsCollapsed, toggleThreads] = useCollapsed("rail.threadsCollapsed", true);
-
+function WorldRail(props: {
+  entries: string[];
+  threads: string[];
+  entriesCollapsed: boolean;
+  toggleEntries: () => void;
+  threadsCollapsed: boolean;
+  toggleThreads: () => void;
+}) {
   return (
     <div className="rail-card">
       {props.entries.length > 0 && (
@@ -1027,13 +1054,13 @@ function WorldRail(props: { entries: string[]; threads: string[] }) {
           <button
             type="button"
             className="rail-eyebrow rail-eyebrow-toggle"
-            onClick={toggleEntries}
-            aria-expanded={!entriesCollapsed}
+            onClick={props.toggleEntries}
+            aria-expanded={!props.entriesCollapsed}
           >
-            <span className="rail-eyebrow-caret" aria-hidden>{entriesCollapsed ? "▸" : "▾"}</span>
+            <span className="rail-eyebrow-caret" aria-hidden>{props.entriesCollapsed ? "▸" : "▾"}</span>
             <span>Established ({props.entries.length})</span>
           </button>
-          {!entriesCollapsed && (
+          {!props.entriesCollapsed && (
             <ul className="rail-entries">
               {props.entries.map((e, i) => (
                 <li key={i} className="rail-entry">
@@ -1050,13 +1077,13 @@ function WorldRail(props: { entries: string[]; threads: string[] }) {
           <button
             type="button"
             className="rail-eyebrow rail-eyebrow-secondary rail-eyebrow-toggle"
-            onClick={toggleThreads}
-            aria-expanded={!threadsCollapsed}
+            onClick={props.toggleThreads}
+            aria-expanded={!props.threadsCollapsed}
           >
-            <span className="rail-eyebrow-caret" aria-hidden>{threadsCollapsed ? "▸" : "▾"}</span>
+            <span className="rail-eyebrow-caret" aria-hidden>{props.threadsCollapsed ? "▸" : "▾"}</span>
             <span>Loose threads ({props.threads.length})</span>
           </button>
-          {!threadsCollapsed && (
+          {!props.threadsCollapsed && (
             <ul className="rail-threads">
               {props.threads.map((t, i) => (
                 <li key={i} className="rail-thread">
