@@ -436,6 +436,62 @@ button {
 
 .rail-thread-mark { color: var(--ember); }
 
+/* ---------- archivist toast ---------- */
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 6rem; /* clear the action bar */
+  right: 1.5rem;
+  z-index: 150;
+  width: 220px;
+  background: var(--surface-1);
+  border: 1px solid var(--stroke-mid);
+  border-left: 3px solid var(--ember);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: toast-in 150ms ease both;
+  overflow: hidden;
+}
+
+.toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem 0.35rem;
+}
+
+.toast-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.toast-items {
+  padding: 0 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.toast-item {
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--fg-muted);
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--stroke-faint, var(--stroke-mid));
+}
+
+.toast-item:first-child {
+  border-top: none;
+}
+
 /* ---------- turn list ---------- */
 
 .turn-list {
