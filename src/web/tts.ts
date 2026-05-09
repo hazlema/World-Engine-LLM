@@ -107,8 +107,10 @@ export class TTSEngine {
 
       this.stopCurrent();
 
+      // Auto-initialize if load() was never called (e.g. narrationOn restored from localStorage)
+      if (!this.audioCtx) await this.load();
       const ctx = this.audioCtx;
-      if (!ctx) throw new Error("TTSEngine not loaded — call load() first");
+      if (!ctx) throw new Error("AudioContext unavailable");
       if (ctx.state === "suspended") await ctx.resume();
 
       const t0 = performance.now();

@@ -394,8 +394,12 @@ function App() {
       });
       return;
     }
+    // Ensure AudioContext is unlocked — this IS a user gesture context
+    if (narrationOn && ttsRef.current?.status.kind !== "ready") {
+      ttsRef.current?.load().catch(() => {});
+    }
     wsRef.current.send(JSON.stringify({ type: "input", text: trimmed }));
-  }, [addTurn, pending, stack]);
+  }, [addTurn, pending, stack, narrationOn]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -419,7 +423,10 @@ function App() {
     ttsRef.current?.cache.clear();
     setHasStarted(true);
     setModal(null);
-  }, []);
+    if (narrationOn && ttsRef.current?.status.kind !== "ready") {
+      ttsRef.current?.load().catch(() => {});
+    }
+  }, [narrationOn]);
 
   const resumeGame = useCallback(() => {
     setHasStarted(true);
