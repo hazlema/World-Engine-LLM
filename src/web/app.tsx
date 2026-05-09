@@ -111,6 +111,8 @@ function App() {
   });
   const [engineStatus, setEngineStatus] = useState<EngineStatus>({ kind: "idle" });
   const [audioByTurn, setAudioByTurn] = useState<Record<number, string>>({});
+  const [imageByTurn, setImageByTurn] = useState<Record<number, string>>({});
+  const [imagePending, setImagePending] = useState<Set<number>>(() => new Set());
   const [voices, setVoices] = useState<string[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(() => {
     try { return localStorage.getItem("narrationVoice") || ""; } catch { return ""; }
@@ -151,6 +153,39 @@ function App() {
       .catch(() => { /* voices stays empty; picker hides */ });
     return () => { cancelled = true; };
   }, []);
+
+  const renderImage = useCallback((turnId: number, text: string) => {
+    if (imageByTurn[turnId]) return;
+    setImagePending((prev) => {
+      if (prev.has(turnId)) return prev;
+      const next = new Set(prev);
+      next.add(turnId);
+      return next;
+    });
+    fetch("/api/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    })
+      .then(async (res) => {
+        if (res.ok) return res.blob();
+        const detail = await res.text().catch(() => "");
+        throw new Error(`image ${res.status}${detail ? `: ${detail}` : ""}`);
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        setImageByTurn((prev) => ({ ...prev, [turnId]: url }));
+      })
+      .catch((err) => { console.warn("[image]", err); })
+      .finally(() => {
+        setImagePending((prev) => {
+          if (!prev.has(turnId)) return prev;
+          const next = new Set(prev);
+          next.delete(turnId);
+          return next;
+        });
+      });
+  }, [imageByTurn]);
 
   const renderTurn = useCallback((turnId: number, text: string) => {
     const tts = ttsRef.current;
@@ -350,12 +385,12 @@ function App() {
     };
   }, [addTurn, updateLastInputTurn]);
 
-  // Auto-scroll to end of document on new turn or content update
+  // Auto-scroll to end of document on new turn or when an image lands
   useEffect(() => {
     requestAnimationFrame(() => {
       window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
     });
-  }, [turns]);
+  }, [turns, imageByTurn]);
 
   // Auto-render narration audio when narrationOn and a turn has narrative but no audio yet.
   // Using useEffect (not inline in the WS handler) avoids stale-closure bugs: narrationOn
@@ -457,12 +492,14 @@ function App() {
     setLastNarratedId(null);
     serverAudioPendingTurnIdRef.current = null;
     ttsRef.current?.cache.clear();
+    Object.values(imageByTurn).forEach(URL.revokeObjectURL);
+    setImageByTurn({});
     setHasStarted(true);
     setModal(null);
     if (narrationOn && ttsRef.current?.status.kind !== "ready") {
       ttsRef.current?.load().catch(() => {});
     }
-  }, [narrationOn]);
+  }, [narrationOn, imageByTurn]);
 
   const resumeGame = useCallback(() => {
     setHasStarted(true);
@@ -538,6 +575,7 @@ function App() {
                     const text = narratableText(t);
                     if (text) { setLastNarratedId(t.id); renderTurn(t.id, text); }
                   }}
+                  onStopAudio={() => ttsRef.current?.stopAll()}
                 />
               ) : (
                 <TurnBlock
@@ -547,6 +585,10 @@ function App() {
                   autoPlay={t.id === lastNarratedId}
                   volume={volume}
                   onPlay={() => { if (t.narrative) { setLastNarratedId(t.id); renderTurn(t.id, t.narrative); } }}
+                  onStopAudio={() => ttsRef.current?.stopAll()}
+                  imageUrl={imageByTurn[t.id]}
+                  imagePending={imagePending.has(t.id)}
+                  onGenerateImage={t.narrative ? () => renderImage(t.id, t.narrative!) : undefined}
                 />
               )))}
             </div>
@@ -667,12 +709,16 @@ function App() {
   );
 }
 
-function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
+function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, imageUrl, imagePending, onGenerateImage }: {
   turn: Turn;
   audioUrl?: string;
   autoPlay?: boolean;
   volume?: number;
   onPlay: () => void;
+  onStopAudio?: () => void;
+  imageUrl?: string;
+  imagePending?: boolean;
+  onGenerateImage?: () => void;
 }) {
   const num = String(turn.id).padStart(2, "0");
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -686,7 +732,7 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
   // or when autoPlay flips true for an already-cached URL (manual speaker click).
   useEffect(() => {
     if (autoPlay && audioUrl && audioRef.current) {
-      document.querySelectorAll("audio").forEach((a) => (a as HTMLAudioElement).pause());
+      onStopAudio?.();
       audioRef.current.play().catch((err: unknown) => {
         if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
       });
@@ -703,7 +749,7 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
             className={`turn-speaker ${audioUrl ? "ready" : ""}`}
             onClick={() => {
               if (audioUrl && audioRef.current) {
-                document.querySelectorAll("audio").forEach((a) => (a as HTMLAudioElement).pause());
+                onStopAudio?.();
                 audioRef.current.currentTime = 0;
                 audioRef.current.play().catch((err: unknown) => {
                   if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
@@ -718,9 +764,22 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
             ◐
           </button>
         )}
+        {turn.narrative && onGenerateImage && (
+          <button
+            type="button"
+            className={`turn-image-btn ${imageUrl ? "ready" : ""} ${imagePending ? "pending" : ""}`}
+            onClick={onGenerateImage}
+            disabled={imagePending || !!imageUrl}
+            title={imageUrl ? "Image generated" : imagePending ? "Generating…" : "Generate image"}
+            aria-label={imageUrl ? "Image generated" : imagePending ? "Generating image" : "Generate image"}
+          >
+            {imagePending ? "◌" : "▦"}
+          </button>
+        )}
       </div>
       <div className="turn-content">
         <p className="turn-input-echo">{turn.input}</p>
+        {imageUrl && <img className="turn-image" src={imageUrl} alt="" />}
         {turn.narrative && <p className="turn-narrative">{turn.narrative}</p>}
         {turn.pending && !turn.narrative && !turn.error && (
           <p className="turn-pending">the world is responding…</p>
@@ -732,12 +791,13 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
   );
 }
 
-function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
+function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio }: {
   turn: SystemTurn;
   audioUrl?: string;
   autoPlay?: boolean;
   volume?: number;
   onPlay?: () => void;
+  onStopAudio?: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
@@ -745,7 +805,7 @@ function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
   }, [volume, audioUrl]);
   useEffect(() => {
     if (autoPlay && audioUrl && audioRef.current) {
-      document.querySelectorAll("audio").forEach((a) => (a as HTMLAudioElement).pause());
+      onStopAudio?.();
       audioRef.current.play().catch((err: unknown) => {
         if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
       });
@@ -763,6 +823,7 @@ function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
               className={`turn-speaker ${audioUrl ? "ready" : ""}`}
               onClick={() => {
                 if (audioUrl && audioRef.current) {
+                  onStopAudio?.();
                   audioRef.current.currentTime = 0;
                   audioRef.current.play().catch((err: unknown) => {
                     if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);

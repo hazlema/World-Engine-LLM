@@ -1385,3 +1385,55 @@ button {
   border-color: var(--ember);
   box-shadow: 0 0 12px var(--ember-tint-2);
 }
+
+/* per-turn image generation */
+.turn-image-btn {
+  background: transparent;
+  border: 1px solid var(--stroke);
+  color: var(--fg-faint);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 140ms, border-color 140ms, background 140ms;
+}
+
+.turn-image-btn:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--stroke-strong);
+  background: var(--surface-2);
+}
+
+.turn-image-btn:disabled { cursor: default; }
+
+.turn-image-btn.ready {
+  color: var(--ember);
+  border-color: var(--ember-tint-2);
+  background: var(--ember-tint);
+}
+
+.turn-image-btn.pending {
+  color: var(--ember-soft);
+  border-color: var(--ember-tint-2);
+  animation: image-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes image-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+.turn-image {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 21 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--stroke-mid);
+  background: var(--surface-1);
+}

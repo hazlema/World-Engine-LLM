@@ -13,6 +13,7 @@ import {
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
 import { synthesizeStream, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
+import { generateImage } from "./gemini-image";
 
 let presets: Map<string, Preset> = new Map();
 
@@ -345,6 +346,22 @@ async function main() {
       }
       if (url.pathname === "/api/voice-config" && req.method === "GET") {
         return Response.json({});
+      }
+      if (url.pathname === "/api/image" && req.method === "POST") {
+        try {
+          const body = await req.json() as { text?: unknown };
+          const text = typeof body.text === "string" ? body.text.trim() : "";
+          if (!text) return new Response("text required", { status: 400 });
+          if (text.length > 4000) return new Response("text too long", { status: 413 });
+          const png = await generateImage(text);
+          return new Response(png, {
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+          });
+        } catch (err) {
+          console.error("[/api/image]", err);
+          const message = err instanceof Error ? err.message : String(err);
+          return new Response(message.slice(0, 500), { status: 500 });
+        }
       }
       return new Response("Not found", { status: 404 });
     },

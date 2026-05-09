@@ -85,11 +85,20 @@ export class TTSEngine {
     this.onStatus(s);
   }
 
-  private stopCurrent() {
+  private stopActiveSources() {
     for (const src of this.activeSources) {
       try { src.stop(0); } catch { /* already stopped */ }
     }
     this.activeSources = [];
+  }
+
+  // Stop both Web Audio streaming sources AND any <audio> element playback.
+  // Call before starting any new audio so streams and replays never overlap.
+  stopAll() {
+    this.stopActiveSources();
+    if (typeof document !== "undefined") {
+      document.querySelectorAll("audio").forEach((a) => (a as HTMLAudioElement).pause());
+    }
   }
 
   setVolume(v: number) {
@@ -117,7 +126,7 @@ export class TTSEngine {
   startStream(turnId: number) {
     const ctx = this.audioCtx;
     if (!ctx) return;
-    this.stopCurrent();
+    this.stopAll();
     this.streamingTurnId = turnId;
     this.streamingChunks = [];
     this.nextStartTime = ctx.currentTime + 0.05;
