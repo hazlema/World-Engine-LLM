@@ -12,17 +12,7 @@ import {
   type Objective,
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
-import {
-  ensurePiperReady,
-  listVoices,
-  synthesize,
-  VOICE_NAME,
-  LENGTH_SCALE_MIN,
-  LENGTH_SCALE_MAX,
-  LENGTH_SCALE_DEFAULT,
-} from "./piper";
-
-const PIPER_BIN_DIR = new URL("../bin", import.meta.url).pathname;
+import { synthesize, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
 
 let presets: Map<string, Preset> = new Map();
 
@@ -283,8 +273,6 @@ async function main() {
 
   const indexHtml = await import("./web/index.html");
 
-  await ensurePiperReady(PIPER_BIN_DIR);
-
   const server = Bun.serve({
     port: 3000,
     routes: {
@@ -297,27 +285,18 @@ async function main() {
         return new Response("Upgrade required", { status: 426 });
       }
       if (url.pathname === "/api/voices" && req.method === "GET") {
-        const voices = await listVoices(PIPER_BIN_DIR);
-        return Response.json({ voices, default: VOICE_NAME });
+        return Response.json({ voices: GEMINI_VOICES, default: DEFAULT_VOICE });
       }
       if (url.pathname === "/api/speak" && req.method === "POST") {
         try {
-          const body = await req.json() as { text?: unknown; voice?: unknown; lengthScale?: unknown };
+          const body = await req.json() as { text?: unknown; voice?: unknown };
           const text = typeof body.text === "string" ? body.text.trim() : "";
           if (!text) return new Response("text required", { status: 400 });
           if (text.length > 4000) return new Response("text too long", { status: 413 });
-          const voice = typeof body.voice === "string" ? body.voice : undefined;
-          let lengthScale: number | undefined;
-          if (body.lengthScale !== undefined) {
-            if (typeof body.lengthScale !== "number" || !Number.isFinite(body.lengthScale)) {
-              return new Response("lengthScale must be a number", { status: 400 });
-            }
-            if (body.lengthScale < LENGTH_SCALE_MIN || body.lengthScale > LENGTH_SCALE_MAX) {
-              return new Response(`lengthScale out of range [${LENGTH_SCALE_MIN}, ${LENGTH_SCALE_MAX}]`, { status: 400 });
-            }
-            lengthScale = body.lengthScale;
-          }
-          const wav = await synthesize(PIPER_BIN_DIR, text, { voice, lengthScale });
+          const voice = typeof body.voice === "string" && GEMINI_VOICES.includes(body.voice)
+            ? body.voice
+            : DEFAULT_VOICE;
+          const wav = await synthesize(text, voice);
           return new Response(wav, {
             headers: {
               "Content-Type": "audio/wav",
@@ -330,9 +309,7 @@ async function main() {
         }
       }
       if (url.pathname === "/api/voice-config" && req.method === "GET") {
-        return Response.json({
-          lengthScale: { min: LENGTH_SCALE_MIN, max: LENGTH_SCALE_MAX, default: LENGTH_SCALE_DEFAULT },
-        });
+        return Response.json({});
       }
       return new Response("Not found", { status: 404 });
     },
