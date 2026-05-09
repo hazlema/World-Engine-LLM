@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { TTSEngine, type EngineStatus } from "./tts";
 import { createRoot } from "react-dom/client";
+import { diffNewItems } from "./utils";
 
 type Turn = {
   id: number;
