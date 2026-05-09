@@ -514,6 +514,7 @@ function App() {
             </div>
           </main>
         </div>
+        {toast && <Toast data={toast} onDismiss={() => setToast(null)} />}
       </div>
 
       <div className="action-bar">
@@ -1104,6 +1105,31 @@ function WorldRail(props: {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function Toast({ data, onDismiss }: { data: ToastData; onDismiss: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 10_000);
+    return () => clearTimeout(timer);
+  }, [data.id, onDismiss]);
+
+  const allItems = [
+    ...data.entries,
+    ...data.threads,
+  ];
+
+  return (
+    <div className="toast" role="status" aria-live="polite">
+      <div className="toast-header">
+        <span className="toast-label">World updated</span>
+      </div>
+      <div className="toast-items">
+        {allItems.map((item, i) => (
+          <div key={i} className="toast-item">{item}</div>
+        ))}
+      </div>
     </div>
   );
 }
