@@ -41,3 +41,4 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # piper binary + voices auto-downloaded on first server start
 bin/
+.superpowers/
