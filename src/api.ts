@@ -4,7 +4,11 @@ const ENDPOINT = "http://localhost:1234/v1/chat/completions";
 const NARRATOR_MODEL = "google/gemma-3-12b";
 const ARCHIVIST_MODEL = "google/gemma-3-12b";
 const TIMEOUT_MS = 30_000;
+const ARCHIVIST_TIMEOUT_MS = 60_000;
 const MAX_TOKENS = 1500;
+// Grows with threads/entries; 2500 gives headroom for 30+ established + 15 loose
+const ARCHIVIST_MAX_TOKENS = 2500;
+const ARCHIVIST_RETRIES = 3;
 
 interface CompletionsResponse {
   choices: Array<{
@@ -56,14 +60,14 @@ export async function callModel(systemPrompt: string, input: string): Promise<st
   }
 }
 
-export async function callModelStructured<T>(
+async function callModelStructuredOnce<T>(
   systemPrompt: string,
   input: string,
   schemaName: string,
   schema: object
 ): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), ARCHIVIST_TIMEOUT_MS);
 
   try {
     const res = await fetch(ENDPOINT, {
@@ -79,7 +83,7 @@ export async function callModelStructured<T>(
           type: "json_schema",
           json_schema: { name: schemaName, schema },
         },
-        max_tokens: 800,
+        max_tokens: ARCHIVIST_MAX_TOKENS,
       }),
       signal: controller.signal,
     });
@@ -111,4 +115,23 @@ export async function callModelStructured<T>(
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function callModelStructured<T>(
+  systemPrompt: string,
+  input: string,
+  schemaName: string,
+  schema: object
+): Promise<T> {
+  let lastErr: Error = new Error("No attempts made");
+  for (let attempt = 1; attempt <= ARCHIVIST_RETRIES; attempt++) {
+    try {
+      return await callModelStructuredOnce<T>(systemPrompt, input, schemaName, schema);
+    } catch (err) {
+      lastErr = err as Error;
+      console.warn(`[api] archivist attempt ${attempt}/${ARCHIVIST_RETRIES} failed: ${lastErr.message}`);
+      if (attempt < ARCHIVIST_RETRIES) await Bun.sleep(500 * attempt);
+    }
+  }
+  throw lastErr;
 }
