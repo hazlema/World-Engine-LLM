@@ -286,6 +286,15 @@ function App() {
               }
             });
           }
+          const newEntries = diffNewItems(s.entries, msg.entries);
+          const newThreads = diffNewItems(s.threads, msg.threads);
+          const toastEntries = newEntries.length > 0 && entriesCollapsedRef.current ? newEntries : [];
+          const toastThreads = newThreads.length > 0 && threadsCollapsedRef.current ? newThreads : [];
+          if (toastEntries.length > 0 || toastThreads.length > 0) {
+            queueMicrotask(() => {
+              setToast({ entries: toastEntries, threads: toastThreads, id: Date.now() });
+            });
+          }
           return {
             ...s,
             entries: msg.entries,
