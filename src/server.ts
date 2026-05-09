@@ -12,7 +12,7 @@ import {
   type Objective,
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
-import { synthesize, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
+import { synthesizeStream, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
 
 let presets: Map<string, Preset> = new Map();
 
@@ -275,6 +275,7 @@ async function main() {
 
   const server = Bun.serve({
     port: 3000,
+    idleTimeout: 120,
     routes: {
       "/": indexHtml.default,
     },
@@ -296,10 +297,10 @@ async function main() {
           const voice = typeof body.voice === "string" && GEMINI_VOICES.includes(body.voice)
             ? body.voice
             : DEFAULT_VOICE;
-          const wav = await synthesize(text, voice);
-          return new Response(wav, {
+          const stream = synthesizeStream(text, voice);
+          return new Response(stream, {
             headers: {
-              "Content-Type": "audio/wav",
+              "Content-Type": "audio/pcm",
               "Cache-Control": "no-store",
             },
           });

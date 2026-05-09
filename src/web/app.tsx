@@ -112,14 +112,6 @@ function App() {
   const [selectedVoice, setSelectedVoice] = useState<string>(() => {
     try { return localStorage.getItem("narrationVoice") || ""; } catch { return ""; }
   });
-  const SPEED_MIN = 0.85;
-  const SPEED_MAX = 1.15;
-  const [speed, setSpeed] = useState<number>(() => {
-    try {
-      const v = parseFloat(localStorage.getItem("narrationSpeed") || "");
-      return Number.isFinite(v) && v >= SPEED_MIN && v <= SPEED_MAX ? v : 1.0;
-    } catch { return 1.0; }
-  });
   const [volume, setVolume] = useState<number>(() => {
     try {
       const v = parseFloat(localStorage.getItem("narrationVolume") || "");
@@ -156,10 +148,14 @@ function App() {
   const renderTurn = useCallback((turnId: number, text: string) => {
     const tts = ttsRef.current;
     if (!tts) return;
-    tts.render(turnId, text, selectedVoice || undefined, speed)
-      .then(({ url }) => setAudioByTurn((prev) => ({ ...prev, [turnId]: url })))
+    tts.render(turnId, text, selectedVoice || undefined)
+      .then(({ url, alreadyPlayed }) => {
+        setAudioByTurn((prev) => ({ ...prev, [turnId]: url }));
+        // Streaming already played — prevent <audio> autoplay from double-firing
+        if (alreadyPlayed) setLastNarratedId(null);
+      })
       .catch(() => { /* surfaced via engineStatus */ });
-  }, [selectedVoice, speed]);
+  }, [selectedVoice]);
 
   const toggleNarration = useCallback(async () => {
     const next = !narrationOn;
@@ -182,16 +178,15 @@ function App() {
     invalidateAudioCache();
   }, [invalidateAudioCache]);
 
-  const changeSpeed = useCallback((next: number) => {
-    setSpeed(next);
-    try { localStorage.setItem("narrationSpeed", String(next)); } catch {}
-    invalidateAudioCache();
-  }, [invalidateAudioCache]);
-
   const changeVolume = useCallback((next: number) => {
     setVolume(next);
     try { localStorage.setItem("narrationVolume", String(next)); } catch {}
   }, []);
+
+  // Keep Web Audio gain node in sync with the volume slider
+  useEffect(() => {
+    ttsRef.current?.setVolume(volume);
+  }, [volume]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const nextIdRef = useRef(1);
@@ -617,10 +612,6 @@ function App() {
                 voices={voices}
                 selectedVoice={selectedVoice}
                 onPickVoice={changeVoice}
-                speed={speed}
-                speedMin={SPEED_MIN}
-                speedMax={SPEED_MAX}
-                onChangeSpeed={changeSpeed}
                 volume={volume}
                 onChangeVolume={changeVolume}
                 onClose={() => setModal(null)}
@@ -903,10 +894,6 @@ function VoiceView(props: {
   voices: string[];
   selectedVoice: string;
   onPickVoice: (voice: string) => void;
-  speed: number;
-  speedMin: number;
-  speedMax: number;
-  onChangeSpeed: (next: number) => void;
   volume: number;
   onChangeVolume: (next: number) => void;
   onClose: () => void;
@@ -932,25 +919,6 @@ function VoiceView(props: {
             </select>
           </div>
         )}
-
-        <div className="voice-row">
-          <label className="voice-row-label">
-            Speed <span className="voice-row-value">{props.speed.toFixed(2)}×</span>
-          </label>
-          <div className="voice-slider-wrap">
-            <span className="voice-slider-end">faster</span>
-            <input
-              type="range"
-              min={props.speedMin}
-              max={props.speedMax}
-              step={0.05}
-              value={props.speed}
-              onChange={(e) => props.onChangeSpeed(parseFloat(e.target.value))}
-            />
-            <span className="voice-slider-end">slower</span>
-          </div>
-          <div className="voice-row-hint">Re-renders cached audio.</div>
-        </div>
 
         <div className="voice-row">
           <label className="voice-row-label">

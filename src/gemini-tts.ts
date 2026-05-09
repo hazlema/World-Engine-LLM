@@ -1,6 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 
-const MODEL = "gemini-2.5-flash-preview-tts";
+const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+const LIVE_MODEL = "gemini-2.5-flash-native-audio-latest";
 
 export const GEMINI_VOICES = [
   "Aoede",
@@ -31,13 +32,14 @@ function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bitDepth = 16):
   return Buffer.concat([header, pcm]);
 }
 
+// Non-streaming fallback — kept for testing/diagnostics.
 export async function synthesize(text: string, voice = DEFAULT_VOICE): Promise<Buffer> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set");
 
   const ai = new GoogleGenAI({ apiKey: key });
   const response = await ai.models.generateContent({
-    model: MODEL,
+    model: TTS_MODEL,
     contents: [{ parts: [{ text }] }],
     config: {
       responseModalities: ["AUDIO"],
@@ -53,4 +55,63 @@ export async function synthesize(text: string, voice = DEFAULT_VOICE): Promise<B
   if (!audioBase64) throw new Error("no audio in Gemini response");
 
   return pcmToWav(Buffer.from(audioBase64, "base64"));
+}
+
+// Streaming synthesis via Gemini Live API.
+// Returns a ReadableStream of raw 16-bit signed PCM at 24 kHz mono.
+export function synthesizeStream(text: string, voice = DEFAULT_VOICE): ReadableStream<Uint8Array> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set");
+
+  const ai = new GoogleGenAI({ apiKey: key });
+  let liveSession: Awaited<ReturnType<typeof ai.live.connect>> | null = null;
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        liveSession = await ai.live.connect({
+          model: LIVE_MODEL,
+          config: {
+            systemInstruction: {
+              parts: [{ text: "Read the user's text aloud verbatim. Speak it naturally but do not add, omit, or change any words." }],
+            },
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+            },
+          },
+          callbacks: {
+            onmessage(msg) {
+              const parts = msg.serverContent?.modelTurn?.parts ?? [];
+              for (const part of parts) {
+                const b64 = part.inlineData?.data;
+                if (b64) {
+                  const bytes = Buffer.from(b64, "base64");
+                  controller.enqueue(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+                }
+              }
+              if (msg.serverContent?.turnComplete) {
+                controller.close();
+                liveSession?.close();
+              }
+            },
+            onerror(e) {
+              controller.error(new Error(String(e)));
+              liveSession?.close();
+            },
+          },
+        });
+
+        liveSession.sendClientContent({
+          turns: [{ role: "user", parts: [{ text }] }],
+          turnComplete: true,
+        });
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+    cancel() {
+      liveSession?.close();
+    },
+  });
 }
