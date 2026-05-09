@@ -1,29 +1,78 @@
 {
   "entries": [
-    "leather satchel left on a window seat",
-    "half-empty bottle of plum wine on the floor",
-    "conductor's cap on the empty conductor's seat"
+    "The lander's interior is damaged with sparking wires.",
+    "A cracked viewport reveals an alien landscape.",
+    "Dust coats everything; it tastes like iron.",
+    "The transmitter is half-buried in regolith to the north.",
+    "Rover wreck on the eastern crater rim.",
+    "Oxygen tank hisses beside you, time is dwindling.",
+    "Thermal blanket near the viewport, singed and charred.",
+    "Metal tag reads: 'Property of Jian Li'.",
+    "The lander hull has an oxygen cache strapped to it.",
+    "Lunar dust crunches underfoot with each step.",
+    "Terrain slopes gently upwards toward a shallow rise.",
+    "Transmitter is heavy, squat metal box bristling with antennae.",
+    "A silver locket lies near the base of the transmitter.",
+    "Locket surface etched with a stylized crane symbol.",
+    "The lander suffered a secondary hull breach.",
+    "Suit’s internal pressure warning chimes faintly.",
+    "Fresh crack spiderwebs across the viewport.",
+    "Sickly yellow light from emergency LEDs illuminates the interior.",
+    "Burnt plastic smell hangs heavy in the air.",
+    "Gray dust stretches toward an indistinct horizon.",
+    "A glint reflects light beyond the rise in terrain.",
+    "Discarded tool kit lies near the oxygen cache.",
+    "A rusted crowbar lies half-submerged in the regolith near the transmitter.",
+    "The discarded tool kit contains a multi-tool and several wrenches.",
+    "Consoles have Cyrillic script interwoven with English labels (damaged, sparking).”,  “Scratches mar the viewport surface.”, “Scorch mark on thermal blanket and viewport.”,  “A single bolt rolled from under the scorched thermal blanket.”, “The mechanical scurrying sound emanates from beyond the rise in terrain."
   ],
-  "threads": [],
-  "turn": 0,
+  "threads": [
+    "Discover who Jian Li is and their connection to the mission.",
+    "Determine why the thermal blanket is singed.",
+    "Find a way to repair the damaged lander consoles.",
+    "What is the significance of the crane symbol on the locket?",
+    "Investigate the cause of the secondary hull breach.",
+    "Identify the source of the scurrying mechanical sound.",
+    "Someone attempted to open the locket; why did they fail?",
+    "What is the source of the brighter glint beyond the rise?",
+    "The Cyrillic script on the consoles needs deciphering.",
+    "Something dragged across the viewport - what was it?"
+  ],
+  "turn": 13,
   "position": [
-    0,
+    2,
     0
   ],
-  "places": {},
+  "places": {
+    "0,0": "The interior of the lander is a tomb of twisted consoles and sparking wires. A cracked viewport reveals an alien landscape sculpted from gray dust and shadow.",
+    "1,0": "The terrain slopes gently upwards toward a shallow rise. The squat transmitter sits half-buried in regolith nearby; a rusted crowbar leans against it.",
+    "2,0": "The terrain slopes gently upwards toward a shallow rise. The squat transmitter looms nearby, half-buried in regolith."
+  },
   "objectives": [
     {
-      "text": "Find out where the conductor went",
-      "achieved": false
+      "text": "Find the transmitter",
+      "achieved": false,
+      "position": [
+        1,
+        0
+      ]
     },
     {
-      "text": "Identify the owner of the leather satchel",
-      "achieved": false
+      "text": "Restore power to the comm array",
+      "achieved": false,
+      "position": [
+        0,
+        1
+      ]
     },
     {
-      "text": "Convince another passenger to help you stop the train",
-      "achieved": false
+      "text": "Send the distress signal",
+      "achieved": false,
+      "position": [
+        1,
+        0
+      ]
     }
   ],
-  "presetSlug": "the-last-train"
+  "presetSlug": "lunar-rescue"
 }
