@@ -1113,7 +1113,7 @@ function Toast({ data, onDismiss }: { data: ToastData; onDismiss: () => void }) 
   useEffect(() => {
     const timer = setTimeout(onDismiss, 10_000);
     return () => clearTimeout(timer);
-  }, [data.id, onDismiss]);
+  }, [data.id]);
 
   const allItems = [
     ...data.entries,
