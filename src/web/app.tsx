@@ -618,6 +618,7 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
   // or when autoPlay flips true for an already-cached URL (manual speaker click).
   useEffect(() => {
     if (autoPlay && audioUrl && audioRef.current) {
+      document.querySelectorAll("audio").forEach((a) => (a as HTMLAudioElement).pause());
       audioRef.current.play().catch((err: unknown) => {
         if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
       });
@@ -634,6 +635,7 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
             className={`turn-speaker ${audioUrl ? "ready" : ""}`}
             onClick={() => {
               if (audioUrl && audioRef.current) {
+                document.querySelectorAll("audio").forEach((a) => (a as HTMLAudioElement).pause());
                 audioRef.current.currentTime = 0;
                 audioRef.current.play().catch((err: unknown) => {
                   if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
@@ -675,6 +677,7 @@ function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay }: {
   }, [volume, audioUrl]);
   useEffect(() => {
     if (autoPlay && audioUrl && audioRef.current) {
+      document.querySelectorAll("audio").forEach((a) => (a as HTMLAudioElement).pause());
       audioRef.current.play().catch((err: unknown) => {
         if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
       });
