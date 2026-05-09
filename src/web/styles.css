@@ -439,16 +439,17 @@ button {
 /* ---------- archivist toast ---------- */
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 .toast {
   position: fixed;
-  bottom: 6rem; /* clear the action bar */
+  top: 1.5rem;
   right: 1.5rem;
   z-index: 150;
-  width: 220px;
+  width: 340px;
+  max-width: calc(100vw - 3rem);
   background: var(--surface-1);
   border: 1px solid var(--stroke-mid);
   border-left: 3px solid var(--ember);

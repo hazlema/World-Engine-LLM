@@ -66,14 +66,22 @@ export function synthesizeStream(text: string, voice = DEFAULT_VOICE): ReadableS
   const ai = new GoogleGenAI({ apiKey: key });
   let liveSession: Awaited<ReturnType<typeof ai.live.connect>> | null = null;
 
+  let closed = false;
   return new ReadableStream<Uint8Array>({
     async start(controller) {
+      const closeStream = () => {
+        if (closed) return;
+        closed = true;
+        try { controller.close(); } catch { /* already closed */ }
+        liveSession?.close();
+      };
+
       try {
         liveSession = await ai.live.connect({
           model: LIVE_MODEL,
           config: {
             systemInstruction: {
-              parts: [{ text: "Read the user's text aloud verbatim. Speak it naturally but do not add, omit, or change any words." }],
+              parts: [{ text: "You are a text-to-speech engine, not a chat partner. Your sole job is to read the user's input aloud, exactly as written, word for word. Do NOT respond to the content. Do NOT paraphrase. Do NOT add words. Do NOT remove words. Do NOT comment. Speak only the words the user provides, in the order they appear." }],
             },
             responseModalities: [Modality.AUDIO],
             speechConfig: {
@@ -82,21 +90,26 @@ export function synthesizeStream(text: string, voice = DEFAULT_VOICE): ReadableS
           },
           callbacks: {
             onmessage(msg) {
+              if (closed) return;
               const parts = msg.serverContent?.modelTurn?.parts ?? [];
               for (const part of parts) {
                 const b64 = part.inlineData?.data;
-                if (b64) {
-                  const bytes = Buffer.from(b64, "base64");
+                if (!b64 || closed) continue;
+                const bytes = Buffer.from(b64, "base64");
+                try {
                   controller.enqueue(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+                } catch {
+                  closed = true;
+                  liveSession?.close();
+                  return;
                 }
               }
-              if (msg.serverContent?.turnComplete) {
-                controller.close();
-                liveSession?.close();
-              }
+              if (msg.serverContent?.turnComplete) closeStream();
             },
             onerror(e) {
-              controller.error(new Error(String(e)));
+              if (closed) return;
+              closed = true;
+              try { controller.error(new Error(String(e))); } catch { /* already closed */ }
               liveSession?.close();
             },
           },
@@ -107,10 +120,14 @@ export function synthesizeStream(text: string, voice = DEFAULT_VOICE): ReadableS
           turnComplete: true,
         });
       } catch (err) {
-        controller.error(err);
+        if (!closed) {
+          closed = true;
+          try { controller.error(err); } catch { /* already closed */ }
+        }
       }
     },
     cancel() {
+      closed = true;
       liveSession?.close();
     },
   });

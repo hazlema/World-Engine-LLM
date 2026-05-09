@@ -46,7 +46,8 @@ export type EngineStatus =
   | { kind: "ready" }
   | { kind: "error"; message: string };
 
-export type RenderResult = { url: string; durationMs: number; alreadyPlayed?: boolean };
+export type RenderResult = { url: string; durationMs: number };
+export type StreamEndResult = { turnId: number; url: string };
 
 function pcmToWav(pcm: Uint8Array): Uint8Array {
   const dataSize = pcm.length;
@@ -71,6 +72,11 @@ export class TTSEngine {
   private audioCtx: AudioContext | null = null;
   private gainNode: GainNode | null = null;
   private activeSources: AudioBufferSourceNode[] = [];
+
+  // Streaming state for server-pushed PCM chunks.
+  private streamingTurnId: number | null = null;
+  private streamingChunks: Uint8Array[] = [];
+  private nextStartTime = 0;
 
   constructor(private onStatus: (s: EngineStatus) => void) {}
 
@@ -97,21 +103,80 @@ export class TTSEngine {
     this.gainNode = ctx.createGain();
     this.gainNode.connect(ctx.destination);
     await ctx.resume();
+    if (ctx.state !== "running") {
+      this.audioCtx = null;
+      this.gainNode = null;
+      this.setStatus({ kind: "error", message: "AudioContext blocked — needs user gesture" });
+      return;
+    }
     this.setStatus({ kind: "ready" });
   }
+
+  // --- Streaming path (server pushes PCM chunks via WebSocket) ---
+
+  startStream(turnId: number) {
+    const ctx = this.audioCtx;
+    if (!ctx) return;
+    this.stopCurrent();
+    this.streamingTurnId = turnId;
+    this.streamingChunks = [];
+    this.nextStartTime = ctx.currentTime + 0.05;
+  }
+
+  addChunk(pcm: Uint8Array) {
+    const ctx = this.audioCtx;
+    if (!ctx || this.streamingTurnId === null || pcm.byteLength === 0) return;
+    this.streamingChunks.push(pcm);
+
+    const sampleCount = pcm.byteLength >> 1;
+    if (sampleCount === 0) return;
+
+    const dv = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+    const floats = new Float32Array(sampleCount);
+    for (let i = 0; i < sampleCount; i++) {
+      floats[i] = dv.getInt16(i * 2, true) / 32768;
+    }
+
+    const audioBuf = ctx.createBuffer(1, sampleCount, PCM_SAMPLE_RATE);
+    audioBuf.copyToChannel(floats, 0);
+
+    const src = ctx.createBufferSource();
+    src.buffer = audioBuf;
+    src.connect(this.gainNode ?? ctx.destination);
+
+    const startAt = Math.max(this.nextStartTime, ctx.currentTime + 0.001);
+    src.start(startAt);
+    this.nextStartTime = startAt + audioBuf.duration;
+    this.activeSources.push(src);
+  }
+
+  endStream(): StreamEndResult | null {
+    const turnId = this.streamingTurnId;
+    if (turnId === null) return null;
+
+    const totalLen = this.streamingChunks.reduce((n, c) => n + c.length, 0);
+    this.streamingTurnId = null;
+    const chunks = this.streamingChunks;
+    this.streamingChunks = [];
+    if (totalLen === 0) return null;
+
+    const pcm = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const chunk of chunks) { pcm.set(chunk, offset); offset += chunk.length; }
+    const url = URL.createObjectURL(new Blob([pcmToWav(pcm)], { type: "audio/wav" }));
+    this.cache.set(turnId, url);
+    return { turnId, url };
+  }
+
+  // --- HTTP-streaming path (system briefings, manual replay before audio is cached) ---
 
   render(turnId: number, text: string, voice?: string): Promise<RenderResult> {
     return this.queue.enqueue(async () => {
       const cached = this.cache.get(turnId);
       if (cached) return { url: cached, durationMs: 0 };
 
-      this.stopCurrent();
-
-      // Auto-initialize if load() was never called (e.g. narrationOn restored from localStorage)
       if (!this.audioCtx) await this.load();
-      const ctx = this.audioCtx;
-      if (!ctx) throw new Error("AudioContext unavailable");
-      if (ctx.state === "suspended") await ctx.resume();
+      if (!this.audioCtx) throw new Error("TTSEngine not loaded");
 
       const t0 = performance.now();
       const res = await fetch("/api/speak", {
@@ -119,62 +184,24 @@ export class TTSEngine {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, voice }),
       });
-
       if (!res.ok) {
         const message = `speak failed: ${res.status}`;
         this.setStatus({ kind: "error", message });
         throw new Error(message);
       }
 
-      // Schedule first chunk 50 ms out so the audio graph has time to start.
-      let nextStart = ctx.currentTime + 0.05;
-      const allChunks: Uint8Array[] = [];
+      this.startStream(turnId);
       const reader = res.body!.getReader();
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (!value?.length) continue;
-
-        allChunks.push(value);
-
-        const sampleCount = value.byteLength >> 1;
-        if (sampleCount === 0) continue;
-
-        // Decode 16-bit signed little-endian PCM → Float32
-        const dv = new DataView(value.buffer, value.byteOffset, value.byteLength);
-        const floats = new Float32Array(sampleCount);
-        for (let i = 0; i < sampleCount; i++) {
-          floats[i] = dv.getInt16(i * 2, true) / 32768;
-        }
-
-        const audioBuf = ctx.createBuffer(1, sampleCount, PCM_SAMPLE_RATE);
-        audioBuf.copyToChannel(floats, 0);
-
-        const src = ctx.createBufferSource();
-        src.buffer = audioBuf;
-        src.connect(this.gainNode ?? ctx.destination);
-
-        // Clamp to "now" if the scheduler has fallen behind (large gap between chunks)
-        const startAt = Math.max(nextStart, ctx.currentTime + 0.001);
-        src.start(startAt);
-        nextStart = startAt + audioBuf.duration;
-        this.activeSources.push(src);
+        if (value && value.byteLength > 0) this.addChunk(value);
       }
-
+      const result = this.endStream();
       const dur = performance.now() - t0;
       console.info(`[tts] render turn ${turnId}: ${text.length} chars in ${Math.round(dur)}ms (${voice ?? "default"})`);
-
-      // Stitch all PCM chunks → WAV blob for replay cache
-      const totalLen = allChunks.reduce((n, c) => n + c.length, 0);
-      const pcm = new Uint8Array(totalLen);
-      let offset = 0;
-      for (const chunk of allChunks) { pcm.set(chunk, offset); offset += chunk.length; }
-      const url = URL.createObjectURL(new Blob([pcmToWav(pcm)], { type: "audio/wav" }));
-      this.cache.set(turnId, url);
-
-      // Signal that Web Audio already played this turn — don't re-trigger <audio> autoplay
-      return { url, durationMs: dur, alreadyPlayed: true };
+      if (!result) throw new Error("speak returned no audio");
+      return { url: result.url, durationMs: dur };
     });
   }
 }

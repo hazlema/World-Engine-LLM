@@ -53,10 +53,13 @@ export type ServerMessage =
       objectives: Objective[];
     }
   | { type: "win" }
+  | { type: "audio-start" }
+  | { type: "audio-chunk"; data: string }
+  | { type: "audio-end" }
   | { type: "error"; source: "narrator" | "archivist"; message: string };
 
 export type ClientMessage =
-  | { type: "input"; text: string }
+  | { type: "input"; text: string; voice?: string }
   | { type: "start"; presetSlug: string | null }
   | { type: "keep-exploring" }
   | { type: "hello" };
@@ -94,7 +97,9 @@ export async function processInput(
   stack: WorldStack,
   input: string,
   send: Send,
-  briefing?: string
+  briefing?: string,
+  voice?: string,
+  sendAudio?: Send
 ): Promise<WorldStack> {
   send({ type: "turn-start", input });
 
@@ -117,6 +122,29 @@ export async function processInput(
     send({ type: "error", source: "narrator", message: String(err) });
     return stack;
   }
+
+  // Start TTS streaming immediately after narrative; runs in parallel with archivist.
+  // Pushes audio-start / audio-chunk* / audio-end to the requesting client only.
+  const ttsPromise: Promise<void> = voice && sendAudio
+    ? (async () => {
+        try {
+          sendAudio({ type: "audio-start" });
+          const stream = synthesizeStream(narrative, voice);
+          const reader = stream.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value && value.length > 0) {
+              sendAudio({ type: "audio-chunk", data: Buffer.from(value).toString("base64") });
+            }
+          }
+        } catch (err) {
+          console.error("[tts]", err);
+        } finally {
+          sendAudio({ type: "audio-end" });
+        }
+      })()
+    : Promise.resolve();
 
   let archived;
   try {
@@ -164,6 +192,9 @@ export async function processInput(
   if (isAllDone && !wasAllDone) {
     send({ type: "win" });
   }
+
+  // Wait for TTS streaming to finish before resolving.
+  await ttsPromise;
 
   return newStack;
 }
@@ -248,10 +279,13 @@ async function handleClientMessage(
   }
 
   if (msg.type === "input") {
+    const voice = typeof msg.voice === "string" && GEMINI_VOICES.includes(msg.voice)
+      ? msg.voice
+      : undefined;
     const briefing = currentStack.presetSlug
       ? presets.get(currentStack.presetSlug)?.body
       : undefined;
-    const newStack = await processInput(currentStack, msg.text, broadcast, briefing);
+    const newStack = await processInput(currentStack, msg.text, broadcast, briefing, voice, send);
     if (newStack !== currentStack) {
       currentStack = newStack;
       try {

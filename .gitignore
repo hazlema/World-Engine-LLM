@@ -39,6 +39,4 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # loose debug screenshots at repo root
 /*.png
 
-# piper binary + voices auto-downloaded on first server start
-bin/
 .superpowers/

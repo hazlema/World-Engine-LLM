@@ -64,6 +64,9 @@ type ServerMessage =
       objectives: Objective[];
     }
   | { type: "win" }
+  | { type: "audio-start" }
+  | { type: "audio-chunk"; data: string }
+  | { type: "audio-end" }
   | { type: "error"; source: "narrator" | "archivist"; message: string };
 
 const QUICK_ACTIONS = [
@@ -124,10 +127,14 @@ function App() {
   const [entriesCollapsed, toggleEntries] = useCollapsed("rail.entriesCollapsed", true);
   const [threadsCollapsed, toggleThreads] = useCollapsed("rail.threadsCollapsed", true);
   // Refs so the WebSocket handler (set up once on mount) always reads current values.
+  const narrationOnRef = useRef(narrationOn);
+  narrationOnRef.current = narrationOn;
   const entriesCollapsedRef = useRef(entriesCollapsed);
   const threadsCollapsedRef = useRef(threadsCollapsed);
   entriesCollapsedRef.current = entriesCollapsed;
   threadsCollapsedRef.current = threadsCollapsed;
+  // Tracks the most recent input turn waiting for server-pushed audio.
+  const serverAudioPendingTurnIdRef = useRef<number | null>(null);
 
   const [toast, setToast] = useState<ToastData | null>(null);
 
@@ -149,10 +156,10 @@ function App() {
     const tts = ttsRef.current;
     if (!tts) return;
     tts.render(turnId, text, selectedVoice || undefined)
-      .then(({ url, alreadyPlayed }) => {
+      .then(({ url }) => {
         setAudioByTurn((prev) => ({ ...prev, [turnId]: url }));
-        // Streaming already played — prevent <audio> autoplay from double-firing
-        if (alreadyPlayed) setLastNarratedId(null);
+        // Web Audio already played it — suppress <audio> autoplay
+        setLastNarratedId(null);
       })
       .catch(() => { /* surfaced via engineStatus */ });
   }, [selectedVoice]);
@@ -183,7 +190,7 @@ function App() {
     try { localStorage.setItem("narrationVolume", String(next)); } catch {}
   }, []);
 
-  // Keep Web Audio gain node in sync with the volume slider
+  // Apply volume to the streaming GainNode (separate from <audio> element volume).
   useEffect(() => {
     ttsRef.current?.setVolume(volume);
   }, [volume]);
@@ -253,11 +260,11 @@ function App() {
         return;
       }
       if (msg.type === "turn-start") {
-        addTurn({
-          id: nextIdRef.current++,
-          input: msg.input,
-          pending: true,
-        });
+        const tid = nextIdRef.current++;
+        if (narrationOnRef.current) {
+          serverAudioPendingTurnIdRef.current = tid;
+        }
+        addTurn({ id: tid, input: msg.input, pending: true });
         setPending(true);
         return;
       }
@@ -306,7 +313,28 @@ function App() {
         setModal("win");
         return;
       }
+      if (msg.type === "audio-start") {
+        const tid = serverAudioPendingTurnIdRef.current;
+        if (tid !== null) ttsRef.current?.startStream(tid);
+        return;
+      }
+      if (msg.type === "audio-chunk") {
+        const bytes = Uint8Array.from(atob(msg.data), (c) => c.charCodeAt(0));
+        ttsRef.current?.addChunk(bytes);
+        return;
+      }
+      if (msg.type === "audio-end") {
+        const result = ttsRef.current?.endStream();
+        if (result) {
+          setAudioByTurn((prev) => ({ ...prev, [result.turnId]: result.url }));
+          // Web Audio already played it — don't trigger <audio> autoplay
+          setLastNarratedId(null);
+        }
+        serverAudioPendingTurnIdRef.current = null;
+        return;
+      }
       if (msg.type === "error") {
+        serverAudioPendingTurnIdRef.current = null;
         updateLastInputTurn((t) => ({
           ...t,
           pending: false,
@@ -334,20 +362,23 @@ function App() {
   // is always current here because this effect re-runs whenever either turns or narrationOn changes.
   const [lastNarratedId, setLastNarratedId] = useState<number | null>(null);
   useEffect(() => {
-    if (!narrationOn) return;
+    // Gate on engineStatus so we never call render() before AudioContext is
+    // running. AudioContext.resume() requires a user gesture; load() is only
+    // allowed to succeed in that context, and sets status to "ready" after.
+    if (!narrationOn || engineStatus.kind !== "ready") return;
     // Walk from newest to find the most recent narratable turn with no audio yet.
     // Narratable = a regular turn with `narrative` OR a system "briefing" turn (preset opening).
     for (let i = turns.length - 1; i >= 0; i--) {
       const t = turns[i];
       if (!t) continue;
       const text = narratableText(t);
-      if (text && !(t.id in audioByTurn)) {
+      if (text && !(t.id in audioByTurn) && t.id !== serverAudioPendingTurnIdRef.current) {
         renderTurn(t.id, text);
         setLastNarratedId(t.id);
         break;
       }
     }
-  }, [turns, narrationOn, audioByTurn, renderTurn]);
+  }, [turns, narrationOn, audioByTurn, renderTurn, engineStatus]);
 
   // Restore focus to the input when it becomes interactive again
   useEffect(() => {
@@ -394,11 +425,15 @@ function App() {
       });
       return;
     }
-    // Ensure AudioContext is unlocked — this IS a user gesture context
+    // Ensure TTS engine is ready — this IS a user gesture context
     if (narrationOn && ttsRef.current?.status.kind !== "ready") {
       ttsRef.current?.load().catch(() => {});
     }
-    wsRef.current.send(JSON.stringify({ type: "input", text: trimmed }));
+    wsRef.current.send(JSON.stringify({
+      type: "input",
+      text: trimmed,
+      ...(narrationOn ? { voice: selectedVoice || "Kore" } : {}),
+    }));
   }, [addTurn, pending, stack, narrationOn]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
@@ -420,6 +455,7 @@ function App() {
     nextIdRef.current = 1;
     setAudioByTurn({});
     setLastNarratedId(null);
+    serverAudioPendingTurnIdRef.current = null;
     ttsRef.current?.cache.clear();
     setHasStarted(true);
     setModal(null);
