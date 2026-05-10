@@ -203,6 +203,21 @@ test("NARRATOR_SYSTEM: cardinal moves are tile transitions, not in-scene steps",
   expect(lower).toMatch(/threshold|arrival|leave the.{0,40}entire|leaving the/);
 });
 
+test("NARRATOR_SYSTEM: binds active-objective items to the current tile", () => {
+  // Observed in playlog 2026-05-10T19:37+: active objective "Find the
+  // transmitter" at [1,0] plus established entry "damaged transmitter
+  // half-buried in regolith" — but the narrator described a "metallic glint"
+  // that, on examination, resolved to "a torn sheet of aluminum" and a
+  // mysterious boot print. The transmitter was substituted out. The model
+  // treated objective and established-entry as independent facts.
+  // Rule must force the bind: when an active-objective item is in entries,
+  // the narrative at this tile must reference THAT named item, not a
+  // substitute.
+  const lower = NARRATOR_SYSTEM.toLowerCase();
+  // Distinctive language not present in the existing tangible-progress rule.
+  expect(lower).toMatch(/do not substitute|substitute alternative|substitute a different/);
+});
+
 test("NARRATOR_SYSTEM: forbids retcon via offscreen backstory invention", () => {
   // Surfaced via Opus's Cellar of Glass run: turn 24 placed an iron key in a
   // depression beneath a flagstone (canonized in entries). Turn 25 narrated
