@@ -85,6 +85,28 @@ The world state lives in `world-stack.json` — an append-mostly list of establi
 - **Locality enforcement.** The world refuses to let you reach across the map. If the journal is in a deeper alcove and you're in the cellar, you'll need to walk over before you can read it. You can still see, hear, or call toward distant features.
 - **Sector distribution.** The bundled stories Cellar of Glass and Lunar Rescue now scatter their goals across multiple tiles. Exploration matters again. The Last Train remains a single-room scene by design.
 
+## Known Issues
+
+- **Objective completion accuracy.** The archivist sometimes flips an objective on observational narrative — moving into a train car and seeing the conductor's empty seat shouldn't count as "find out where the conductor went," but currently can. The reverse also happens: a clear completion in the narrative occasionally goes unmarked. Type `/debug` in the chatbox to inspect what the archivist actually returned for the last turn.
+- **Geography drift over long traversals.** After roughly five sequential moves in one direction the narrator can recycle details from earlier tiles instead of the current one. World state is correct; the prose just borrows from neighbors.
+- **Vanishing established facts.** An entity vividly canonized in one turn (e.g. "a solar array half-buried at the top of the slope") may disappear from the established list by the next turn. Things noticed-but-not-touched are most at risk.
+- **Wrong-noun world-update toasts.** Occasionally the toast surfaces an entry about a different object than the one your action targeted — entry/thread extraction latches onto the most recently mentioned noun rather than the action's subject.
+- **Self-contradiction across adjacent turns.** Turn N may reveal "a corner of a schematic beneath the note"; turn N+1 says the note "peels away to reveal nothing." Likely a context-window or archivist-timing issue; under investigation.
+- **Audio queue / overlap / multi-tab echo.** Re-enabling narration mid-session can flush a stale queue; a new turn's audio can overlap the previous clip; two tabs on the same server echo each other because audio messages are broadcast.
+- **Cardinal-only movement.** "Walk to the lander," "head west-by-northwest," or any non-cardinal phrasing stays on the current tile and surfaces a toast. Use `north / south / east / west`.
+- **No first-class inventory.** Items you "take" stay in the world's established entries — there's no separate inventory data structure or UI yet. Type `inventory` to ask the world what you're carrying.
+
+> Balance is key, we're working on it. 😅
+
+## Future
+
+- **In-app configuration screen.** Providers, API keys, voices, and image styles currently live across `.env` and a few UI buttons. A consolidated settings panel — with a "free Gemma-only" preset and a "premium Gemini" preset — is planned.
+- **Self-building exploration map.** An 80%-width modal that draws tiles as you visit them with notes attached. The world-update toast could deep-link into it.
+- **Local Stable Diffusion image generation.** A free-tier alternative to Gemini Nano Banana via SDXL Turbo / Lightning / FLUX Schnell, so per-turn images don't require an API key.
+- **Single playback controller.** One owner of the in-flight render and current clip with abort-on-change semantics; collapses the three audio bugs above into a single fix.
+- **Compound command detection.** Pre-interpreter pass that flags multi-action input ("go north and grab the key") and surfaces a one-action-per-turn message instead of letting the model silently pick one.
+- **VPS hosting + multi-user.** State is currently single-user JSON. Per-user save state and a handle/email identity are the next step before sharing publicly.
+
 ## Stories (presets)
 
 Presets in `presets/*.md` define a starting situation: a few seed facts, optional objectives, and a briefing the player reads on turn zero. Format:
@@ -114,6 +136,10 @@ Drop a new `.md` in `presets/` and it'll appear on the title screen on the next 
 - **Server:** `Bun.serve` with WebSocket — `src/server.ts`
 - **Web:** React 19, single-file app in `src/web/app.tsx`, served via Bun's HTML import
 - **State:** plain JSON file (`world-stack.json`) — fine for single-user; multi-user would need per-user namespacing
+
+## API Costs
+
+While I cant give you an exact cost, with all my testing, hundreds of images and narrations for 8 hours cost me $1.97
 
 ## Tests
 

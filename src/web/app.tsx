@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { TTSEngine, type EngineStatus } from "./tts";
 import { createRoot } from "react-dom/client";
 import { diffNewItems } from "./utils";
+import { parseSlashCommand } from "./slash";
 
 type Turn = {
   id: number;
@@ -9,7 +10,6 @@ type Turn = {
   narrative?: string;
   error?: string;
   pending: boolean;
-  position?: Position;
 };
 
 type SystemTurn = {
@@ -38,11 +38,35 @@ type Stack = {
   threads: string[];
   objectives: Objective[];
   presetSlug: string | null;
+  position: Position;
 };
 
 type ToastData =
   | { kind: "world-update"; entries: string[]; threads: string[]; id: number }
   | { kind: "blocked"; text: string; id: number };
+
+type InterpreterTrace = { action: string; provider: "local" | "gemini" };
+type ArchivistTrace = {
+  entries: string[];
+  threads: string[];
+  achievedObjectiveIndices: number[];
+  moved: boolean;
+  locationDescription: string;
+};
+type LastTurnTrace = {
+  ts: string;
+  turn: number;
+  input: string;
+  interpreter: InterpreterTrace;
+  archivist: ArchivistTrace | null;
+  error?: { source: "narrator" | "archivist"; message: string };
+};
+type ProviderInfo = {
+  narrator: { provider: string; model: string };
+  interpreter: { provider: "local" | "gemini" };
+  tts: { provider: string; voice: string };
+  image: { provider: string; style: string };
+};
 
 type ServerMessage =
   | {
@@ -54,6 +78,7 @@ type ServerMessage =
       position: Position;
       presetSlug: string | null;
       presets: PresetSummary[];
+      providers: ProviderInfo;
     }
   | { type: "turn-start"; input: string }
   | { type: "narrative"; text: string }
@@ -69,7 +94,8 @@ type ServerMessage =
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
   | { type: "move-blocked"; input: string }
-  | { type: "error"; source: "narrator" | "archivist"; message: string };
+  | { type: "error"; source: "narrator" | "archivist"; message: string }
+  | { type: "debug-trace"; trace: LastTurnTrace };
 
 const QUICK_ACTIONS = [
   "look around",
@@ -100,10 +126,11 @@ function App() {
     threads: [],
     objectives: [],
     presetSlug: null,
+    position: [0, 0],
   });
   const [pending, setPending] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  type ModalView = null | "select" | "win" | "voice" | "image" | "inventory";
+  type ModalView = null | "select" | "win" | "voice" | "image" | "inventory" | "debug";
   const [modal, setModal] = useState<ModalView>(null);
   const [presets, setPresets] = useState<PresetSummary[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
@@ -131,6 +158,8 @@ function App() {
       return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 1.0;
     } catch { return 1.0; }
   });
+  const [providers, setProviders] = useState<ProviderInfo | null>(null);
+  const [lastTrace, setLastTrace] = useState<LastTurnTrace | null>(null);
   const ttsRef = useRef<TTSEngine | null>(null);
   if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
 
@@ -312,8 +341,10 @@ function App() {
           threads: msg.threads,
           objectives: msg.objectives,
           presetSlug: msg.presetSlug,
+          position: msg.position,
         });
         setPresets(msg.presets);
+        if (msg.providers) setProviders(msg.providers);
         // Surface the briefing whenever a preset run is loaded — survives reloads.
         if (msg.presetSlug !== null) {
           const p = msg.presets.find((x) => x.slug === msg.presetSlug);
@@ -390,9 +421,10 @@ function App() {
             threads: msg.threads,
             objectives: msg.objectives,
             turn: s.turn + 1,
+            position: msg.position,
           };
         });
-        updateLastInputTurn((t) => ({ ...t, pending: false, position: msg.position }));
+        updateLastInputTurn((t) => ({ ...t, pending: false }));
         setPending(false);
         return;
       }
@@ -418,6 +450,10 @@ function App() {
           setLastNarratedId(null);
         }
         serverAudioPendingTurnIdRef.current = null;
+        return;
+      }
+      if (msg.type === "debug-trace") {
+        setLastTrace(msg.trace);
         return;
       }
       if (msg.type === "error") {
@@ -490,7 +526,19 @@ function App() {
 
   const send = useCallback((text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || !wsRef.current || pending) return;
+    if (!trimmed) return;
+
+    const slash = parseSlashCommand(trimmed);
+    if (slash) {
+      if (slash.name === "debug") {
+        setModal("debug");
+        return;
+      }
+      setToast({ kind: "blocked", text: `unknown command: /${slash.name}`, id: Date.now() });
+      return;
+    }
+
+    if (!wsRef.current || pending) return;
 
     const lower = trimmed.toLowerCase();
 
@@ -818,6 +866,16 @@ function App() {
                 <button className="action-button" onClick={() => setModal(null)}>close</button>
               </>
             )}
+            {modal === "debug" && (
+              <DebugModal
+                stack={stack}
+                position={stack.position}
+                placeDescription={lastTrace?.archivist?.locationDescription}
+                providers={providers}
+                lastTrace={lastTrace}
+                onClose={() => setModal(null)}
+              />
+            )}
           </div>
         </div>
       )}
@@ -897,9 +955,6 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
         <p className="turn-input-echo">{turn.input}</p>
         {imageUrl && <img className="turn-image" src={imageUrl} alt="" />}
         {turn.narrative && <p className="turn-narrative">{turn.narrative}</p>}
-        {turn.position && (
-          <p className="turn-debug">&gt; debug: x:{turn.position[0]} y:{turn.position[1]}</p>
-        )}
         {turn.pending && !turn.narrative && !turn.error && (
           <p className="turn-pending">the world is responding…</p>
         )}
@@ -1194,6 +1249,117 @@ function WinView(props: {
       <button className="action-button" onClick={props.onKeepExploring}>keep exploring</button>
       <button className="action-button critical" onClick={props.onNewGame}>new game</button>
     </>
+  );
+}
+
+function DebugModal(props: {
+  stack: Stack;
+  position: Position;
+  placeDescription?: string;
+  providers: ProviderInfo | null;
+  lastTrace: LastTurnTrace | null;
+  onClose: () => void;
+}) {
+  const { stack, position, placeDescription, providers, lastTrace, onClose } = props;
+  const active = stack.objectives.filter(
+    (o) => !o.position || (o.position[0] === position[0] && o.position[1] === position[1])
+  );
+  const distant = stack.objectives.filter(
+    (o) => o.position && (o.position[0] !== position[0] || o.position[1] !== position[1])
+  );
+  return (
+    <div className="modal-body debug-modal">
+      <div className="modal-title">Debug</div>
+      <div className="debug-columns">
+        <section className="debug-col">
+          <h4>Live state</h4>
+          <p><strong>Position</strong> [{position[0]}, {position[1]}] (key: {position[0]},{position[1]})</p>
+          {placeDescription && (
+            <p><strong>Place</strong> {placeDescription}</p>
+          )}
+          <p><strong>Turn</strong> {stack.turn}</p>
+          <p><strong>Preset</strong> {stack.presetSlug ?? "(free play)"}</p>
+
+          <h5>Objectives — active here ({active.length})</h5>
+          {active.length === 0 ? (
+            <p className="debug-muted">(none)</p>
+          ) : (
+            <ul>{active.map((o, i) => (
+              <li key={i}>{o.achieved ? "✓" : "·"} {o.text}{o.position ? ` @ [${o.position[0]},${o.position[1]}]` : ""}</li>
+            ))}</ul>
+          )}
+
+          <h5>Objectives — distant ({distant.length})</h5>
+          {distant.length === 0 ? (
+            <p className="debug-muted">(none)</p>
+          ) : (
+            <ul>{distant.map((o, i) => (
+              <li key={i}>{o.achieved ? "✓" : "·"} {o.text} @ [{o.position![0]},{o.position![1]}]</li>
+            ))}</ul>
+          )}
+
+          <h5>Entries ({stack.entries.length})</h5>
+          {stack.entries.length === 0 ? (
+            <p className="debug-muted">(none)</p>
+          ) : (
+            <ul>{stack.entries.map((e, i) => <li key={i}>{e}</li>)}</ul>
+          )}
+
+          <h5>Threads ({stack.threads.length})</h5>
+          {stack.threads.length === 0 ? (
+            <p className="debug-muted">(none)</p>
+          ) : (
+            <ul>{stack.threads.map((t, i) => <li key={i}>{t}</li>)}</ul>
+          )}
+
+          <h5>Providers</h5>
+          {providers ? (
+            <ul>
+              <li>narrator: {providers.narrator.provider} / {providers.narrator.model}</li>
+              <li>interpreter: {providers.interpreter.provider}</li>
+              <li>tts: {providers.tts.provider} / {providers.tts.voice}</li>
+              <li>image: {providers.image.provider} / {providers.image.style}</li>
+            </ul>
+          ) : (
+            <p className="debug-muted">(loading)</p>
+          )}
+        </section>
+
+        <section className="debug-col">
+          <h4>Last turn pipeline</h4>
+          {!lastTrace ? (
+            <p className="debug-muted">No turns yet — play a turn to see pipeline trace.</p>
+          ) : (
+            <>
+              <p><strong>ts</strong> {lastTrace.ts}</p>
+              <p><strong>turn</strong> {lastTrace.turn}</p>
+              <p><strong>input</strong> {lastTrace.input}</p>
+
+              <h5>Interpreter</h5>
+              <ul>
+                <li>action: {lastTrace.interpreter.action}</li>
+                <li>provider: {lastTrace.interpreter.provider}</li>
+              </ul>
+
+              <h5>Archivist</h5>
+              {lastTrace.archivist === null ? (
+                <p className="debug-muted">(skipped — see error or move-blocked)</p>
+              ) : (
+                <pre className="debug-json">{JSON.stringify(lastTrace.archivist, null, 2)}</pre>
+              )}
+
+              {lastTrace.error && (
+                <>
+                  <h5>Error</h5>
+                  <p className="debug-error">{lastTrace.error.source}: {lastTrace.error.message}</p>
+                </>
+              )}
+            </>
+          )}
+        </section>
+      </div>
+      <button className="action-button" onClick={onClose}>close</button>
+    </div>
   );
 }
 

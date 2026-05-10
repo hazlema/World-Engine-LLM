@@ -1530,3 +1530,40 @@ button {
   border: 1px solid var(--stroke-mid);
   background: var(--surface-1);
 }
+
+.modal:has(.debug-modal) {
+  max-width: 80vw;
+  width: 80vw;
+}
+.debug-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.debug-col h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--accent);
+}
+.debug-col h5 {
+  margin: 0.85rem 0 0.25rem 0;
+  font-size: 0.88rem;
+  color: var(--fg-muted);
+}
+.debug-col ul {
+  margin: 0.25rem 0 0.5rem 1rem;
+  padding: 0;
+}
+.debug-col li {
+  font-size: 0.9rem;
+}
+.debug-muted { color: var(--fg-subtle); font-size: 0.9rem; }
+.debug-json {
+  background: rgba(0,0,0,0.25);
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  overflow-x: auto;
+}
+.debug-error { color: var(--negative, #d66); font-size: 0.9rem; }

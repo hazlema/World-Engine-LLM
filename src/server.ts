@@ -35,6 +35,75 @@ export interface PresetSummary {
   body: string;
 }
 
+export interface InterpreterTrace {
+  action: InterpretedAction["action"];
+  provider: "local" | "gemini";
+}
+
+export interface ArchivistTrace {
+  entries: string[];
+  threads: string[];
+  achievedObjectiveIndices: number[];
+  moved: boolean;
+  locationDescription: string;
+}
+
+export interface LastTurnTrace {
+  ts: string;
+  turn: number;
+  input: string;
+  interpreter: InterpreterTrace;
+  archivist: ArchivistTrace | null;
+  error?: { source: "narrator" | "archivist"; message: string };
+}
+
+export interface ProviderInfo {
+  narrator: { provider: string; model: string };
+  interpreter: { provider: "local" | "gemini" };
+  tts: { provider: string; voice: string };
+  image: { provider: string; style: string };
+}
+
+function buildProviderInfo(): ProviderInfo {
+  return {
+    narrator: {
+      provider: process.env.NARRATOR_PROVIDER || "local",
+      model: process.env.NARRATOR_MODEL || "gemma-3-12b",
+    },
+    interpreter: { provider: interpreterProvider() },
+    tts: { provider: "gemini", voice: DEFAULT_VOICE },
+    image: { provider: "gemini", style: DEFAULT_IMAGE_STYLE },
+  };
+}
+
+const PROVIDER_INFO: ProviderInfo = buildProviderInfo();
+
+let lastTurnTrace: LastTurnTrace | null = null;
+export function getLastTurnTrace(): LastTurnTrace | null {
+  return lastTurnTrace;
+}
+
+function interpreterProvider(): "local" | "gemini" {
+  return process.env.INTERPRETER_PROVIDER === "gemini" ? "gemini" : "local";
+}
+
+function buildLastTurnTrace(args: {
+  turn: number;
+  input: string;
+  action: InterpretedAction;
+  archivist: ArchivistTrace | null;
+  error?: { source: "narrator" | "archivist"; message: string };
+}): LastTurnTrace {
+  return {
+    ts: new Date().toISOString(),
+    turn: args.turn,
+    input: args.input,
+    interpreter: { action: args.action.action, provider: interpreterProvider() },
+    archivist: args.archivist,
+    ...(args.error ? { error: args.error } : {}),
+  };
+}
+
 export type ServerMessage =
   | {
       type: "snapshot";
@@ -45,6 +114,7 @@ export type ServerMessage =
       position: [number, number];
       presetSlug: string | null;
       presets: PresetSummary[];
+      providers: ProviderInfo;
     }
   | { type: "turn-start"; input: string }
   | { type: "narrative"; text: string }
@@ -60,7 +130,8 @@ export type ServerMessage =
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
   | { type: "move-blocked"; input: string }
-  | { type: "error"; source: "narrator" | "archivist"; message: string };
+  | { type: "error"; source: "narrator" | "archivist"; message: string }
+  | { type: "debug-trace"; trace: LastTurnTrace };
 
 export type ClientMessage =
   | { type: "input"; text: string; voice?: string }
@@ -114,6 +185,12 @@ export async function processInput(
 
   if (action.action === "move-blocked") {
     send({ type: "move-blocked", input });
+    try {
+      lastTurnTrace = buildLastTurnTrace({ turn: stack.turn, input, action, archivist: null });
+      send({ type: "debug-trace", trace: lastTurnTrace });
+    } catch (err) {
+      console.error("[debug-trace] capture failed:", err);
+    }
     return stack;
   }
 
@@ -129,7 +206,20 @@ export async function processInput(
     narrative = await narratorTurn(narratorStack, input, briefing);
     send({ type: "narrative", text: narrative });
   } catch (err) {
-    send({ type: "error", source: "narrator", message: String(err) });
+    const message = String(err);
+    send({ type: "error", source: "narrator", message });
+    try {
+      lastTurnTrace = buildLastTurnTrace({
+        turn: stack.turn,
+        input,
+        action,
+        archivist: null,
+        error: { source: "narrator", message },
+      });
+      send({ type: "debug-trace", trace: lastTurnTrace });
+    } catch (e) {
+      console.error("[debug-trace] capture failed:", e);
+    }
     return stack;
   }
 
@@ -160,7 +250,20 @@ export async function processInput(
   try {
     archived = await archivistTurn(stack, narrative);
   } catch (err) {
-    send({ type: "error", source: "archivist", message: String(err) });
+    const message = String(err);
+    send({ type: "error", source: "archivist", message });
+    try {
+      lastTurnTrace = buildLastTurnTrace({
+        turn: stack.turn,
+        input,
+        action,
+        archivist: null,
+        error: { source: "archivist", message },
+      });
+      send({ type: "debug-trace", trace: lastTurnTrace });
+    } catch (e) {
+      console.error("[debug-trace] capture failed:", e);
+    }
     return stack;
   }
 
@@ -203,6 +306,24 @@ export async function processInput(
     position: newStack.position,
   });
 
+  try {
+    lastTurnTrace = buildLastTurnTrace({
+      turn: archived.turn,
+      input,
+      action,
+      archivist: {
+        entries: archived.entries,
+        threads: archived.threads,
+        achievedObjectiveIndices: archived.achievedObjectiveIndices,
+        moved: archived.moved,
+        locationDescription: archived.locationDescription,
+      },
+    });
+    send({ type: "debug-trace", trace: lastTurnTrace });
+  } catch (err) {
+    console.error("[debug-trace] capture failed:", err);
+  }
+
   if (isAllDone && !wasAllDone) {
     send({ type: "win" });
   }
@@ -224,7 +345,7 @@ function presetSummaries(): PresetSummary[] {
   }));
 }
 
-function snapshotMessage(stack: WorldStack): ServerMessage {
+export function snapshotMessage(stack: WorldStack): ServerMessage {
   return {
     type: "snapshot",
     turn: stack.turn,
@@ -234,6 +355,7 @@ function snapshotMessage(stack: WorldStack): ServerMessage {
     position: stack.position,
     presetSlug: stack.presetSlug,
     presets: presetSummaries(),
+    providers: PROVIDER_INFO,
   };
 }
 

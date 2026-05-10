@@ -1,6 +1,6 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
-import { processInput, startWithPreset, keepExploring, emptyWorld, type ServerMessage } from "./server";
+import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, type ServerMessage } from "./server";
 import type { WorldStack } from "./stack";
 import type { Preset } from "./presets";
 
@@ -173,9 +173,10 @@ test("processInput: on narrator failure, emits error and returns unchanged stack
   const messages: ServerMessage[] = [];
   const newStack = await processInput(emptyStack, "look", (m) => messages.push(m));
 
-  expect(messages.length).toBe(2);
+  expect(messages.length).toBe(3);
   expect(messages[0]).toEqual({ type: "turn-start", input: "look" });
   expect(messages[1]).toMatchObject({ type: "error", source: "narrator" });
+  expect(messages[2]).toMatchObject({ type: "debug-trace" });
   expect(newStack).toBe(emptyStack);
   expect(archivistSpy).not.toHaveBeenCalled();
 });
@@ -190,11 +191,26 @@ test("processInput: on archivist failure, narrative is sent but stack is unchang
   const messages: ServerMessage[] = [];
   const newStack = await processInput(emptyStack, "look", (m) => messages.push(m));
 
-  expect(messages.length).toBe(3);
+  expect(messages.length).toBe(4);
   expect(messages[0]).toEqual({ type: "turn-start", input: "look" });
   expect(messages[1]).toEqual({ type: "narrative", text: "Something happens." });
   expect(messages[2]).toMatchObject({ type: "error", source: "archivist" });
+  expect(messages[3]).toMatchObject({ type: "debug-trace" });
   expect(newStack).toBe(emptyStack);
+});
+
+test("processInput: emits debug-trace with null archivist on move-blocked", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "move-blocked" }));
+
+  const messages: ServerMessage[] = [];
+  await processInput(emptyStack, "go through wall", (m) => messages.push(m));
+
+  const traceMsg = messages.find((m) => m.type === "debug-trace");
+  expect(traceMsg).toBeDefined();
+  if (traceMsg?.type !== "debug-trace") throw new Error("type guard");
+  expect(traceMsg.trace.input).toBe("go through wall");
+  expect(traceMsg.trace.interpreter.action).toBe("move-blocked");
+  expect(traceMsg.trace.archivist).toBeNull();
 });
 
 test("processInput: on interpreter failure, falls back to stay (still runs narrator)", async () => {
@@ -416,5 +432,68 @@ test("processInput: move-blocked short-circuits, no narrator/archivist call, sen
   expect(narratorSpy).not.toHaveBeenCalled();
   expect(archivistSpy).not.toHaveBeenCalled();
   expect(newStack).toBe(emptyStack);
-  expect(messages).toEqual([{ type: "move-blocked", input: "go to the train" }]);
+  expect(messages[0]).toEqual({ type: "move-blocked", input: "go to the train" });
+  expect(messages[1]?.type).toBe("debug-trace");
+});
+
+test("processInput: emits debug-trace with error when archivist throws", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  narratorSpy.mockImplementationOnce(async () => "You stand still.");
+  archivistSpy.mockImplementationOnce(async () => { throw new Error("boom"); });
+
+  const messages: ServerMessage[] = [];
+  await processInput(emptyStack, "wait", (m) => messages.push(m));
+
+  const traceMsg = messages.find((m) => m.type === "debug-trace");
+  expect(traceMsg).toBeDefined();
+  if (traceMsg?.type !== "debug-trace") throw new Error("type guard");
+  expect(traceMsg.trace.archivist).toBeNull();
+  expect(traceMsg.trace.error?.source).toBe("archivist");
+  expect(traceMsg.trace.error?.message).toContain("boom");
+});
+
+test("processInput: emits debug-trace after stack-update on normal turn", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
+  narratorSpy.mockImplementationOnce(async () => "You walk north.");
+  archivistSpy.mockImplementationOnce(async () => ({
+    entries: ["a tall pine"],
+    threads: ["who carved the pine?"],
+    turn: 1,
+    moved: true,
+    locationDescription: "A clearing under tall pines.",
+    achievedObjectiveIndices: [2],
+  }));
+
+  const messages: ServerMessage[] = [];
+  await processInput(emptyStack, "north", (m) => messages.push(m));
+
+  const stackUpdateIdx = messages.findIndex((m) => m.type === "stack-update");
+  const traceIdx = messages.findIndex((m) => m.type === "debug-trace");
+
+  expect(stackUpdateIdx).toBeGreaterThanOrEqual(0);
+  expect(traceIdx).toBeGreaterThan(stackUpdateIdx);
+
+  const trace = messages[traceIdx];
+  if (!trace || trace.type !== "debug-trace") throw new Error("type guard");
+  expect(trace.trace.input).toBe("north");
+  expect(trace.trace.interpreter.action).toBe("move-north");
+  expect(trace.trace.archivist).toEqual({
+    entries: ["a tall pine"],
+    threads: ["who carved the pine?"],
+    achievedObjectiveIndices: [2],
+    moved: true,
+    locationDescription: "A clearing under tall pines.",
+  });
+  expect(trace.trace.error).toBeUndefined();
+});
+
+test("snapshotMessage: includes providers info", () => {
+  const msg = snapshotMessage(emptyStack);
+  expect(msg.type).toBe("snapshot");
+  if (msg.type !== "snapshot") throw new Error("type guard");
+  expect(msg.providers).toBeDefined();
+  expect(msg.providers.interpreter.provider).toMatch(/^(local|gemini)$/);
+  expect(typeof msg.providers.narrator.model).toBe("string");
+  expect(typeof msg.providers.tts.voice).toBe("string");
+  expect(typeof msg.providers.image.style).toBe("string");
 });
