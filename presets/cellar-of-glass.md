@@ -4,7 +4,7 @@ description: A locksmith's tomb beneath the cathedral.
 objects:
   - brass key tarnished green at the bow
   - shattered apothecary jar leaking clear fluid
-  - iron-bound chest with a broken lock plate
+  - iron-bound chest, lid sealed, lock plate cracked
 objectives:
   - Find the locksmith's journal @ -1,0
   - Open the iron-bound chest @ 0,0
