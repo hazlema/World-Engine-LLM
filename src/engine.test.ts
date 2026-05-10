@@ -353,6 +353,19 @@ test("ARCHIVIST_SYSTEM: explicitly skips transient sensory details from entries"
   expect(lower).toContain("sensory");
 });
 
+test("ARCHIVIST_SYSTEM: distinguishes static state-description from state-change", async () => {
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  // Physical-action objectives need the NARRATIVE to depict the change
+  // happening this turn (the lid shifting, the latch yielding) — not merely
+  // describe a post-state ("the chest gapes open"). Otherwise a `look
+  // around` where the narrator hallucinates an opened chest fires the
+  // "Open the iron-bound chest" objective. We need explicit language and
+  // a worked DO-NOT example using static state phrasing.
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/state.change|state-change|change.{0,40}occurring|depict.{0,40}change/);
+  expect(lower).toMatch(/gapes open|state.description|static.state/);
+});
+
 test("interpreterTurn: classifies bare cardinal as move", async () => {
   callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   const result = await interpreterTurn("north");
