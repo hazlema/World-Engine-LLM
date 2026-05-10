@@ -268,6 +268,7 @@ function App() {
   const wsRef = useRef<WebSocket | null>(null);
   const nextIdRef = useRef(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const lastSubmittedRef = useRef<string>("");
 
   const addTurn = useCallback((t: AnyTurn) => {
     setTurns((prev) => [...prev, t]);
@@ -330,6 +331,7 @@ function App() {
         return;
       }
       if (msg.type === "move-blocked") {
+        setInputValue(lastSubmittedRef.current);
         setToast({
           kind: "blocked",
           text: "Cardinal directions only — try north, south, east, or west.",
@@ -532,6 +534,7 @@ function App() {
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    lastSubmittedRef.current = inputValue;
     send(inputValue);
     setInputValue("");
   }, [send, inputValue]);
