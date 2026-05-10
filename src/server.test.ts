@@ -211,11 +211,14 @@ test("processInput: on interpreter failure, falls back to stay (still runs narra
     achievedObjectiveIndices: [],
   }));
 
-  const newStack = await processInput(emptyStack, "go north", () => {});
+  const messages: ServerMessage[] = [];
+  const newStack = await processInput(emptyStack, "go north", (m) => messages.push(m));
 
   expect(newStack.position).toEqual([0, 0]);
   // narrator was still called
   expect(narratorSpy).toHaveBeenCalled();
+  // interpreter exceptions must not surface as move-blocked
+  expect(messages.some((m) => m.type === "move-blocked")).toBe(false);
 });
 
 const lunarPreset: Preset = {

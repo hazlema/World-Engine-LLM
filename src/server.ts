@@ -117,6 +117,7 @@ export async function processInput(
     return stack;
   }
 
+  // Fires after classification so a `move-blocked` short-circuit doesn't leave a stale pending turn in the UI.
   send({ type: "turn-start", input });
 
   const dir = ACTION_TO_DIRECTION[action.action];
