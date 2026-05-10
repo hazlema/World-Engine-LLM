@@ -386,6 +386,18 @@ test("ARCHIVIST_SYSTEM: has explicit rule for discovery objectives", async () =>
   expect(lower).toMatch(/this turn|this narrative/);
 });
 
+test("ARCHIVIST_SYSTEM: absence from narrative does not invalidate established entries", async () => {
+  // Observed via Opus 2026-05-10: established-items list oscillating
+  // wildly across consecutive turns (11 → 13 → 4 → 13 → 6 → 13 → 6 → 9).
+  // The model was treating "not mentioned this turn" as "should be removed",
+  // then re-canonizing entries the next turn. Need an explicit rule that
+  // absence is not invalidation — preserve entries unless explicitly
+  // contradicted, superseded, or consumed.
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/absence.{0,40}not.{0,40}invalidat|preserve.{0,80}current stack|do not drop.{0,40}absent|not mentioned/);
+});
+
 test("ARCHIVIST_SYSTEM: has supersession rule for state changes", async () => {
   const { ARCHIVIST_SYSTEM } = await import("./engine");
   // The archivist must REPLACE old entries when an item is taken, placed,
@@ -409,6 +421,20 @@ test("ARCHIVIST_SYSTEM: explicitly skips transient sensory details from entries"
   // locationDescription rule, so we look for "sensory" which is novel.
   const lower = ARCHIVIST_SYSTEM.toLowerCase();
   expect(lower).toContain("sensory");
+});
+
+test("ARCHIVIST_SYSTEM: LOCATE excludes action verbs (send/restore/repair)", async () => {
+  // Observed via Opus 2026-05-10: "Send the distress signal @ 1,0" fired
+  // when player typed `north` and arrived at [1,0] — without depicting any
+  // signal being sent. The LOCATE override ("observation at the target tile
+  // IS completion") was being applied to all objectives at the target tile,
+  // including PHYSICAL ACTION objectives. The LOCATE rule must explicitly
+  // exclude action verbs.
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  // Must list exclusion verbs explicitly.
+  expect(lower).toMatch(/send.{0,40}restore|send the distress|action verbs/);
+  expect(lower).toMatch(/locate.{0,80}only.{0,80}find|find.{0,30}locate.{0,30}reach.{0,80}not/);
 });
 
 test("ARCHIVIST_SYSTEM: LOCATE rule carves out the observation-no-completion rule", async () => {
@@ -435,7 +461,7 @@ test("ARCHIVIST_SYSTEM: has rule for LOCATE objectives (find/locate/reach a plac
   const lower = ARCHIVIST_SYSTEM.toLowerCase();
   expect(lower).toContain("locate objective");
   // Must explicitly include "find" / "locate" / "reach" as the trigger shapes.
-  expect(lower).toMatch(/find x|locate y|reach z/);
+  expect(lower).toMatch(/"find"|"locate"|"reach"|find x|locate y|reach z/);
   // Worked example anchoring with an actual preset objective.
   expect(lower).toMatch(/transmitter|the target tile|the player is at the/);
 });
