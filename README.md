@@ -2,13 +2,27 @@
 
 # World Engine
 
-A text adventure where the world is generated turn by turn by an LLM.
+There's a chest. It's locked.
 
-You type what you do; a **narrator** model writes what happens next; an **archivist** model distills the result into stable facts that anchor future turns. The world remembers what it established and pushes back against impossible actions. Runs entirely against a local OpenAI-compatible endpoint — no API keys, no usage charges.
+ The objective says open the chest. But, the game does not tell you how or even know how. 
+ 
+ There's no designated key waiting in a designated drawer. The lock might be jammed, in which case the key you find won't help. So you wander.
+
+A few rooms later you find an axe. The axe wasn't placed there to solve the chest — nothing is placed to solve anything. Nothing was placed at all until you walked in the room. 
+
+But you're holding an axe and there's a locked chest, and when you swing it at the lid, the world agrees that's what happens.
+
+Rooms, objects, and complications get generated turn by turn as you explore them. Some of what shows up will turn out to matter. You won't know which until you try something.
+
+Replay the same preset and the axe might not exist. Maybe there's a crowbar. Maybe the chest is rusted shut and now you're looking for water. 
+
+Maybe the chest contains something you really wish it hadn't. The seed scenario is the same; what fills it in isn't.
+
+You can also skip the presets entirely and start in an empty open world — type what you do, and the world assembles itself around you.
 
 > **Status:** still being shaped. The engine grows sharper between sessions; expect occasional rough edges and behavior that changes as it learns.
 
-**Demo:** [Gameplay video](https://www.youtube.com/watch?v=fcAVa8x6OsE) — streaming TTS narration and per-turn image generation in action.
+**Demo:** [Gameplay video](https://www.youtube.com/watch?v=fcAVa8x6OsE) — streaming TTS narration and per-turn image generation in action. (outdated)
 
 ## Quickstart
 
