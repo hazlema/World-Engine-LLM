@@ -411,6 +411,19 @@ test("ARCHIVIST_SYSTEM: explicitly skips transient sensory details from entries"
   expect(lower).toContain("sensory");
 });
 
+test("ARCHIVIST_SYSTEM: LOCATE rule carves out the observation-no-completion rule", async () => {
+  // Observed 2026-05-10 (post-LOCATE-fix run): player at [1,0] where the
+  // transmitter is established + narrative named the transmitter on arrival,
+  // but `Find the transmitter` did not fire. The general not-completion rule
+  // ("observation, approach, atmospheric clue is NOT completion") conflicted
+  // with the LOCATE rule, and the model deferred to the conservative reading.
+  // Need an explicit carve-out: for LOCATE, observation AT the target tile
+  // IS the completion event.
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/does not apply to locate|locating is.{0,40}completion|locate.{0,40}exception|observation at the target/);
+});
+
 test("ARCHIVIST_SYSTEM: has rule for LOCATE objectives (find/locate/reach a place)", async () => {
   // Plain "Find the transmitter @ 1,0" objectives fell through both prior
   // rules: not a discovery (find out / identify), not a physical state-change
