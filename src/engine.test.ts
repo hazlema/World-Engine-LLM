@@ -187,6 +187,22 @@ test("NARRATOR_SYSTEM: instructs the narrator to honor a canonical location desc
   expect(NARRATOR_SYSTEM.toLowerCase()).toMatch(/honor|consistent|do not contradict/);
 });
 
+test("NARRATOR_SYSTEM: cardinal moves are tile transitions, not in-scene steps", () => {
+  // Surfaced via the user's Lunar Rescue demo run: position updated correctly
+  // (interpreter authoritative) but the narrator kept describing the lander
+  // cabin even at [2,0] — typing `north` from the cabin produced narrative
+  // about walking around inside the cabin instead of crossing the EVA hatch
+  // and arriving on the regolith.
+  // The "Out-of-scale actions resolve as small concrete movements within the
+  // immediate scene" rule (intended to stop "I walk to Tokyo") was misfiring
+  // on legit cardinal moves. Need to explicitly carve out cardinals as TILE
+  // TRANSITIONS.
+  const lower = NARRATOR_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/tile transition|new tile|leaving the (current|previous) (location|tile)/);
+  // Reinforce: the move is NOT continued presence in the prior setting.
+  expect(lower).toMatch(/threshold|arrival|leave the.{0,40}entire|leaving the/);
+});
+
 test("NARRATOR_SYSTEM: forbids retcon via offscreen backstory invention", () => {
   // Surfaced via Opus's Cellar of Glass run: turn 24 placed an iron key in a
   // depression beneath a flagstone (canonized in entries). Turn 25 narrated
