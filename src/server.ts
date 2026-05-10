@@ -76,6 +76,8 @@ function buildProviderInfo(): ProviderInfo {
   };
 }
 
+const PROVIDER_INFO: ProviderInfo = buildProviderInfo();
+
 let lastTurnTrace: LastTurnTrace | null = null;
 export function getLastTurnTrace(): LastTurnTrace | null {
   return lastTurnTrace;
@@ -353,7 +355,7 @@ export function snapshotMessage(stack: WorldStack): ServerMessage {
     position: stack.position,
     presetSlug: stack.presetSlug,
     presets: presetSummaries(),
-    providers: buildProviderInfo(),
+    providers: PROVIDER_INFO,
   };
 }
 
