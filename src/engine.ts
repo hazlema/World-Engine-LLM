@@ -152,7 +152,7 @@ Output JSON with one field, "action", whose value is exactly one of:
 - "move-blocked" — the player is trying to MOVE but did not name a cardinal direction
 
 Rules:
-- If a cardinal direction (north / south / east / west, or up / down / left / right meaning the same) is named anywhere in the input, classify by that direction even with surrounding words. "go north through the door" → "move-north".
+- If a cardinal direction (north / south / east / west) is named anywhere in the input, classify by that direction even with surrounding words. "go north through the door" → "move-north".
 - Pure observation or interaction without movement intent is "stay" (e.g. "look around", "wait", "examine the door", "talk to the woman", "pick up the satchel").
 - Movement intent without a cardinal is "move-blocked" (e.g. "go to the train", "walk to the lander", "follow the path", "head toward the crater", "return to the ship", "go through the door").
 - "head up the road" alone is "move-blocked"; "head north" is "move-north".

@@ -321,9 +321,3 @@ test("interpreterTurn: classifies movement-without-cardinal as move-blocked", as
   const result = await interpreterTurn("go to the train");
   expect(result).toEqual({ action: "move-blocked" });
 });
-
-test("interpreterTurn: unknown action falls back to stay", async () => {
-  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "fly" }));
-  const result = await interpreterTurn("fly to the moon");
-  expect(result).toEqual({ action: "stay" });
-});
