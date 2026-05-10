@@ -31,6 +31,7 @@
   /* Status */
   --positive:     #4ade80;
   --positive-tint:rgba(74, 222, 128, 0.16);
+  --negative:     #c54a4a;
 
   /* Info accent (e.g. inventory) */
   --info:          #60a5fa;
@@ -500,11 +501,11 @@ button {
 }
 
 .toast.toast-blocked {
-  border-left-color: #c54a4a;
+  border-left-color: var(--negative);
 }
 
 .toast.toast-blocked .toast-label {
-  color: #c54a4a;
+  color: var(--negative);
 }
 
 /* ---------- turn list ---------- */

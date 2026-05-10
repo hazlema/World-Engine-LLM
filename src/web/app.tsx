@@ -1313,7 +1313,7 @@ function Toast({ data, onDismiss }: { data: ToastData; onDismiss: () => void }) 
     return (
       <div className="toast toast-blocked" role="status" aria-live="polite">
         <div className="toast-header">
-          <span className="toast-label">Try a direction</span>
+          <span className="toast-label">Direction needed</span>
         </div>
         <div className="toast-items">
           <div className="toast-item">{data.text}</div>
