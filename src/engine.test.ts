@@ -187,6 +187,22 @@ test("NARRATOR_SYSTEM: instructs the narrator to honor a canonical location desc
   expect(NARRATOR_SYSTEM.toLowerCase()).toMatch(/honor|consistent|do not contradict/);
 });
 
+test("NARRATOR_SYSTEM: forbids retcon via offscreen backstory invention", () => {
+  // Surfaced via Opus's Cellar of Glass run: turn 24 placed an iron key in a
+  // depression beneath a flagstone (canonized in entries). Turn 25 narrated
+  // "the iron key is not here. You recall leaving it on the table in the
+  // alchemist's study, upstairs" — there is no alchemist's study. The model
+  // invented offscreen backstory to delete an established item.
+  // The existing "Honor what is already established... unless the world
+  // supplies the means" rule is too loose; the model interpreted "you remember
+  // leaving it upstairs" as the world supplying the means.
+  const lower = NARRATOR_SYSTEM.toLowerCase();
+  // Explicit anti-retcon language.
+  expect(lower).toMatch(/retcon|invent.{0,30}backstory|invent.{0,30}offscreen/);
+  // The rule must specify items leave only via depicted on-screen change.
+  expect(lower).toMatch(/on.?screen|depicted.{0,40}this turn/);
+});
+
 test("archivistTurn: returns moved and locationDescription fields", async () => {
   const stack: WorldStack = {
     entries: [],
