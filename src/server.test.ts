@@ -418,3 +418,38 @@ test("processInput: move-blocked short-circuits, no narrator/archivist call, sen
   expect(newStack).toBe(emptyStack);
   expect(messages).toEqual([{ type: "move-blocked", input: "go to the train" }]);
 });
+
+test("processInput: emits debug-trace after stack-update on normal turn", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
+  narratorSpy.mockImplementationOnce(async () => "You walk north.");
+  archivistSpy.mockImplementationOnce(async () => ({
+    entries: ["a tall pine"],
+    threads: ["who carved the pine?"],
+    turn: 1,
+    moved: true,
+    locationDescription: "A clearing under tall pines.",
+    achievedObjectiveIndices: [2],
+  }));
+
+  const messages: ServerMessage[] = [];
+  await processInput(emptyStack, "north", (m) => messages.push(m));
+
+  const stackUpdateIdx = messages.findIndex((m) => m.type === "stack-update");
+  const traceIdx = messages.findIndex((m) => m.type === "debug-trace");
+
+  expect(stackUpdateIdx).toBeGreaterThanOrEqual(0);
+  expect(traceIdx).toBeGreaterThan(stackUpdateIdx);
+
+  const trace = messages[traceIdx];
+  if (trace.type !== "debug-trace") throw new Error("type guard");
+  expect(trace.trace.input).toBe("north");
+  expect(trace.trace.interpreter.action).toBe("move-north");
+  expect(trace.trace.archivist).toEqual({
+    entries: ["a tall pine"],
+    threads: ["who carved the pine?"],
+    achievedObjectiveIndices: [2],
+    moved: true,
+    locationDescription: "A clearing under tall pines.",
+  });
+  expect(trace.trace.error).toBeUndefined();
+});

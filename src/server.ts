@@ -35,6 +35,37 @@ export interface PresetSummary {
   body: string;
 }
 
+export interface InterpreterTrace {
+  action: string;
+  provider: "local" | "gemini";
+}
+
+export interface ArchivistTrace {
+  entries: string[];
+  threads: string[];
+  achievedObjectiveIndices: number[];
+  moved: boolean;
+  locationDescription: string;
+}
+
+export interface LastTurnTrace {
+  ts: string;
+  turn: number;
+  input: string;
+  interpreter: InterpreterTrace;
+  archivist: ArchivistTrace | null;
+  error?: { source: "narrator" | "archivist"; message: string };
+}
+
+let lastTurnTrace: LastTurnTrace | null = null;
+export function getLastTurnTrace(): LastTurnTrace | null {
+  return lastTurnTrace;
+}
+
+function interpreterProvider(): "local" | "gemini" {
+  return process.env.INTERPRETER_PROVIDER === "gemini" ? "gemini" : "local";
+}
+
 export type ServerMessage =
   | {
       type: "snapshot";
@@ -60,7 +91,8 @@ export type ServerMessage =
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
   | { type: "move-blocked"; input: string }
-  | { type: "error"; source: "narrator" | "archivist"; message: string };
+  | { type: "error"; source: "narrator" | "archivist"; message: string }
+  | { type: "debug-trace"; trace: LastTurnTrace };
 
 export type ClientMessage =
   | { type: "input"; text: string; voice?: string }
@@ -202,6 +234,25 @@ export async function processInput(
     objectives: newStack.objectives,
     position: newStack.position,
   });
+
+  try {
+    lastTurnTrace = {
+      ts: new Date().toISOString(),
+      turn: archived.turn,
+      input,
+      interpreter: { action: action.action, provider: interpreterProvider() },
+      archivist: {
+        entries: archived.entries,
+        threads: archived.threads,
+        achievedObjectiveIndices: archived.achievedObjectiveIndices,
+        moved: archived.moved,
+        locationDescription: archived.locationDescription,
+      },
+    };
+    send({ type: "debug-trace", trace: lastTurnTrace });
+  } catch (err) {
+    console.error("[debug-trace] capture failed:", err);
+  }
 
   if (isAllDone && !wasAllDone) {
     send({ type: "win" });
