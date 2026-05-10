@@ -38,11 +38,35 @@ type Stack = {
   threads: string[];
   objectives: Objective[];
   presetSlug: string | null;
+  position: Position;
 };
 
 type ToastData =
   | { kind: "world-update"; entries: string[]; threads: string[]; id: number }
   | { kind: "blocked"; text: string; id: number };
+
+type InterpreterTrace = { action: string; provider: "local" | "gemini" };
+type ArchivistTrace = {
+  entries: string[];
+  threads: string[];
+  achievedObjectiveIndices: number[];
+  moved: boolean;
+  locationDescription: string;
+};
+type LastTurnTrace = {
+  ts: string;
+  turn: number;
+  input: string;
+  interpreter: InterpreterTrace;
+  archivist: ArchivistTrace | null;
+  error?: { source: "narrator" | "archivist"; message: string };
+};
+type ProviderInfo = {
+  narrator: { provider: string; model: string };
+  interpreter: { provider: "local" | "gemini" };
+  tts: { provider: string; voice: string };
+  image: { provider: string; style: string };
+};
 
 type ServerMessage =
   | {
@@ -54,6 +78,7 @@ type ServerMessage =
       position: Position;
       presetSlug: string | null;
       presets: PresetSummary[];
+      providers: ProviderInfo;
     }
   | { type: "turn-start"; input: string }
   | { type: "narrative"; text: string }
@@ -69,7 +94,8 @@ type ServerMessage =
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
   | { type: "move-blocked"; input: string }
-  | { type: "error"; source: "narrator" | "archivist"; message: string };
+  | { type: "error"; source: "narrator" | "archivist"; message: string }
+  | { type: "debug-trace"; trace: LastTurnTrace };
 
 const QUICK_ACTIONS = [
   "look around",
@@ -100,10 +126,11 @@ function App() {
     threads: [],
     objectives: [],
     presetSlug: null,
+    position: [0, 0],
   });
   const [pending, setPending] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  type ModalView = null | "select" | "win" | "voice" | "image" | "inventory";
+  type ModalView = null | "select" | "win" | "voice" | "image" | "inventory" | "debug";
   const [modal, setModal] = useState<ModalView>(null);
   const [presets, setPresets] = useState<PresetSummary[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
@@ -131,6 +158,8 @@ function App() {
       return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 1.0;
     } catch { return 1.0; }
   });
+  const [providers, setProviders] = useState<ProviderInfo | null>(null);
+  const [lastTrace, setLastTrace] = useState<LastTurnTrace | null>(null);
   const ttsRef = useRef<TTSEngine | null>(null);
   if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
 
@@ -312,8 +341,10 @@ function App() {
           threads: msg.threads,
           objectives: msg.objectives,
           presetSlug: msg.presetSlug,
+          position: msg.position,
         });
         setPresets(msg.presets);
+        if (msg.providers) setProviders(msg.providers);
         // Surface the briefing whenever a preset run is loaded — survives reloads.
         if (msg.presetSlug !== null) {
           const p = msg.presets.find((x) => x.slug === msg.presetSlug);
@@ -390,6 +421,7 @@ function App() {
             threads: msg.threads,
             objectives: msg.objectives,
             turn: s.turn + 1,
+            position: msg.position,
           };
         });
         updateLastInputTurn((t) => ({ ...t, pending: false, position: msg.position }));
@@ -418,6 +450,10 @@ function App() {
           setLastNarratedId(null);
         }
         serverAudioPendingTurnIdRef.current = null;
+        return;
+      }
+      if (msg.type === "debug-trace") {
+        setLastTrace(msg.trace);
         return;
       }
       if (msg.type === "error") {
