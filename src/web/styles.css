@@ -1537,11 +1537,15 @@ button {
 }
 .debug-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Left column: 25-30% floor so live state stays readable.
+     Right column: minmax(0, 1fr) lets the JSON pre shrink instead
+     of pushing the grid wider than the modal. */
+  grid-template-columns: minmax(25%, 30%) minmax(0, 1fr);
   gap: 1.25rem;
   max-height: 70vh;
   overflow-y: auto;
 }
+.debug-col { min-width: 0; }
 .debug-col h4 {
   margin: 0 0 0.5rem 0;
   color: var(--accent);
