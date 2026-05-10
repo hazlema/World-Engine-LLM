@@ -40,11 +40,9 @@ type Stack = {
   presetSlug: string | null;
 };
 
-type ToastData = {
-  entries: string[];
-  threads: string[];
-  id: number;
-};
+type ToastData =
+  | { kind: "world-update"; entries: string[]; threads: string[]; id: number }
+  | { kind: "blocked"; text: string; id: number };
 
 type ServerMessage =
   | {
@@ -70,6 +68,7 @@ type ServerMessage =
   | { type: "audio-start" }
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
+  | { type: "move-blocked"; input: string }
   | { type: "error"; source: "narrator" | "archivist"; message: string };
 
 const QUICK_ACTIONS = [
@@ -330,6 +329,14 @@ function App() {
         }
         return;
       }
+      if (msg.type === "move-blocked") {
+        setToast({
+          kind: "blocked",
+          text: "Cardinal directions only — try north, south, east, or west.",
+          id: Date.now(),
+        });
+        return;
+      }
       if (msg.type === "turn-start") {
         const tid = nextIdRef.current++;
         if (narrationOnRef.current) {
@@ -365,7 +372,7 @@ function App() {
           const toastThreads = newThreads.length > 0 && threadsCollapsedRef.current ? newThreads : [];
           if (toastEntries.length > 0 || toastThreads.length > 0) {
             queueMicrotask(() => {
-              setToast({ entries: toastEntries, threads: toastThreads, id: Date.now() });
+              setToast({ kind: "world-update", entries: toastEntries, threads: toastThreads, id: Date.now() });
             });
           }
           return {
@@ -1302,11 +1309,20 @@ function Toast({ data, onDismiss }: { data: ToastData; onDismiss: () => void }) 
     return () => clearTimeout(timer);
   }, [data.id]);
 
-  const allItems = [
-    ...data.entries,
-    ...data.threads,
-  ];
+  if (data.kind === "blocked") {
+    return (
+      <div className="toast toast-blocked" role="status" aria-live="polite">
+        <div className="toast-header">
+          <span className="toast-label">Try a direction</span>
+        </div>
+        <div className="toast-items">
+          <div className="toast-item">{data.text}</div>
+        </div>
+      </div>
+    );
+  }
 
+  const allItems = [...data.entries, ...data.threads];
   return (
     <div className="toast" role="status" aria-live="polite">
       <div className="toast-header">

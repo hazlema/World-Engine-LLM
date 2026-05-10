@@ -499,6 +499,14 @@ button {
   border-top: none;
 }
 
+.toast.toast-blocked {
+  border-left-color: #c54a4a;
+}
+
+.toast.toast-blocked .toast-label {
+  color: #c54a4a;
+}
+
 /* ---------- turn list ---------- */
 
 .turn-list {
