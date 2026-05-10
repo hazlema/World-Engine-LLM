@@ -36,7 +36,7 @@ export interface PresetSummary {
 }
 
 export interface InterpreterTrace {
-  action: string;
+  action: InterpretedAction["action"];
   provider: "local" | "gemini";
 }
 
