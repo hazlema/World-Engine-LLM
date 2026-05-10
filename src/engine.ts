@@ -66,7 +66,12 @@ Rules for "achievedObjectiveIndices":
 - Some objectives may carry the suffix "[DISTANT — cannot be completed this turn]". NEVER return their index, regardless of what the narrative says — the player is not at that tile.
 - For non-distant objectives, judge completion SEMANTICALLY, not by literal phrasing. Match intent and outcome, not exact words.
 - Examples that DO complete "open the iron-bound chest": "the heavy lid shifts and creaks open", "the latch yields, the lid swings up", "you pry the chest apart". Examples that DO NOT complete it: "you reach for the chest, but the lock holds firm", "you imagine the lid lifting", "the chest looms, untouched".
-- A passage that depicts attempt-without-success, observation, or approach is NOT completion. Only a depicted, successful, accomplished action counts.
+- A passage that depicts attempt-without-success, observation, approach, or atmospheric clue is NOT completion. Only a depicted, successful, accomplished action counts.
+- For DISCOVERY objectives ("find out X", "identify Y", "learn Z", "discover W"): the NEW NARRATIVE THIS TURN must depict the player actively gaining the knowledge — reading a label, examining the contents, hearing the answer, deducing from a specific moment of insight. Established clues already in the world stack DO NOT count by themselves, no matter how suggestive; the discovery must happen in THIS narrative.
+- Examples that DO complete "Identify the owner of the leather satchel": "you turn the satchel over and read the tag — Pemberton, Senior Conductor", "the embossed P, the cufflink in the side pocket, the ticket stub — this is the conductor's bag".
+- Examples that DO NOT complete it: "the satchel rests on the seat, its flap embossed with a P", "you walk past the satchel as you head north", "a leather satchel sits there, mysteriously alone".
+- Examples that DO complete "Find out where the conductor went": "you push through the CREW ONLY door and see him slumped at the controls", "the page reads: 'gone forward to check the engine'".
+- Examples that DO NOT complete it: "the conductor's seat is empty", "the cap rests undisturbed", "the CREW ONLY door stands ajar".
 - When in doubt, return [].
 - Do not invent indices outside the provided list. Return [] if no OBJECTIVES section is present.
 

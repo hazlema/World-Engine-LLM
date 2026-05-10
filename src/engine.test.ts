@@ -307,6 +307,27 @@ test("ARCHIVIST_SYSTEM: instructs the archivist on conservative objective comple
   expect(ARCHIVIST_SYSTEM.toLowerCase()).toContain("when in doubt");
 });
 
+test("ARCHIVIST_SYSTEM: distinguishes atmospheric clues from completion", async () => {
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  // The prompt must explicitly call out atmospheric clues as non-completion,
+  // not just observation/approach. Surfacing a clue is what the narrator does;
+  // the archivist must not treat it as resolution.
+  expect(ARCHIVIST_SYSTEM.toLowerCase()).toContain("atmospheric clue");
+});
+
+test("ARCHIVIST_SYSTEM: has explicit rule for discovery objectives", async () => {
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  // Discovery objectives ("find out X", "identify Y", "learn Z", "discover W")
+  // need their own rule because the physical-action examples don't generalize.
+  // The rule must require the player to actively gain the knowledge in the
+  // CURRENT turn's narrative, not derive it from the established stack alone.
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toContain("discovery");
+  expect(lower).toContain("identify");
+  // The "this turn" framing is what blocks cumulative-stack reasoning.
+  expect(lower).toMatch(/this turn|this narrative/);
+});
+
 test("interpreterTurn: classifies bare cardinal as move", async () => {
   callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   const result = await interpreterTurn("north");
