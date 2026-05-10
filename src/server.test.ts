@@ -67,22 +67,22 @@ test("processInput: successful move updates position and captures new place", as
   expect(newStack.places["1,0"]).toBe("A windswept dune crowned by a single dead tree.");
 });
 
-test("processInput: blocked move (moved=false) keeps original position", async () => {
+test("processInput: move-{cardinal} updates position even when archivist sets moved=false", async () => {
   interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
-  narratorSpy.mockImplementationOnce(async () => "A wall of thorns blocks the way.");
+  narratorSpy.mockImplementationOnce(async () => "Regolith crunches as you climb the slope.");
   archivistSpy.mockImplementationOnce(async () => ({
-    entries: ["wall of thorns to the north"],
+    entries: [],
     threads: [],
     turn: 1,
     moved: false,
-    locationDescription: "A flat expanse of sand.",
+    locationDescription: "A windswept dune.",
     achievedObjectiveIndices: [],
   }));
 
-  const newStack = await processInput(emptyStack, "go north", () => {});
+  const newStack = await processInput(emptyStack, "north", () => {});
 
-  expect(newStack.position).toEqual([0, 0]);
-  expect(newStack.places["1,0"]).toBeUndefined();
+  expect(newStack.position).toEqual([1, 0]);
+  expect(newStack.places["1,0"]).toBe("A windswept dune.");
 });
 
 test("processInput: narrator receives the target tile's stored description as anchor", async () => {
@@ -211,11 +211,14 @@ test("processInput: on interpreter failure, falls back to stay (still runs narra
     achievedObjectiveIndices: [],
   }));
 
-  const newStack = await processInput(emptyStack, "go north", () => {});
+  const messages: ServerMessage[] = [];
+  const newStack = await processInput(emptyStack, "go north", (m) => messages.push(m));
 
   expect(newStack.position).toEqual([0, 0]);
   // narrator was still called
   expect(narratorSpy).toHaveBeenCalled();
+  // interpreter exceptions must not surface as move-blocked
+  expect(messages.some((m) => m.type === "move-blocked")).toBe(false);
 });
 
 const lunarPreset: Preset = {
@@ -402,4 +405,16 @@ test("processInput: free-play (no objectives) never emits win", async () => {
   const messages: ServerMessage[] = [];
   await processInput(emptyStack, "look", (m) => messages.push(m));
   expect(messages.some((m) => m.type === "win")).toBe(false);
+});
+
+test("processInput: move-blocked short-circuits, no narrator/archivist call, sends move-blocked message", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "move-blocked" }));
+
+  const messages: ServerMessage[] = [];
+  const newStack = await processInput(emptyStack, "go to the train", (m) => messages.push(m));
+
+  expect(narratorSpy).not.toHaveBeenCalled();
+  expect(archivistSpy).not.toHaveBeenCalled();
+  expect(newStack).toBe(emptyStack);
+  expect(messages).toEqual([{ type: "move-blocked", input: "go to the train" }]);
 });

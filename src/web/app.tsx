@@ -9,6 +9,7 @@ type Turn = {
   narrative?: string;
   error?: string;
   pending: boolean;
+  position?: Position;
 };
 
 type SystemTurn = {
@@ -16,7 +17,7 @@ type SystemTurn = {
   kind: "system";
   title: string;
   items: string[];
-  variant?: "threads" | "briefing";
+  variant?: "threads" | "briefing" | "blocked";
 };
 
 type AnyTurn = Turn | SystemTurn;
@@ -39,11 +40,9 @@ type Stack = {
   presetSlug: string | null;
 };
 
-type ToastData = {
-  entries: string[];
-  threads: string[];
-  id: number;
-};
+type ToastData =
+  | { kind: "world-update"; entries: string[]; threads: string[]; id: number }
+  | { kind: "blocked"; text: string; id: number };
 
 type ServerMessage =
   | {
@@ -52,6 +51,7 @@ type ServerMessage =
       entries: string[];
       threads: string[];
       objectives: Objective[];
+      position: Position;
       presetSlug: string | null;
       presets: PresetSummary[];
     }
@@ -62,11 +62,13 @@ type ServerMessage =
       entries: string[];
       threads: string[];
       objectives: Objective[];
+      position: Position;
     }
   | { type: "win" }
   | { type: "audio-start" }
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
+  | { type: "move-blocked"; input: string }
   | { type: "error"; source: "narrator" | "archivist"; message: string };
 
 const QUICK_ACTIONS = [
@@ -266,6 +268,7 @@ function App() {
   const wsRef = useRef<WebSocket | null>(null);
   const nextIdRef = useRef(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const lastSubmittedRef = useRef<string>("");
 
   const addTurn = useCallback((t: AnyTurn) => {
     setTurns((prev) => [...prev, t]);
@@ -327,6 +330,22 @@ function App() {
         }
         return;
       }
+      if (msg.type === "move-blocked") {
+        setInputValue(lastSubmittedRef.current);
+        setToast({
+          kind: "blocked",
+          text: "Cardinal directions only — try north, south, east, or west.",
+          id: Date.now(),
+        });
+        addTurn({
+          id: nextIdRef.current++,
+          kind: "system",
+          title: `blocked: "${msg.input}"`,
+          items: ["needs a cardinal direction — north, south, east, or west"],
+          variant: "blocked",
+        });
+        return;
+      }
       if (msg.type === "turn-start") {
         const tid = nextIdRef.current++;
         if (narrationOnRef.current) {
@@ -362,7 +381,7 @@ function App() {
           const toastThreads = newThreads.length > 0 && threadsCollapsedRef.current ? newThreads : [];
           if (toastEntries.length > 0 || toastThreads.length > 0) {
             queueMicrotask(() => {
-              setToast({ entries: toastEntries, threads: toastThreads, id: Date.now() });
+              setToast({ kind: "world-update", entries: toastEntries, threads: toastThreads, id: Date.now() });
             });
           }
           return {
@@ -373,7 +392,7 @@ function App() {
             turn: s.turn + 1,
           };
         });
-        updateLastInputTurn((t) => ({ ...t, pending: false }));
+        updateLastInputTurn((t) => ({ ...t, pending: false, position: msg.position }));
         setPending(false);
         return;
       }
@@ -522,6 +541,7 @@ function App() {
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    lastSubmittedRef.current = inputValue;
     send(inputValue);
     setInputValue("");
   }, [send, inputValue]);
@@ -877,6 +897,9 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
         <p className="turn-input-echo">{turn.input}</p>
         {imageUrl && <img className="turn-image" src={imageUrl} alt="" />}
         {turn.narrative && <p className="turn-narrative">{turn.narrative}</p>}
+        {turn.position && (
+          <p className="turn-debug">&gt; debug: x:{turn.position[0]} y:{turn.position[1]}</p>
+        )}
         {turn.pending && !turn.narrative && !turn.error && (
           <p className="turn-pending">the world is responding…</p>
         )}
@@ -1296,11 +1319,20 @@ function Toast({ data, onDismiss }: { data: ToastData; onDismiss: () => void }) 
     return () => clearTimeout(timer);
   }, [data.id]);
 
-  const allItems = [
-    ...data.entries,
-    ...data.threads,
-  ];
+  if (data.kind === "blocked") {
+    return (
+      <div className="toast toast-blocked" role="status" aria-live="polite">
+        <div className="toast-header">
+          <span className="toast-label">Direction needed</span>
+        </div>
+        <div className="toast-items">
+          <div className="toast-item">{data.text}</div>
+        </div>
+      </div>
+    );
+  }
 
+  const allItems = [...data.entries, ...data.threads];
   return (
     <div className="toast" role="status" aria-live="polite">
       <div className="toast-header">

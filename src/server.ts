@@ -42,6 +42,7 @@ export type ServerMessage =
       entries: string[];
       threads: string[];
       objectives: Objective[];
+      position: [number, number];
       presetSlug: string | null;
       presets: PresetSummary[];
     }
@@ -52,11 +53,13 @@ export type ServerMessage =
       entries: string[];
       threads: string[];
       objectives: Objective[];
+      position: [number, number];
     }
   | { type: "win" }
   | { type: "audio-start" }
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
+  | { type: "move-blocked"; input: string }
   | { type: "error"; source: "narrator" | "archivist"; message: string };
 
 export type ClientMessage =
@@ -102,14 +105,20 @@ export async function processInput(
   voice?: string,
   sendAudio?: Send
 ): Promise<WorldStack> {
-  send({ type: "turn-start", input });
-
   let action: InterpretedAction;
   try {
     action = await interpreterTurn(input);
   } catch {
     action = { action: "stay" };
   }
+
+  if (action.action === "move-blocked") {
+    send({ type: "move-blocked", input });
+    return stack;
+  }
+
+  // Fires after classification so a `move-blocked` short-circuit doesn't leave a stale pending turn in the UI.
+  send({ type: "turn-start", input });
 
   const dir = ACTION_TO_DIRECTION[action.action];
   const prospective = dir ? applyDirection(stack.position, dir) : stack.position;
@@ -155,7 +164,10 @@ export async function processInput(
     return stack;
   }
 
-  const finalPosition = dir && archived.moved ? prospective : stack.position;
+  // Interpreter is authoritative for cardinal movement: a discrete grid has
+  // no "in transit" state, so a successfully classified move-{cardinal} always
+  // lands on the prospective tile. The archivist's `moved` flag is informational.
+  const finalPosition = dir ? prospective : stack.position;
   const finalKey = posKey(finalPosition);
   const places = { ...stack.places };
   if (!places[finalKey] && archived.locationDescription) {
@@ -188,6 +200,7 @@ export async function processInput(
     entries: newStack.entries,
     threads: newStack.threads,
     objectives: newStack.objectives,
+    position: newStack.position,
   });
 
   if (isAllDone && !wasAllDone) {
@@ -218,6 +231,7 @@ function snapshotMessage(stack: WorldStack): ServerMessage {
     entries: stack.entries,
     threads: stack.threads,
     objectives: stack.objectives,
+    position: stack.position,
     presetSlug: stack.presetSlug,
     presets: presetSummaries(),
   };
