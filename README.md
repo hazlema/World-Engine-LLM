@@ -1,3 +1,5 @@
+![World Engine — A world that pushes back](media/title.png)
+
 # World Engine
 
 A text adventure where the world is generated turn by turn by an LLM.
@@ -76,6 +78,9 @@ The world state lives in `world-stack.json` — an append-mostly list of establi
 
 ## Recent changes
 
+- **`/debug` command.** Type `/debug` in the chatbox to open a modal showing live world state and the last turn's full pipeline — interpreter classification, raw archivist output (entries, threads, `achievedObjectiveIndices`, `moved`, `locationDescription`), provider info. The diagnostic surface that made the rest of the work in this batch traceable.
+- **Archivist hardening.** Three classes of objective-completion misfires fixed: atmospheric clues no longer mark "find out X" objectives complete; static state-description ("the chest gapes open") no longer marks "open X" objectives complete; cumulative-stack inference is blocked. Completion now requires the narrative to depict the moment of change or discovery this turn. Stack supersession also tightened: when you take, place, break, or change an item — or a count drops (3 candles → 2) — the entries list updates instead of accumulating outdated facts.
+- **Anti-retcon rule.** The narrator can't invent offscreen backstory or false memories ("you remember leaving the key upstairs in the alchemist's study") to delete an established item. Items leave the world only through depicted on-screen action this turn — the player taking, breaking, or using them, or an NPC depicted on-screen doing the same.
 - **Blocked-move feedback.** When your input looks like movement but doesn't name a cardinal direction (`go to the train`, `walk to the lander`, `follow the path`), the world now tells you instead of silently improvising. A toast appears with the cardinal directions to try, your input stays in the box for editing, and no turn is consumed. Pure non-movement actions (`examine`, `wait`, `talk`) are unaffected.
 - **Optional Gemini narrator.** Set `NARRATOR_PROVIDER=gemini` to route the narrator pass through Gemini Flash instead of the local model. Prose comes out tighter and more specific; images downstream of that prose come out sharper for free, since the image generator's prompt is the narrator's output. Interpreter can also be routed via `INTERPRETER_PROVIDER` (see Configuration); archivist stays local. Defaults to local so nothing breaks for users without an API key.
 - **Per-turn image generation.** Click `▦` next to a turn and the narrative becomes a 21:9 cinematic still via Google's `gemini-2.5-flash-image`. Optional and on-demand — same `GEMINI_API_KEY` already used for narration. The image lands as an establishing shot above the text.
@@ -87,13 +92,11 @@ The world state lives in `world-stack.json` — an append-mostly list of establi
 
 ## Known Issues
 
-- **Objective completion accuracy.** The archivist sometimes flips an objective on observational narrative — moving into a train car and seeing the conductor's empty seat shouldn't count as "find out where the conductor went," but currently can. The reverse also happens: a clear completion in the narrative occasionally goes unmarked. Type `/debug` in the chatbox to inspect what the archivist actually returned for the last turn.
-- **Geography drift over long traversals.** After roughly five sequential moves in one direction the narrator can recycle details from earlier tiles instead of the current one. World state is correct; the prose just borrows from neighbors.
-- **Vanishing established facts.** An entity vividly canonized in one turn (e.g. "a solar array half-buried at the top of the slope") may disappear from the established list by the next turn. Things noticed-but-not-touched are most at risk.
-- **Wrong-noun world-update toasts.** Occasionally the toast surfaces an entry about a different object than the one your action targeted — entry/thread extraction latches onto the most recently mentioned noun rather than the action's subject.
-- **Self-contradiction across adjacent turns.** Turn N may reveal "a corner of a schematic beneath the note"; turn N+1 says the note "peels away to reveal nothing." Likely a context-window or archivist-timing issue; under investigation.
+- **Vanishing established facts.** An entity the narrator describes vividly may not get captured in the established list by the archivist on the first pass — things noticed-but-not-touched are most at risk. The anti-retcon rule blocks the worst class (narrator inventing reasons to delete *already-canonized* items), but a fact that never made it into the stack in the first place is still vulnerable.
+- **Narrative drift over many turns.** With long sessions and dense world state, the narrator can describe details from adjacent tiles while you're in another, recycle phrasings from earlier tiles, or mildly contradict an earlier turn. Less severe than the retcon class but still observable.
+- **Wrong-noun world-update toasts.** Occasionally the toast surfaces an entry about a different object than the one your action targeted — extraction latches onto the most recently mentioned noun rather than the action's subject.
 - **Audio queue / overlap / multi-tab echo.** Re-enabling narration mid-session can flush a stale queue; a new turn's audio can overlap the previous clip; two tabs on the same server echo each other because audio messages are broadcast.
-- **Cardinal-only movement.** "Walk to the lander," "head west-by-northwest," or any non-cardinal phrasing stays on the current tile and surfaces a toast. Use `north / south / east / west`.
+- **Cardinal-only movement.** "Walk to the lander," "head west-by-northwest," and stair phrasings like `up`/`down` stay on the current tile and surface a toast. Use `north / south / east / west`.
 - **No first-class inventory.** Items you "take" stay in the world's established entries — there's no separate inventory data structure or UI yet. Type `inventory` to ask the world what you're carrying.
 
 > Balance is key, we're working on it. 😅
