@@ -854,6 +854,16 @@ function App() {
                 <button className="action-button" onClick={() => setModal(null)}>close</button>
               </>
             )}
+            {modal === "debug" && (
+              <DebugModal
+                stack={stack}
+                position={stack.position}
+                placeDescription={lastTrace?.archivist?.locationDescription}
+                providers={providers}
+                lastTrace={lastTrace}
+                onClose={() => setModal(null)}
+              />
+            )}
           </div>
         </div>
       )}
@@ -1230,6 +1240,117 @@ function WinView(props: {
       <button className="action-button" onClick={props.onKeepExploring}>keep exploring</button>
       <button className="action-button critical" onClick={props.onNewGame}>new game</button>
     </>
+  );
+}
+
+function DebugModal(props: {
+  stack: Stack;
+  position: Position;
+  placeDescription?: string;
+  providers: ProviderInfo | null;
+  lastTrace: LastTurnTrace | null;
+  onClose: () => void;
+}) {
+  const { stack, position, placeDescription, providers, lastTrace, onClose } = props;
+  const active = stack.objectives.filter(
+    (o) => !o.position || (o.position[0] === position[0] && o.position[1] === position[1])
+  );
+  const distant = stack.objectives.filter(
+    (o) => o.position && (o.position[0] !== position[0] || o.position[1] !== position[1])
+  );
+  return (
+    <div className="modal-body debug-modal">
+      <div className="modal-title">Debug</div>
+      <div className="debug-columns">
+        <section className="debug-col">
+          <h4>Live state</h4>
+          <p><strong>Position</strong> [{position[0]}, {position[1]}] (key: {position[0]},{position[1]})</p>
+          {placeDescription && (
+            <p><strong>Place</strong> {placeDescription}</p>
+          )}
+          <p><strong>Turn</strong> {stack.turn}</p>
+          <p><strong>Preset</strong> {stack.presetSlug ?? "(free play)"}</p>
+
+          <h5>Objectives — active here ({active.length})</h5>
+          {active.length === 0 ? (
+            <p className="debug-muted">(none)</p>
+          ) : (
+            <ul>{active.map((o, i) => (
+              <li key={i}>{o.achieved ? "✓" : "·"} {o.text}{o.position ? ` @ [${o.position[0]},${o.position[1]}]` : ""}</li>
+            ))}</ul>
+          )}
+
+          <h5>Objectives — distant ({distant.length})</h5>
+          {distant.length === 0 ? (
+            <p className="debug-muted">(none)</p>
+          ) : (
+            <ul>{distant.map((o, i) => (
+              <li key={i}>{o.achieved ? "✓" : "·"} {o.text} @ [{o.position![0]},{o.position![1]}]</li>
+            ))}</ul>
+          )}
+
+          <h5>Entries ({stack.entries.length})</h5>
+          {stack.entries.length === 0 ? (
+            <p className="debug-muted">(none)</p>
+          ) : (
+            <ul>{stack.entries.map((e, i) => <li key={i}>{e}</li>)}</ul>
+          )}
+
+          <h5>Threads ({stack.threads.length})</h5>
+          {stack.threads.length === 0 ? (
+            <p className="debug-muted">(none)</p>
+          ) : (
+            <ul>{stack.threads.map((t, i) => <li key={i}>{t}</li>)}</ul>
+          )}
+
+          <h5>Providers</h5>
+          {providers ? (
+            <ul>
+              <li>narrator: {providers.narrator.provider} / {providers.narrator.model}</li>
+              <li>interpreter: {providers.interpreter.provider}</li>
+              <li>tts: {providers.tts.provider} / {providers.tts.voice}</li>
+              <li>image: {providers.image.provider} / {providers.image.style}</li>
+            </ul>
+          ) : (
+            <p className="debug-muted">(loading)</p>
+          )}
+        </section>
+
+        <section className="debug-col">
+          <h4>Last turn pipeline</h4>
+          {!lastTrace ? (
+            <p className="debug-muted">No turns yet — play a turn to see pipeline trace.</p>
+          ) : (
+            <>
+              <p><strong>ts</strong> {lastTrace.ts}</p>
+              <p><strong>turn</strong> {lastTrace.turn}</p>
+              <p><strong>input</strong> {lastTrace.input}</p>
+
+              <h5>Interpreter</h5>
+              <ul>
+                <li>action: {lastTrace.interpreter.action}</li>
+                <li>provider: {lastTrace.interpreter.provider}</li>
+              </ul>
+
+              <h5>Archivist</h5>
+              {lastTrace.archivist === null ? (
+                <p className="debug-muted">(skipped — see error or move-blocked)</p>
+              ) : (
+                <pre className="debug-json">{JSON.stringify(lastTrace.archivist, null, 2)}</pre>
+              )}
+
+              {lastTrace.error && (
+                <>
+                  <h5>Error</h5>
+                  <p className="debug-error">{lastTrace.error.source}: {lastTrace.error.message}</p>
+                </>
+              )}
+            </>
+          )}
+        </section>
+      </div>
+      <button className="action-button" onClick={onClose}>close</button>
+    </div>
   );
 }
 
