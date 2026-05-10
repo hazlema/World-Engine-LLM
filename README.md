@@ -22,7 +22,7 @@ You can also skip the presets entirely and start in an empty open world — type
 
 > **Status:** still being shaped. The engine grows sharper between sessions; expect occasional rough edges and behavior that changes as it learns.
 
-**Demo:** [Gameplay video](https://www.youtube.com/watch?v=fcAVa8x6OsE) — streaming TTS narration and per-turn image generation in action. (outdated)
+**Demo:** [Gameplay video](https://www.youtube.com/watch?v=_BUib3K9mK4) — streaming TTS narration and per-turn image generation in action.
 
 ## Quickstart
 
