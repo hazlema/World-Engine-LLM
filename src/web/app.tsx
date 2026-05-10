@@ -526,7 +526,7 @@ function App() {
 
   const send = useCallback((text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || !wsRef.current || pending) return;
+    if (!trimmed) return;
 
     const slash = parseSlashCommand(trimmed);
     if (slash) {
@@ -537,6 +537,8 @@ function App() {
       setToast({ kind: "blocked", text: `unknown command: /${slash.name}`, id: Date.now() });
       return;
     }
+
+    if (!wsRef.current || pending) return;
 
     const lower = trimmed.toLowerCase();
 

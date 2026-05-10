@@ -474,7 +474,7 @@ test("processInput: emits debug-trace after stack-update on normal turn", async 
   expect(traceIdx).toBeGreaterThan(stackUpdateIdx);
 
   const trace = messages[traceIdx];
-  if (trace.type !== "debug-trace") throw new Error("type guard");
+  if (!trace || trace.type !== "debug-trace") throw new Error("type guard");
   expect(trace.trace.input).toBe("north");
   expect(trace.trace.interpreter.action).toBe("move-north");
   expect(trace.trace.archivist).toEqual({
