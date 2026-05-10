@@ -6,6 +6,7 @@ import type { WorldStack } from "./stack";
 
 let callModelSpy: any;
 let callModelStructuredSpy: any;
+let callInterpreterStructuredSpy: any;
 
 const emptyStack: WorldStack = { entries: [] as string[], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null };
 const populatedStack: WorldStack = {
@@ -21,11 +22,13 @@ const populatedStack: WorldStack = {
 beforeEach(() => {
   callModelSpy = spyOn(api, "callModel");
   callModelStructuredSpy = spyOn(api, "callModelStructured");
+  callInterpreterStructuredSpy = spyOn(api, "callInterpreterStructured");
 });
 
 afterEach(() => {
   callModelSpy.mockRestore();
   callModelStructuredSpy.mockRestore();
+  callInterpreterStructuredSpy.mockRestore();
 });
 
 // narratorTurn tests
@@ -155,26 +158,26 @@ test("archivistTurn: throws on non-array threads response", async () => {
 });
 
 test("interpreterTurn: classifies 'go north' as move-north", async () => {
-  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
+  callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   const result = await interpreterTurn("go north");
   expect(result).toEqual({ action: "move-north" });
 });
 
 test("interpreterTurn: classifies 'look around' as stay", async () => {
-  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "stay" }));
   const result = await interpreterTurn("look around");
   expect(result).toEqual({ action: "stay" });
 });
 
 test("interpreterTurn: passes the player input to the structured call", async () => {
-  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "stay" }));
   await interpreterTurn("head west toward the dunes");
   // 4th call arg is the schema; 2nd arg is the input
-  expect(callModelStructuredSpy.mock.calls[0][1]).toContain("head west toward the dunes");
+  expect(callInterpreterStructuredSpy.mock.calls[0][1]).toContain("head west toward the dunes");
 });
 
 test("interpreterTurn: defaults to stay when API returns an unknown action", async () => {
-  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "invalid" as any }));
+  callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "invalid" as any }));
   const result = await interpreterTurn("?????");
   expect(result).toEqual({ action: "stay" });
 });
@@ -305,19 +308,19 @@ test("ARCHIVIST_SYSTEM: instructs the archivist on conservative objective comple
 });
 
 test("interpreterTurn: classifies bare cardinal as move", async () => {
-  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
+  callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   const result = await interpreterTurn("north");
   expect(result).toEqual({ action: "move-north" });
 });
 
 test("interpreterTurn: classifies non-movement as stay", async () => {
-  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "stay" }));
   const result = await interpreterTurn("examine the door");
   expect(result).toEqual({ action: "stay" });
 });
 
 test("interpreterTurn: classifies movement-without-cardinal as move-blocked", async () => {
-  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "move-blocked" }));
+  callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "move-blocked" }));
   const result = await interpreterTurn("go to the train");
   expect(result).toEqual({ action: "move-blocked" });
 });

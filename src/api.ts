@@ -18,6 +18,11 @@ const NARRATOR_PROVIDER = (process.env.NARRATOR_PROVIDER ?? "local").toLowerCase
 const NARRATOR_GEMINI_MODEL = process.env.NARRATOR_GEMINI_MODEL ?? "gemini-2.5-flash";
 console.log(`[api] narrator provider: ${NARRATOR_PROVIDER}${NARRATOR_PROVIDER === "gemini" ? ` (${NARRATOR_GEMINI_MODEL})` : ` (${NARRATOR_MODEL})`}`);
 
+const INTERPRETER_MODEL = "google/gemma-3-12b";
+const INTERPRETER_PROVIDER = (process.env.INTERPRETER_PROVIDER ?? "local").toLowerCase();
+const INTERPRETER_GEMINI_MODEL = process.env.INTERPRETER_GEMINI_MODEL ?? "gemini-2.5-flash";
+console.log(`[api] interpreter provider: ${INTERPRETER_PROVIDER}${INTERPRETER_PROVIDER === "gemini" ? ` (${INTERPRETER_GEMINI_MODEL})` : ` (${INTERPRETER_MODEL})`}`);
+
 interface CompletionsResponse {
   choices: Array<{
     message: { content: string; reasoning_content?: string };
@@ -46,6 +51,100 @@ async function callNarratorGemini(systemPrompt: string, input: string): Promise<
   const text = parts.map((p) => p.text).filter(Boolean).join("").trim();
   if (!text) throw new Error("Empty response from Gemini narrator");
   return text;
+}
+
+async function callInterpreterGemini<T>(
+  systemPrompt: string,
+  input: string,
+  schema: object
+): Promise<T> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set (required for INTERPRETER_PROVIDER=gemini)");
+
+  const ai = new GoogleGenAI({ apiKey: key });
+  const response = await ai.models.generateContent({
+    model: INTERPRETER_GEMINI_MODEL,
+    contents: [{ parts: [{ text: input }] }],
+    config: {
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      temperature: 0,
+      maxOutputTokens: 64,
+      responseMimeType: "application/json",
+      responseSchema: schema,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  const parts = response.candidates?.[0]?.content?.parts ?? [];
+  const text = parts.map((p) => p.text).filter(Boolean).join("").trim();
+  if (!text) throw new Error("Empty response from Gemini interpreter");
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Invalid JSON from Gemini interpreter: ${text}`);
+  }
+}
+
+export async function callInterpreterStructured<T>(
+  systemPrompt: string,
+  input: string,
+  schemaName: string,
+  schema: object
+): Promise<T> {
+  if (INTERPRETER_PROVIDER === "gemini") {
+    return callInterpreterGemini<T>(systemPrompt, input, schema);
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: INTERPRETER_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: input },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: schemaName, schema },
+        },
+        max_tokens: 64,
+        temperature: 0,
+      }),
+      signal: controller.signal,
+    });
+
+    const rawText = await res.text();
+    if (!res.ok) throw new Error(`API ${res.status}: ${rawText}`);
+
+    let outer: CompletionsResponse;
+    try {
+      outer = JSON.parse(rawText);
+    } catch {
+      console.error("[api] raw interpreter response:", rawText);
+      throw new Error("Invalid JSON from interpreter API");
+    }
+
+    const msg = outer.choices?.[0]?.message;
+    const raw = (msg?.reasoning_content || msg?.content || "").trim();
+    if (!raw) throw new Error("No content in interpreter response");
+
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      console.error("[api] raw interpreter content:", raw);
+      throw new Error("Invalid JSON in interpreter response content");
+    }
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw new Error("Interpreter timeout");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function callModel(systemPrompt: string, input: string): Promise<string> {

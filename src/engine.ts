@@ -181,7 +181,7 @@ export type InterpretedAction =
 const VALID_ACTIONS = new Set(["move-north", "move-south", "move-east", "move-west", "stay", "move-blocked"]);
 
 export async function interpreterTurn(playerInput: string): Promise<InterpretedAction> {
-  const result = await api.callModelStructured<{ action: string }>(
+  const result = await api.callInterpreterStructured<{ action: string }>(
     INTERPRETER_SYSTEM,
     `PLAYER INPUT: ${playerInput}`,
     "movement_intent",
