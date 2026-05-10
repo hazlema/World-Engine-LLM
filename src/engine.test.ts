@@ -369,6 +369,22 @@ test("ARCHIVIST_SYSTEM: explicitly skips transient sensory details from entries"
   expect(lower).toContain("sensory");
 });
 
+test("ARCHIVIST_SYSTEM: has rule for LOCATE objectives (find/locate/reach a place)", async () => {
+  // Plain "Find the transmitter @ 1,0" objectives fell through both prior
+  // rules: not a discovery (find out / identify), not a physical state-change
+  // (open / break). The not-completion catchall (observation / approach) was
+  // blocking the model from firing on a legit arrival+naming. Need a third
+  // category that fires when the player is at the coordinate AND the narrative
+  // names the target.
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toContain("locate objective");
+  // Must explicitly include "find" / "locate" / "reach" as the trigger shapes.
+  expect(lower).toMatch(/find x|locate y|reach z/);
+  // Worked example anchoring with an actual preset objective.
+  expect(lower).toMatch(/transmitter|the target tile|the player is at the/);
+});
+
 test("ARCHIVIST_SYSTEM: distinguishes static state-description from state-change", async () => {
   const { ARCHIVIST_SYSTEM } = await import("./engine");
   // Physical-action objectives need the NARRATIVE to depict the change
