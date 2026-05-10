@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { TTSEngine, type EngineStatus } from "./tts";
 import { createRoot } from "react-dom/client";
 import { diffNewItems } from "./utils";
+import { parseSlashCommand } from "./slash";
 
 type Turn = {
   id: number;
@@ -9,7 +10,6 @@ type Turn = {
   narrative?: string;
   error?: string;
   pending: boolean;
-  position?: Position;
 };
 
 type SystemTurn = {
@@ -424,7 +424,7 @@ function App() {
             position: msg.position,
           };
         });
-        updateLastInputTurn((t) => ({ ...t, pending: false, position: msg.position }));
+        updateLastInputTurn((t) => ({ ...t, pending: false }));
         setPending(false);
         return;
       }
@@ -527,6 +527,16 @@ function App() {
   const send = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed || !wsRef.current || pending) return;
+
+    const slash = parseSlashCommand(trimmed);
+    if (slash) {
+      if (slash.name === "debug") {
+        setModal("debug");
+        return;
+      }
+      setToast({ kind: "blocked", text: `unknown command: /${slash.name}`, id: Date.now() });
+      return;
+    }
 
     const lower = trimmed.toLowerCase();
 
@@ -943,9 +953,6 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
         <p className="turn-input-echo">{turn.input}</p>
         {imageUrl && <img className="turn-image" src={imageUrl} alt="" />}
         {turn.narrative && <p className="turn-narrative">{turn.narrative}</p>}
-        {turn.position && (
-          <p className="turn-debug">&gt; debug: x:{turn.position[0]} y:{turn.position[1]}</p>
-        )}
         {turn.pending && !turn.narrative && !turn.error && (
           <p className="turn-pending">the world is responding…</p>
         )}
