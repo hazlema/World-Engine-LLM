@@ -90,6 +90,14 @@ Each turn runs three model passes:
 
 The world state lives in `world-stack.json` — an append-mostly list of established facts (`damaged transmitter half-buried in regolith`), an active-threads list, an objectives list, and a position. Every turn appends to a single `play-log.jsonl` for postmortem.
 
+## Tips
+
+- **The world builds as you look.** Rooms, objects, and details only exist after the narrator establishes them — and once established, the engine has to honor them in later turns. A tile you walked straight through is thin; a tile you actually examined has weight. Spending turns on `look`, `examine`, and `search` isn't downtime — it's what makes the world feel real to come back to.
+- **Seed the scene on turn one in freeplay.** Empty World mode has no preset, so the narrator improvises a setting from your first input. `look around` gives it nothing to anchor to and you'll get a generic room. A scene-setting line does the work for you:
+  > Don't open the airlock! We're on a deep-space station with over 300,000 people aboard — open it and you'll suck them all into space.
+
+  One sentence, and the narrator has a location, stakes, and a constraint to honor. From there the world fills itself in around you.
+
 ## Recent changes
 
 - **`/debug` command.** Type `/debug` in the chatbox to open a modal showing live world state and the last turn's full pipeline — interpreter classification, raw archivist output (entries, threads, `achievedObjectiveIndices`, `moved`, `locationDescription`), provider info. The diagnostic surface that made most of the recent narrative-quality work traceable.
