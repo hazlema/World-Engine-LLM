@@ -17,7 +17,7 @@ type SystemTurn = {
   kind: "system";
   title: string;
   items: string[];
-  variant?: "threads" | "briefing";
+  variant?: "threads" | "briefing" | "blocked";
 };
 
 type AnyTurn = Turn | SystemTurn;
@@ -336,6 +336,13 @@ function App() {
           kind: "blocked",
           text: "Cardinal directions only — try north, south, east, or west.",
           id: Date.now(),
+        });
+        addTurn({
+          id: nextIdRef.current++,
+          kind: "system",
+          title: `blocked: "${msg.input}"`,
+          items: ["needs a cardinal direction — north, south, east, or west"],
+          variant: "blocked",
         });
         return;
       }
