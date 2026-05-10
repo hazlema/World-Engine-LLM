@@ -67,22 +67,22 @@ test("processInput: successful move updates position and captures new place", as
   expect(newStack.places["1,0"]).toBe("A windswept dune crowned by a single dead tree.");
 });
 
-test("processInput: blocked move (moved=false) keeps original position", async () => {
+test("processInput: move-{cardinal} updates position even when archivist sets moved=false", async () => {
   interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
-  narratorSpy.mockImplementationOnce(async () => "A wall of thorns blocks the way.");
+  narratorSpy.mockImplementationOnce(async () => "Regolith crunches as you climb the slope.");
   archivistSpy.mockImplementationOnce(async () => ({
-    entries: ["wall of thorns to the north"],
+    entries: [],
     threads: [],
     turn: 1,
     moved: false,
-    locationDescription: "A flat expanse of sand.",
+    locationDescription: "A windswept dune.",
     achievedObjectiveIndices: [],
   }));
 
-  const newStack = await processInput(emptyStack, "go north", () => {});
+  const newStack = await processInput(emptyStack, "north", () => {});
 
-  expect(newStack.position).toEqual([0, 0]);
-  expect(newStack.places["1,0"]).toBeUndefined();
+  expect(newStack.position).toEqual([1, 0]);
+  expect(newStack.places["1,0"]).toBe("A windswept dune.");
 });
 
 test("processInput: narrator receives the target tile's stored description as anchor", async () => {

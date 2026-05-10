@@ -164,7 +164,10 @@ export async function processInput(
     return stack;
   }
 
-  const finalPosition = dir && archived.moved ? prospective : stack.position;
+  // Interpreter is authoritative for cardinal movement: a discrete grid has
+  // no "in transit" state, so a successfully classified move-{cardinal} always
+  // lands on the prospective tile. The archivist's `moved` flag is informational.
+  const finalPosition = dir ? prospective : stack.position;
   const finalKey = posKey(finalPosition);
   const places = { ...stack.places };
   if (!places[finalKey] && archived.locationDescription) {
