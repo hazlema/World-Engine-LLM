@@ -23,6 +23,10 @@ export interface WorldStack {
   presetSlug: string | null;
 }
 
+// Coordinate convention: Position is [lat, lon] — north/south affect index 0,
+// east/west affect index 1. North and east are positive. Preset coordinates
+// (`@ x,y`) follow the same convention: the first number is north-south, the
+// second is east-west. So `@ -1,0` is one tile south, `@ 0,1` is one tile east.
 const DELTAS: Record<Direction, Position> = {
   north: [1, 0],
   south: [-1, 0],

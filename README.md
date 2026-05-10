@@ -128,6 +128,8 @@ You are a thief who descended into the cellar of an abandoned cathedral...
 
 Append `@ x,y` to an objective to anchor it to a tile — players have to actually be there to complete it. Objectives without a coordinate stay achievable anywhere.
 
+> **Coordinate convention.** The first number is north-south (north positive, south negative); the second is east-west (east positive, west negative). So `@ -1,0` is one tile south of start, and `@ 0,1` is one tile east. Same convention applies anywhere positions appear (the `/debug` modal, `world-stack.json`, etc.).
+
 Drop a new `.md` in `presets/` and it'll appear on the title screen on the next page load.
 
 ## Architecture
