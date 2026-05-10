@@ -57,6 +57,25 @@ export interface LastTurnTrace {
   error?: { source: "narrator" | "archivist"; message: string };
 }
 
+export interface ProviderInfo {
+  narrator: { provider: string; model: string };
+  interpreter: { provider: "local" | "gemini" };
+  tts: { provider: string; voice: string };
+  image: { provider: string; style: string };
+}
+
+function buildProviderInfo(): ProviderInfo {
+  return {
+    narrator: {
+      provider: process.env.NARRATOR_PROVIDER || "local",
+      model: process.env.NARRATOR_MODEL || "gemma-3-12b",
+    },
+    interpreter: { provider: interpreterProvider() },
+    tts: { provider: "gemini", voice: DEFAULT_VOICE },
+    image: { provider: "gemini", style: DEFAULT_IMAGE_STYLE },
+  };
+}
+
 let lastTurnTrace: LastTurnTrace | null = null;
 export function getLastTurnTrace(): LastTurnTrace | null {
   return lastTurnTrace;
@@ -93,6 +112,7 @@ export type ServerMessage =
       position: [number, number];
       presetSlug: string | null;
       presets: PresetSummary[];
+      providers: ProviderInfo;
     }
   | { type: "turn-start"; input: string }
   | { type: "narrative"; text: string }
@@ -323,7 +343,7 @@ function presetSummaries(): PresetSummary[] {
   }));
 }
 
-function snapshotMessage(stack: WorldStack): ServerMessage {
+export function snapshotMessage(stack: WorldStack): ServerMessage {
   return {
     type: "snapshot",
     turn: stack.turn,
@@ -333,6 +353,7 @@ function snapshotMessage(stack: WorldStack): ServerMessage {
     position: stack.position,
     presetSlug: stack.presetSlug,
     presets: presetSummaries(),
+    providers: buildProviderInfo(),
   };
 }
 

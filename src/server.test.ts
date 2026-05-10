@@ -1,6 +1,6 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
-import { processInput, startWithPreset, keepExploring, emptyWorld, type ServerMessage } from "./server";
+import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, type ServerMessage } from "./server";
 import type { WorldStack } from "./stack";
 import type { Preset } from "./presets";
 
@@ -485,4 +485,15 @@ test("processInput: emits debug-trace after stack-update on normal turn", async 
     locationDescription: "A clearing under tall pines.",
   });
   expect(trace.trace.error).toBeUndefined();
+});
+
+test("snapshotMessage: includes providers info", () => {
+  const msg = snapshotMessage(emptyStack);
+  expect(msg.type).toBe("snapshot");
+  if (msg.type !== "snapshot") throw new Error("type guard");
+  expect(msg.providers).toBeDefined();
+  expect(msg.providers.interpreter.provider).toMatch(/^(local|gemini)$/);
+  expect(typeof msg.providers.narrator.model).toBe("string");
+  expect(typeof msg.providers.tts.voice).toBe("string");
+  expect(typeof msg.providers.image.style).toBe("string");
 });
