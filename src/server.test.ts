@@ -197,6 +197,20 @@ test("processInput: on archivist failure, narrative is sent but stack is unchang
   expect(newStack).toBe(emptyStack);
 });
 
+test("processInput: emits debug-trace with null archivist on move-blocked", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "move-blocked" }));
+
+  const messages: ServerMessage[] = [];
+  await processInput(emptyStack, "go through wall", (m) => messages.push(m));
+
+  const traceMsg = messages.find((m) => m.type === "debug-trace");
+  expect(traceMsg).toBeDefined();
+  if (traceMsg?.type !== "debug-trace") throw new Error("type guard");
+  expect(traceMsg.trace.input).toBe("go through wall");
+  expect(traceMsg.trace.interpreter.action).toBe("move-blocked");
+  expect(traceMsg.trace.archivist).toBeNull();
+});
+
 test("processInput: on interpreter failure, falls back to stay (still runs narrator)", async () => {
   interpreterSpy.mockImplementationOnce(async () => {
     throw new Error("interpreter API error");
@@ -416,7 +430,8 @@ test("processInput: move-blocked short-circuits, no narrator/archivist call, sen
   expect(narratorSpy).not.toHaveBeenCalled();
   expect(archivistSpy).not.toHaveBeenCalled();
   expect(newStack).toBe(emptyStack);
-  expect(messages).toEqual([{ type: "move-blocked", input: "go to the train" }]);
+  expect(messages[0]).toEqual({ type: "move-blocked", input: "go to the train" });
+  expect(messages[1]?.type).toBe("debug-trace");
 });
 
 test("processInput: emits debug-trace after stack-update on normal turn", async () => {

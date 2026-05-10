@@ -146,6 +146,18 @@ export async function processInput(
 
   if (action.action === "move-blocked") {
     send({ type: "move-blocked", input });
+    try {
+      lastTurnTrace = {
+        ts: new Date().toISOString(),
+        turn: stack.turn,
+        input,
+        interpreter: { action: action.action, provider: interpreterProvider() },
+        archivist: null,
+      };
+      send({ type: "debug-trace", trace: lastTurnTrace });
+    } catch (err) {
+      console.error("[debug-trace] capture failed:", err);
+    }
     return stack;
   }
 
