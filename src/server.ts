@@ -42,6 +42,7 @@ export type ServerMessage =
       entries: string[];
       threads: string[];
       objectives: Objective[];
+      position: [number, number];
       presetSlug: string | null;
       presets: PresetSummary[];
     }
@@ -52,6 +53,7 @@ export type ServerMessage =
       entries: string[];
       threads: string[];
       objectives: Objective[];
+      position: [number, number];
     }
   | { type: "win" }
   | { type: "audio-start" }
@@ -188,6 +190,7 @@ export async function processInput(
     entries: newStack.entries,
     threads: newStack.threads,
     objectives: newStack.objectives,
+    position: newStack.position,
   });
 
   if (isAllDone && !wasAllDone) {
@@ -218,6 +221,7 @@ function snapshotMessage(stack: WorldStack): ServerMessage {
     entries: stack.entries,
     threads: stack.threads,
     objectives: stack.objectives,
+    position: stack.position,
     presetSlug: stack.presetSlug,
     presets: presetSummaries(),
   };

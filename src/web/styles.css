@@ -605,6 +605,14 @@ button {
   margin: 0;
 }
 
+.turn-debug {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--fg-faint);
+  margin: 0;
+  opacity: 0.7;
+}
+
 /* system blocks (briefing / threads / stack) */
 
 .turn-block.system .turn-content {

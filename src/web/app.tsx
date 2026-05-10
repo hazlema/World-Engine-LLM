@@ -9,6 +9,7 @@ type Turn = {
   narrative?: string;
   error?: string;
   pending: boolean;
+  position?: Position;
 };
 
 type SystemTurn = {
@@ -52,6 +53,7 @@ type ServerMessage =
       entries: string[];
       threads: string[];
       objectives: Objective[];
+      position: Position;
       presetSlug: string | null;
       presets: PresetSummary[];
     }
@@ -62,6 +64,7 @@ type ServerMessage =
       entries: string[];
       threads: string[];
       objectives: Objective[];
+      position: Position;
     }
   | { type: "win" }
   | { type: "audio-start" }
@@ -373,7 +376,7 @@ function App() {
             turn: s.turn + 1,
           };
         });
-        updateLastInputTurn((t) => ({ ...t, pending: false }));
+        updateLastInputTurn((t) => ({ ...t, pending: false, position: msg.position }));
         setPending(false);
         return;
       }
@@ -877,6 +880,9 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
         <p className="turn-input-echo">{turn.input}</p>
         {imageUrl && <img className="turn-image" src={imageUrl} alt="" />}
         {turn.narrative && <p className="turn-narrative">{turn.narrative}</p>}
+        {turn.position && (
+          <p className="turn-debug">&gt; debug: x:{turn.position[0]} y:{turn.position[1]}</p>
+        )}
         {turn.pending && !turn.narrative && !turn.error && (
           <p className="turn-pending">the world is responding…</p>
         )}
