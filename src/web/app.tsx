@@ -76,7 +76,6 @@ const QUICK_ACTIONS = [
   "south",
   "east",
   "west",
-  "inventory",
 ];
 
 function isSystemTurn(t: AnyTurn): t is SystemTurn {
@@ -102,7 +101,7 @@ function App() {
   });
   const [pending, setPending] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  type ModalView = null | "select" | "objectives" | "win" | "voice";
+  type ModalView = null | "select" | "win" | "voice" | "image" | "inventory";
   const [modal, setModal] = useState<ModalView>(null);
   const [presets, setPresets] = useState<PresetSummary[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
@@ -113,6 +112,13 @@ function App() {
   const [audioByTurn, setAudioByTurn] = useState<Record<number, string>>({});
   const [imageByTurn, setImageByTurn] = useState<Record<number, string>>({});
   const [imagePending, setImagePending] = useState<Set<number>>(() => new Set());
+  const [imagesOn, setImagesOn] = useState<boolean>(() => {
+    try { return localStorage.getItem("imagesOn") === "1"; } catch { return false; }
+  });
+  const [imageStyle, setImageStyle] = useState<string>(() => {
+    try { return localStorage.getItem("imageStyle") || "cinematic"; } catch { return "cinematic"; }
+  });
+  const IMAGE_STYLES = ["cinematic", "painterly", "noir", "photoreal", "anime"];
   const [voices, setVoices] = useState<string[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>(() => {
     try { return localStorage.getItem("narrationVoice") || ""; } catch { return ""; }
@@ -131,6 +137,8 @@ function App() {
   // Refs so the WebSocket handler (set up once on mount) always reads current values.
   const narrationOnRef = useRef(narrationOn);
   narrationOnRef.current = narrationOn;
+  const imagesOnRef = useRef(imagesOn);
+  imagesOnRef.current = imagesOn;
   const entriesCollapsedRef = useRef(entriesCollapsed);
   const threadsCollapsedRef = useRef(threadsCollapsed);
   entriesCollapsedRef.current = entriesCollapsed;
@@ -139,6 +147,20 @@ function App() {
   const serverAudioPendingTurnIdRef = useRef<number | null>(null);
 
   const [toast, setToast] = useState<ToastData | null>(null);
+
+  // Actions menu (collapsed quick-action list under one button)
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!actionsOpen) return;
+    function onMousedown(e: MouseEvent) {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setActionsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onMousedown);
+    return () => document.removeEventListener("mousedown", onMousedown);
+  }, [actionsOpen]);
 
   // One-time voice list fetch; falls back silently if the server isn't ready.
   useEffect(() => {
@@ -165,7 +187,7 @@ function App() {
     fetch("/api/image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, style: imageStyle }),
     })
       .then(async (res) => {
         if (res.ok) return res.blob();
@@ -185,7 +207,18 @@ function App() {
           return next;
         });
       });
-  }, [imageByTurn]);
+  }, [imageByTurn, imageStyle]);
+
+  const toggleImages = useCallback(() => {
+    const next = !imagesOn;
+    setImagesOn(next);
+    try { localStorage.setItem("imagesOn", next ? "1" : "0"); } catch {}
+  }, [imagesOn]);
+
+  const changeImageStyle = useCallback((style: string) => {
+    setImageStyle(style);
+    try { localStorage.setItem("imageStyle", style); } catch {}
+  }, []);
 
   const renderTurn = useCallback((turnId: number, text: string) => {
     const tts = ttsRef.current;
@@ -401,19 +434,35 @@ function App() {
     // running. AudioContext.resume() requires a user gesture; load() is only
     // allowed to succeed in that context, and sets status to "ready" after.
     if (!narrationOn || engineStatus.kind !== "ready") return;
-    // Walk from newest to find the most recent narratable turn with no audio yet.
-    // Narratable = a regular turn with `narrative` OR a system "briefing" turn (preset opening).
+    // Only consider the LATEST turn. Walking backward used to fire a duplicate
+    // render of an in-flight earlier turn (e.g. briefing) whenever a newer turn
+    // came in pending server audio — that queued render then fought with the
+    // WS-streamed new turn for the AudioContext. Older un-audio'd turns now
+    // require an explicit speaker click.
+    const t = turns[turns.length - 1];
+    if (!t) return;
+    if (t.id === serverAudioPendingTurnIdRef.current) return;
+    if (t.id in audioByTurn) return;
+    const text = narratableText(t);
+    if (!text) return;
+    renderTurn(t.id, text);
+    setLastNarratedId(t.id);
+  }, [turns, narrationOn, audioByTurn, renderTurn, engineStatus]);
+
+  // Auto-generate image for the latest narrative turn when imagesOn.
+  // Mirrors the audio auto-render: walk newest-first, kick off the most recent
+  // un-imaged regular turn. System briefings don't auto-image (no manual button there either).
+  useEffect(() => {
+    if (!imagesOn) return;
     for (let i = turns.length - 1; i >= 0; i--) {
       const t = turns[i];
-      if (!t) continue;
-      const text = narratableText(t);
-      if (text && !(t.id in audioByTurn) && t.id !== serverAudioPendingTurnIdRef.current) {
-        renderTurn(t.id, text);
-        setLastNarratedId(t.id);
+      if (!t || isSystemTurn(t)) continue;
+      if (t.narrative && !(t.id in imageByTurn) && !imagePending.has(t.id)) {
+        renderImage(t.id, t.narrative);
         break;
       }
     }
-  }, [turns, narrationOn, audioByTurn, renderTurn, engineStatus]);
+  }, [turns, imagesOn, imageByTurn, imagePending, renderImage]);
 
   // Restore focus to the input when it becomes interactive again
   useEffect(() => {
@@ -613,16 +662,34 @@ function App() {
             />
           </form>
           <div className="button-row">
-            {QUICK_ACTIONS.map((a) => (
+            <div className="actions-menu" ref={actionsMenuRef}>
               <button
-                key={a}
                 className="action-button"
-                onClick={() => send(a)}
+                onClick={() => setActionsOpen((o) => !o)}
                 disabled={pending || !connected}
+                aria-expanded={actionsOpen}
+                aria-haspopup="menu"
+                title="quick actions"
               >
-                {a}
+                actions {actionsOpen ? "▾" : "▸"}
               </button>
-            ))}
+              {actionsOpen && (
+                <div className="actions-popover" role="menu">
+                  {QUICK_ACTIONS.map((a) => (
+                    <button
+                      key={a}
+                      className="action-button"
+                      onClick={() => { send(a); setActionsOpen(false); }}
+                      disabled={pending || !connected}
+                      role="menuitem"
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="button-row-spacer" />
             <div className="split-button">
               <button
                 className={`action-button split-face ${narrationOn ? "critical" : ""}`}
@@ -642,20 +709,44 @@ function App() {
                 ▾
               </button>
             </div>
-            <button
-              className="action-button"
-              onClick={() => setModal("objectives")}
-              disabled={!connected || stack.objectives.length === 0}
-            >
-              objectives
-            </button>
-            <button
-              className="action-button critical"
-              onClick={() => setModal("select")}
-              disabled={!connected}
-            >
-              new game
-            </button>
+            <div className="split-button">
+              <button
+                className={`action-button split-face ${imagesOn ? "critical" : ""}`}
+                onClick={toggleImages}
+                disabled={!connected}
+                title="auto-generate an image for each new turn"
+              >
+                images {imagesOn ? "on" : "off"}
+              </button>
+              <button
+                className={`action-button split-arrow ${imagesOn ? "critical" : ""}`}
+                onClick={() => setModal("image")}
+                disabled={!connected}
+                title="image settings"
+                aria-label="image settings"
+              >
+                ▾
+              </button>
+            </div>
+            <div className="split-button">
+              <button
+                className="action-button split-face info"
+                onClick={() => send("inventory")}
+                disabled={pending || !connected}
+                title="ask the world about your inventory"
+              >
+                inventory
+              </button>
+              <button
+                className="action-button split-arrow info"
+                onClick={() => setModal("inventory")}
+                disabled={!connected}
+                title="open inventory panel"
+                aria-label="open inventory panel"
+              >
+                ▾
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -670,18 +761,6 @@ function App() {
                 onCancel={() => setModal(null)}
               />
             )}
-            {modal === "objectives" && (() => {
-              const p = stack.presetSlug
-                ? presets.find((x) => x.slug === stack.presetSlug)
-                : null;
-              return (
-                <ObjectivesView
-                  title={p?.title ?? "Objectives"}
-                  objectives={stack.objectives}
-                  onClose={() => setModal(null)}
-                />
-              );
-            })()}
             {modal === "win" && (
               <WinView
                 objectives={stack.objectives}
@@ -701,6 +780,23 @@ function App() {
                 onChangeVolume={changeVolume}
                 onClose={() => setModal(null)}
               />
+            )}
+            {modal === "image" && (
+              <ImageView
+                styles={IMAGE_STYLES}
+                selected={imageStyle}
+                onPick={changeImageStyle}
+                onClose={() => setModal(null)}
+              />
+            )}
+            {modal === "inventory" && (
+              <>
+                <div className="modal-body">
+                  <div className="modal-title">Inventory</div>
+                  <p className="turn-narrative">First-class inventory panel coming soon. For now, click <strong>inventory</strong> directly to ask the world what you're carrying.</p>
+                </div>
+                <button className="action-button" onClick={() => setModal(null)}>close</button>
+              </>
             )}
           </div>
         </div>
@@ -978,22 +1074,6 @@ function ObjectivesList({ objectives }: { objectives: Objective[] }) {
   );
 }
 
-function ObjectivesView(props: {
-  title: string;
-  objectives: Objective[];
-  onClose: () => void;
-}) {
-  return (
-    <>
-      <div className="modal-body">
-        <div className="modal-title">{props.title}</div>
-        <ObjectivesList objectives={props.objectives} />
-      </div>
-      <button className="action-button" onClick={props.onClose}>close</button>
-    </>
-  );
-}
-
 function VoiceView(props: {
   voices: string[];
   selectedVoice: string;
@@ -1041,6 +1121,35 @@ function VoiceView(props: {
             <span className="voice-slider-end">100</span>
           </div>
           <div className="voice-row-hint">Adjusts playback live.</div>
+        </div>
+      </div>
+      <button className="action-button" onClick={props.onClose}>done</button>
+    </>
+  );
+}
+
+function ImageView(props: {
+  styles: string[];
+  selected: string;
+  onPick: (style: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="modal-body">
+        <div className="modal-title">Image settings</div>
+        <div className="voice-row">
+          <label className="voice-row-label">Style</label>
+          <select
+            className="voice-select"
+            value={props.selected}
+            onChange={(e) => props.onPick(e.target.value)}
+          >
+            {props.styles.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <div className="voice-row-hint">Applied to images generated next.</div>
         </div>
       </div>
       <button className="action-button" onClick={props.onClose}>done</button>

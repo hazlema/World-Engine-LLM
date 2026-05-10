@@ -204,10 +204,18 @@ export class TTSEngine {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        // If a newer stream took ownership (e.g. WS audio-start for a new turn),
+        // drop these chunks on the floor. Keep draining the response so the
+        // fetch closes cleanly, but don't schedule them on AudioContext or
+        // push them into the new stream's chunk buffer.
+        if (this.streamingTurnId !== turnId) continue;
         if (value && value.byteLength > 0) this.addChunk(value);
       }
-      const result = this.endStream();
       const dur = performance.now() - t0;
+      if (this.streamingTurnId !== turnId) {
+        throw new Error(`render turn ${turnId} preempted by newer stream`);
+      }
+      const result = this.endStream();
       console.info(`[tts] render turn ${turnId}: ${text.length} chars in ${Math.round(dur)}ms (${voice ?? "default"})`);
       if (!result) throw new Error("speak returned no audio");
       return { url: result.url, durationMs: dur };

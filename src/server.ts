@@ -13,7 +13,7 @@ import {
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
 import { synthesizeStream, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
-import { generateImage } from "./gemini-image";
+import { generateImage, IMAGE_STYLES, DEFAULT_IMAGE_STYLE, type ImageStyle } from "./gemini-image";
 
 let presets: Map<string, Preset> = new Map();
 
@@ -349,11 +349,14 @@ async function main() {
       }
       if (url.pathname === "/api/image" && req.method === "POST") {
         try {
-          const body = await req.json() as { text?: unknown };
+          const body = await req.json() as { text?: unknown; style?: unknown };
           const text = typeof body.text === "string" ? body.text.trim() : "";
           if (!text) return new Response("text required", { status: 400 });
           if (text.length > 4000) return new Response("text too long", { status: 413 });
-          const png = await generateImage(text);
+          const style: ImageStyle = typeof body.style === "string" && (IMAGE_STYLES as readonly string[]).includes(body.style)
+            ? body.style as ImageStyle
+            : DEFAULT_IMAGE_STYLE;
+          const png = await generateImage(text, style);
           return new Response(png, {
             headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
           });

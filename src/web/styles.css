@@ -32,6 +32,12 @@
   --positive:     #4ade80;
   --positive-tint:rgba(74, 222, 128, 0.16);
 
+  /* Info accent (e.g. inventory) */
+  --info:          #60a5fa;
+  --info-soft:     #93c5fd;
+  --info-tint:     rgba(96, 165, 250, 0.16);
+  --info-tint-2:   rgba(96, 165, 250, 0.26);
+
   /* Type */
   --font-sans:    "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -499,6 +505,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: var(--turn-gap);
+  /* Clear the fixed action-bar so the last turn's tail doesn't slide under it. */
+  padding-bottom: 9rem;
 }
 
 .turn-list > * + *::before {
@@ -753,6 +761,32 @@ button {
   align-items: center;
 }
 
+.button-row-spacer { flex: 1; min-width: 0.5rem; }
+
+.actions-menu { position: relative; }
+
+.actions-popover {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: var(--surface-2);
+  border: 1px solid var(--stroke-mid);
+  border-radius: var(--r-md);
+  padding: 0.45rem;
+  box-shadow: var(--shadow-3);
+  z-index: 200;
+  min-width: 9rem;
+}
+
+.actions-popover .action-button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .action-button {
   background: transparent;
   border: 1px solid var(--stroke);
@@ -786,6 +820,18 @@ button {
   border-color: var(--ember);
   color: var(--ember-soft);
   box-shadow: var(--glow-ember);
+}
+
+.action-button.info {
+  color: var(--info);
+  border-color: var(--info-tint-2);
+  background: var(--info-tint);
+}
+
+.action-button.info:hover:not(:disabled) {
+  background: var(--info-tint-2);
+  border-color: var(--info);
+  color: var(--info-soft);
 }
 
 /* Voice picker dropdown — sits next to the narration toggle in the action bar */

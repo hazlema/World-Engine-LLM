@@ -2,14 +2,28 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 const IMAGE_MODEL = "gemini-2.5-flash-image";
 
-export async function generateImage(narrative: string): Promise<Buffer> {
+export const IMAGE_STYLES = ["cinematic", "painterly", "noir", "photoreal", "anime"] as const;
+export type ImageStyle = (typeof IMAGE_STYLES)[number];
+export const DEFAULT_IMAGE_STYLE: ImageStyle = "cinematic";
+
+const STYLE_DESCRIPTIONS: Record<ImageStyle, string> = {
+  cinematic:  "Atmospheric, moody, painterly. Cinematic lighting and composition.",
+  painterly:  "Oil painting style. Visible brushstrokes. Rich textured colors.",
+  noir:       "Black and white. High contrast. Film noir, deep shadows, dramatic lighting.",
+  photoreal:  "Photorealistic. Natural lighting. High detail, sharp focus.",
+  anime:      "Anime / cel-shaded illustration. Bold linework. Saturated palette.",
+};
+
+export async function generateImage(narrative: string, style: ImageStyle = DEFAULT_IMAGE_STYLE): Promise<Buffer> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set");
 
   const ai = new GoogleGenAI({ apiKey: key });
+  const styleDescription = STYLE_DESCRIPTIONS[style] ?? STYLE_DESCRIPTIONS[DEFAULT_IMAGE_STYLE];
   const prompt = [
     "Render this scene as a cinematic 21:9 ultrawide image.",
-    "Atmospheric, moody, painterly. No text, captions, or watermarks.",
+    `Style: ${styleDescription}`,
+    "No text, captions, or watermarks.",
     "",
     "Scene:",
     narrative,

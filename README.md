@@ -43,6 +43,22 @@ Each turn has a `▦` button stacked under the speaker icon in the margin. Click
 
 > **Note:** like narration, this is **never automatic** — images only generate when you click `▦`. Uses the same `GEMINI_API_KEY` you already set for narration. Cost is per-image and falls under Google AI Studio's free tier for light play. The same future in-app configuration screen will cover image settings.
 
+### Configuration
+
+All settings live in `.env`. Bun loads it automatically — no `dotenv` needed.
+
+```bash
+# Required for narration and per-turn images.
+GEMINI_API_KEY=your_key_here
+
+# Optional: route the narrator through Gemini for richer prose.
+# Defaults to the local OpenAI-compatible endpoint.
+NARRATOR_PROVIDER=gemini                # gemini | local
+NARRATOR_GEMINI_MODEL=gemini-2.5-flash  # optional; flash is the default
+```
+
+> **Turning the Gemini narrator on upgrades both features at once.** Gemini writes noticeably tighter, more sensory prose than a 12B local model. And because the image generator's prompt _is_ the narrator's output, a sharper narrative also produces a sharper image downstream — better text feeds better pictures. Cost is one extra Gemini call per turn (~$0.0002 on Flash); the interpreter and archivist still run locally.
+
 ## How it works
 
 Each turn runs three model passes:
@@ -55,6 +71,7 @@ The world state lives in `world-stack.json` — an append-mostly list of establi
 
 ## Recent changes
 
+- **Optional Gemini narrator.** Set `NARRATOR_PROVIDER=gemini` to route the narrator pass through Gemini Flash instead of the local model. Prose comes out tighter and more specific; images downstream of that prose come out sharper for free, since the image generator's prompt is the narrator's output. Interpreter and archivist stay local — only the narrator changes. Defaults to local so nothing breaks for users without an API key.
 - **Per-turn image generation.** Click `▦` next to a turn and the narrative becomes a 21:9 cinematic still via Google's `gemini-2.5-flash-image`. Optional and on-demand — same `GEMINI_API_KEY` already used for narration. The image lands as an establishing shot above the text.
 - **Streaming Gemini TTS narration.** Replaced the local Piper integration. Audio now streams chunk-by-chunk over a WebSocket and starts playing about a second after the narrative appears. Trade-off: narration is no longer free or local — it needs a `GEMINI_API_KEY`. A proper in-app configuration screen for swapping providers/voices is planned.
 - **Smarter objective handling.** The world now recognises when you've actually accomplished something even if the narrator phrases it differently. "The lid yields" counts as opening a chest; "you reach for the lock but it holds firm" doesn't.

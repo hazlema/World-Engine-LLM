@@ -1,3 +1,5 @@
+import { GoogleGenAI } from "@google/genai";
+
 const ENDPOINT = "http://localhost:1234/v1/chat/completions";
 // google/gemma-3-12b
 // Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF
@@ -5,10 +7,16 @@ const NARRATOR_MODEL = "google/gemma-3-12b";
 const ARCHIVIST_MODEL = "google/gemma-3-12b";
 const TIMEOUT_MS = 30_000;
 const ARCHIVIST_TIMEOUT_MS = 60_000;
-const MAX_TOKENS = 1500;
+const MAX_TOKENS = 2500;
 // Grows with threads/entries; 2500 gives headroom for 30+ established + 15 loose
 const ARCHIVIST_MAX_TOKENS = 2500;
 const ARCHIVIST_RETRIES = 3;
+
+// Narrator can be routed to Gemini for richer prose. Archivist + interpreter
+// always use the local model (structured-extraction tasks where Gemma is fine).
+const NARRATOR_PROVIDER = (process.env.NARRATOR_PROVIDER ?? "local").toLowerCase();
+const NARRATOR_GEMINI_MODEL = process.env.NARRATOR_GEMINI_MODEL ?? "gemini-2.5-flash";
+console.log(`[api] narrator provider: ${NARRATOR_PROVIDER}${NARRATOR_PROVIDER === "gemini" ? ` (${NARRATOR_GEMINI_MODEL})` : ` (${NARRATOR_MODEL})`}`);
 
 interface CompletionsResponse {
   choices: Array<{
@@ -16,7 +24,33 @@ interface CompletionsResponse {
   }>;
 }
 
+async function callNarratorGemini(systemPrompt: string, input: string): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set (required for NARRATOR_PROVIDER=gemini)");
+
+  const ai = new GoogleGenAI({ apiKey: key });
+  const response = await ai.models.generateContent({
+    model: NARRATOR_GEMINI_MODEL,
+    contents: [{ parts: [{ text: input }] }],
+    config: {
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      temperature: 0.95,
+      maxOutputTokens: MAX_TOKENS,
+      // 2.5 Flash defaults to thinking mode which burns the token budget
+      // on scratchpad and returns empty content (see thinking-models memory).
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  const parts = response.candidates?.[0]?.content?.parts ?? [];
+  const text = parts.map((p) => p.text).filter(Boolean).join("").trim();
+  if (!text) throw new Error("Empty response from Gemini narrator");
+  return text;
+}
+
 export async function callModel(systemPrompt: string, input: string): Promise<string> {
+  if (NARRATOR_PROVIDER === "gemini") return callNarratorGemini(systemPrompt, input);
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
