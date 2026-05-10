@@ -303,3 +303,27 @@ test("ARCHIVIST_SYSTEM: instructs the archivist on conservative objective comple
   expect(ARCHIVIST_SYSTEM).toContain("achievedObjectiveIndices");
   expect(ARCHIVIST_SYSTEM.toLowerCase()).toContain("when in doubt");
 });
+
+test("interpreterTurn: classifies bare cardinal as move", async () => {
+  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
+  const result = await interpreterTurn("north");
+  expect(result).toEqual({ action: "move-north" });
+});
+
+test("interpreterTurn: classifies non-movement as stay", async () => {
+  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  const result = await interpreterTurn("examine the door");
+  expect(result).toEqual({ action: "stay" });
+});
+
+test("interpreterTurn: classifies movement-without-cardinal as move-blocked", async () => {
+  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "move-blocked" }));
+  const result = await interpreterTurn("go to the train");
+  expect(result).toEqual({ action: "move-blocked" });
+});
+
+test("interpreterTurn: unknown action falls back to stay", async () => {
+  callModelStructuredSpy.mockImplementationOnce(async () => ({ action: "fly" }));
+  const result = await interpreterTurn("fly to the moon");
+  expect(result).toEqual({ action: "stay" });
+});

@@ -148,12 +148,14 @@ Output JSON with one field, "action", whose value is exactly one of:
 - "move-south" — the player intends to move southward
 - "move-east"  — the player intends to move eastward
 - "move-west"  — the player intends to move westward
-- "stay"       — the player is doing something other than directional movement (looking, waiting, examining, talking, or any ambiguous/non-cardinal action)
+- "stay"       — the player is doing something other than moving (looking, waiting, examining, talking)
+- "move-blocked" — the player is trying to MOVE but did not name a cardinal direction
 
 Rules:
-- Pure observation or interaction without movement is "stay" (e.g. "look around", "wait", "examine the door", "talk to the woman").
-- "Follow the path", "go through the door", or any non-cardinal phrasing is "stay" — the player must specify a cardinal direction to move.
-- Compass synonyms count: "head up the road" alone is "stay"; "head north" is "move-north".
+- If a cardinal direction (north / south / east / west, or up / down / left / right meaning the same) is named anywhere in the input, classify by that direction even with surrounding words. "go north through the door" → "move-north".
+- Pure observation or interaction without movement intent is "stay" (e.g. "look around", "wait", "examine the door", "talk to the woman", "pick up the satchel").
+- Movement intent without a cardinal is "move-blocked" (e.g. "go to the train", "walk to the lander", "follow the path", "head toward the crater", "return to the ship", "go through the door").
+- "head up the road" alone is "move-blocked"; "head north" is "move-north".
 - Output only the JSON object. No prose.`;
 
 const INTERPRETER_SCHEMA = {
@@ -161,7 +163,7 @@ const INTERPRETER_SCHEMA = {
   properties: {
     action: {
       type: "string",
-      enum: ["move-north", "move-south", "move-east", "move-west", "stay"],
+      enum: ["move-north", "move-south", "move-east", "move-west", "stay", "move-blocked"],
     },
   },
   required: ["action"],
@@ -173,9 +175,10 @@ export type InterpretedAction =
   | { action: "move-south" }
   | { action: "move-east" }
   | { action: "move-west" }
-  | { action: "stay" };
+  | { action: "stay" }
+  | { action: "move-blocked" };
 
-const VALID_ACTIONS = new Set(["move-north", "move-south", "move-east", "move-west", "stay"]);
+const VALID_ACTIONS = new Set(["move-north", "move-south", "move-east", "move-west", "stay", "move-blocked"]);
 
 export async function interpreterTurn(playerInput: string): Promise<InterpretedAction> {
   const result = await api.callModelStructured<{ action: string }>(
