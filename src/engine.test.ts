@@ -328,6 +328,31 @@ test("ARCHIVIST_SYSTEM: has explicit rule for discovery objectives", async () =>
   expect(lower).toMatch(/this turn|this narrative/);
 });
 
+test("ARCHIVIST_SYSTEM: has supersession rule for state changes", async () => {
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  // The archivist must REPLACE old entries when an item is taken, placed,
+  // or otherwise has its state changed — not accumulate "rose on flagstones"
+  // alongside "rose in player's hand". Same for count/quantity changes
+  // (three candles → two).
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/supersede|replace the old|replace.*entry/);
+  // The rule must give an example covering both an item move and a count change.
+  expect(lower).toMatch(/take|taken|picked up|player's hand/);
+  expect(lower).toMatch(/three.*candles|count|quantity/);
+});
+
+test("ARCHIVIST_SYSTEM: explicitly skips transient sensory details from entries", async () => {
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  // Momentary atmosphere ("draft pulls at your cloak", "dripping quickens",
+  // "darkness deepens") shouldn't be canonized in entries — only durable
+  // physical facts. The existing "skip mood/atmosphere" rule isn't strong
+  // enough; we need the entries section to call out sensory specifically
+  // with a concrete example. Note "transient" alone matches the existing
+  // locationDescription rule, so we look for "sensory" which is novel.
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toContain("sensory");
+});
+
 test("interpreterTurn: classifies bare cardinal as move", async () => {
   callInterpreterStructuredSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   const result = await interpreterTurn("north");

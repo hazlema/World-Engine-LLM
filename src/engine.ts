@@ -41,7 +41,15 @@ Rules for entries:
 - Prefer CONCRETE nouns over atmosphere. "Crow on broken hut" beats "silence pervades the void."
 - Capture: named characters, locations, items held, recent events, relationships, exits/paths.
 - Skip pure mood/atmosphere unless it's a hard physical fact (e.g. "no rain in three moons").
-- Update changed facts; remove resolved ones; do not duplicate.
+- Skip TRANSIENT SENSORY details — a passing draft, dripping that quickens, footsteps echoing, darkness deepening, a momentary smell. These are sensation, not state. Keep entries that describe a permanent physical feature ("broken vent in the north wall whistles in wind" is a fact about the vent; "wind howls suddenly" is mood).
+- SUPERSEDE entries when state changes — REPLACE the old entry, don't accumulate both. When the player takes, places, breaks, lights, opens, or otherwise changes an item, drop the prior-state entry and add one describing the new state. When a count or quantity changes, update the entry to reflect the new count.
+- Examples of supersession:
+  - Player takes the wooden rose: drop "wooden rose lies on flagstones", add "wooden rose in player's hand".
+  - Player places it in the fissure: drop "in player's hand", add "wooden rose set in the fissure".
+  - One of three candles burns out: drop "three candles flicker in sconces", add "two candles flicker in sconces".
+  - All candles extinguish: drop the candle entry, add "candles burned out, cellar dark".
+  - Iron-bound chest is opened: drop "iron-bound chest with broken lock plate", add "iron-bound chest open, contents revealed".
+- When a fact is resolved or no longer true, remove it. Do not duplicate.
 - Max ${MAX_STACK_ENTRIES} entries total.
 
 Rules for threads:
