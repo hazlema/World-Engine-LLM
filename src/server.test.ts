@@ -403,3 +403,15 @@ test("processInput: free-play (no objectives) never emits win", async () => {
   await processInput(emptyStack, "look", (m) => messages.push(m));
   expect(messages.some((m) => m.type === "win")).toBe(false);
 });
+
+test("processInput: move-blocked short-circuits, no narrator/archivist call, sends move-blocked message", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "move-blocked" }));
+
+  const messages: ServerMessage[] = [];
+  const newStack = await processInput(emptyStack, "go to the train", (m) => messages.push(m));
+
+  expect(narratorSpy).not.toHaveBeenCalled();
+  expect(archivistSpy).not.toHaveBeenCalled();
+  expect(newStack).toBe(emptyStack);
+  expect(messages).toEqual([{ type: "move-blocked", input: "go to the train" }]);
+});

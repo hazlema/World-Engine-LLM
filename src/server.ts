@@ -59,6 +59,7 @@ export type ServerMessage =
   | { type: "audio-start" }
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
+  | { type: "move-blocked"; input: string }
   | { type: "error"; source: "narrator" | "archivist"; message: string };
 
 export type ClientMessage =
@@ -104,14 +105,19 @@ export async function processInput(
   voice?: string,
   sendAudio?: Send
 ): Promise<WorldStack> {
-  send({ type: "turn-start", input });
-
   let action: InterpretedAction;
   try {
     action = await interpreterTurn(input);
   } catch {
     action = { action: "stay" };
   }
+
+  if (action.action === "move-blocked") {
+    send({ type: "move-blocked", input });
+    return stack;
+  }
+
+  send({ type: "turn-start", input });
 
   const dir = ACTION_TO_DIRECTION[action.action];
   const prospective = dir ? applyDirection(stack.position, dir) : stack.position;
