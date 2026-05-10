@@ -66,6 +66,23 @@ function interpreterProvider(): "local" | "gemini" {
   return process.env.INTERPRETER_PROVIDER === "gemini" ? "gemini" : "local";
 }
 
+function buildLastTurnTrace(args: {
+  turn: number;
+  input: string;
+  action: InterpretedAction;
+  archivist: ArchivistTrace | null;
+  error?: { source: "narrator" | "archivist"; message: string };
+}): LastTurnTrace {
+  return {
+    ts: new Date().toISOString(),
+    turn: args.turn,
+    input: args.input,
+    interpreter: { action: args.action.action, provider: interpreterProvider() },
+    archivist: args.archivist,
+    ...(args.error ? { error: args.error } : {}),
+  };
+}
+
 export type ServerMessage =
   | {
       type: "snapshot";
@@ -147,13 +164,7 @@ export async function processInput(
   if (action.action === "move-blocked") {
     send({ type: "move-blocked", input });
     try {
-      lastTurnTrace = {
-        ts: new Date().toISOString(),
-        turn: stack.turn,
-        input,
-        interpreter: { action: action.action, provider: interpreterProvider() },
-        archivist: null,
-      };
+      lastTurnTrace = buildLastTurnTrace({ turn: stack.turn, input, action, archivist: null });
       send({ type: "debug-trace", trace: lastTurnTrace });
     } catch (err) {
       console.error("[debug-trace] capture failed:", err);
@@ -173,7 +184,20 @@ export async function processInput(
     narrative = await narratorTurn(narratorStack, input, briefing);
     send({ type: "narrative", text: narrative });
   } catch (err) {
-    send({ type: "error", source: "narrator", message: String(err) });
+    const message = String(err);
+    send({ type: "error", source: "narrator", message });
+    try {
+      lastTurnTrace = buildLastTurnTrace({
+        turn: stack.turn,
+        input,
+        action,
+        archivist: null,
+        error: { source: "narrator", message },
+      });
+      send({ type: "debug-trace", trace: lastTurnTrace });
+    } catch (e) {
+      console.error("[debug-trace] capture failed:", e);
+    }
     return stack;
   }
 
@@ -204,7 +228,20 @@ export async function processInput(
   try {
     archived = await archivistTurn(stack, narrative);
   } catch (err) {
-    send({ type: "error", source: "archivist", message: String(err) });
+    const message = String(err);
+    send({ type: "error", source: "archivist", message });
+    try {
+      lastTurnTrace = buildLastTurnTrace({
+        turn: stack.turn,
+        input,
+        action,
+        archivist: null,
+        error: { source: "archivist", message },
+      });
+      send({ type: "debug-trace", trace: lastTurnTrace });
+    } catch (e) {
+      console.error("[debug-trace] capture failed:", e);
+    }
     return stack;
   }
 
@@ -248,11 +285,10 @@ export async function processInput(
   });
 
   try {
-    lastTurnTrace = {
-      ts: new Date().toISOString(),
+    lastTurnTrace = buildLastTurnTrace({
       turn: archived.turn,
       input,
-      interpreter: { action: action.action, provider: interpreterProvider() },
+      action,
       archivist: {
         entries: archived.entries,
         threads: archived.threads,
@@ -260,7 +296,7 @@ export async function processInput(
         moved: archived.moved,
         locationDescription: archived.locationDescription,
       },
-    };
+    });
     send({ type: "debug-trace", trace: lastTurnTrace });
   } catch (err) {
     console.error("[debug-trace] capture failed:", err);

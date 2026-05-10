@@ -173,9 +173,10 @@ test("processInput: on narrator failure, emits error and returns unchanged stack
   const messages: ServerMessage[] = [];
   const newStack = await processInput(emptyStack, "look", (m) => messages.push(m));
 
-  expect(messages.length).toBe(2);
+  expect(messages.length).toBe(3);
   expect(messages[0]).toEqual({ type: "turn-start", input: "look" });
   expect(messages[1]).toMatchObject({ type: "error", source: "narrator" });
+  expect(messages[2]).toMatchObject({ type: "debug-trace" });
   expect(newStack).toBe(emptyStack);
   expect(archivistSpy).not.toHaveBeenCalled();
 });
@@ -190,10 +191,11 @@ test("processInput: on archivist failure, narrative is sent but stack is unchang
   const messages: ServerMessage[] = [];
   const newStack = await processInput(emptyStack, "look", (m) => messages.push(m));
 
-  expect(messages.length).toBe(3);
+  expect(messages.length).toBe(4);
   expect(messages[0]).toEqual({ type: "turn-start", input: "look" });
   expect(messages[1]).toEqual({ type: "narrative", text: "Something happens." });
   expect(messages[2]).toMatchObject({ type: "error", source: "archivist" });
+  expect(messages[3]).toMatchObject({ type: "debug-trace" });
   expect(newStack).toBe(emptyStack);
 });
 
@@ -432,6 +434,22 @@ test("processInput: move-blocked short-circuits, no narrator/archivist call, sen
   expect(newStack).toBe(emptyStack);
   expect(messages[0]).toEqual({ type: "move-blocked", input: "go to the train" });
   expect(messages[1]?.type).toBe("debug-trace");
+});
+
+test("processInput: emits debug-trace with error when archivist throws", async () => {
+  interpreterSpy.mockImplementationOnce(async () => ({ action: "stay" }));
+  narratorSpy.mockImplementationOnce(async () => "You stand still.");
+  archivistSpy.mockImplementationOnce(async () => { throw new Error("boom"); });
+
+  const messages: ServerMessage[] = [];
+  await processInput(emptyStack, "wait", (m) => messages.push(m));
+
+  const traceMsg = messages.find((m) => m.type === "debug-trace");
+  expect(traceMsg).toBeDefined();
+  if (traceMsg?.type !== "debug-trace") throw new Error("type guard");
+  expect(traceMsg.trace.archivist).toBeNull();
+  expect(traceMsg.trace.error?.source).toBe("archivist");
+  expect(traceMsg.trace.error?.message).toContain("boom");
 });
 
 test("processInput: emits debug-trace after stack-update on normal turn", async () => {
