@@ -203,6 +203,17 @@ test("NARRATOR_SYSTEM: cardinal moves are tile transitions, not in-scene steps",
   expect(lower).toMatch(/threshold|arrival|leave the.{0,40}entire|leaving the/);
 });
 
+test("NARRATOR_SYSTEM: names established items when surfacing them", () => {
+  // Observed 2026-05-10: narrator described the transmitter at distance as
+  // "something half-buried in the regolith" and "a metallic glint" without
+  // ever using the noun "transmitter". Player tried `look at transmitter` and
+  // the model couldn't connect, said "transmitter isn't here." The fix is to
+  // require established items be named when surfaced, so the player can
+  // reference them back. Atmospheric texture is still fine alongside the name.
+  const lower = NARRATOR_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/canonical noun|use its name when|vague descriptors alone/);
+});
+
 test("NARRATOR_SYSTEM: binds active-objective items to the current tile", () => {
   // Observed in playlog 2026-05-10T19:37+: active objective "Find the
   // transmitter" at [1,0] plus established entry "damaged transmitter
