@@ -214,6 +214,18 @@ test("NARRATOR_SYSTEM: names established items when surfacing them", () => {
   expect(lower).toMatch(/canonical noun|use its name when|vague descriptors alone/);
 });
 
+test("NARRATOR_SYSTEM: forbids preemptive denial of present items", () => {
+  // Observed 2026-05-10: player typed `north` and arrived at the transmitter's
+  // tile; narrator said "no sign of a transmitter" (then on next `look around`
+  // the narrator found it). The active-objective-binds rule forbids
+  // SUBSTITUTING the named item with an alternative, but didn't explicitly
+  // forbid DENYING its presence. Substitution-by-negation. Tighten to
+  // explicitly prohibit phrases like "no transmitter here" / "no sign of X"
+  // when X is at the player's current tile.
+  const lower = NARRATOR_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/preemptively deny|do not.{0,40}deny presence|substitution.by.negation|no sign of/);
+});
+
 test("NARRATOR_SYSTEM: binds active-objective items to the current tile", () => {
   // Observed in playlog 2026-05-10T19:37+: active objective "Find the
   // transmitter" at [1,0] plus established entry "damaged transmitter
