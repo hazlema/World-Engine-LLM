@@ -164,6 +164,7 @@ function App() {
   });
   const [providers, setProviders] = useState<ProviderInfo | null>(null);
   const [lastTrace, setLastTrace] = useState<LastTurnTrace | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const ttsRef = useRef<TTSEngine | null>(null);
   if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
 
@@ -736,6 +737,7 @@ function App() {
                   imageUrl={imageByTurn[t.id]}
                   imagePending={imagePending.has(t.id)}
                   onGenerateImage={t.narrative ? () => renderImage(t.id, t.narrative!) : undefined}
+                  onZoomImage={setLightbox}
                 />
               )))}
             </div>
@@ -907,12 +909,29 @@ function App() {
               />
             )}
             {modal === "gallery" && (
-              <GalleryModal onClose={() => setModal(null)} />
+              <GalleryModal onClose={() => setModal(null)} onZoom={setLightbox} />
             )}
           </div>
         </div>
       )}
+      {lightbox && <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </>
+  );
+}
+
+function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }): React.ReactElement {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="lightbox-overlay" onClick={onClose}>
+      <img src={src} alt="" className="lightbox-image" onClick={(e) => e.stopPropagation()} />
+      <button className="lightbox-close" onClick={onClose} aria-label="Close">✕</button>
+    </div>
   );
 }
 
@@ -966,7 +985,7 @@ function SaveToGalleryButton({ imageUrl }: { imageUrl: string }): React.ReactEle
 
 interface MediaItem { name: string; mtime: number }
 
-function GalleryModal({ onClose }: { onClose: () => void }): React.ReactElement {
+function GalleryModal({ onClose, onZoom }: { onClose: () => void; onZoom?: (url: string) => void }): React.ReactElement {
   const [items, setItems] = useState<MediaItem[] | null>(null);
   const [idx, setIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -1023,7 +1042,13 @@ function GalleryModal({ onClose }: { onClose: () => void }): React.ReactElement 
         <>
           <div className="gallery-main">
             <button className="gallery-arrow" onClick={prev} aria-label="previous">◀</button>
-            <img src={`/media/${current.name}`} alt={current.name} className="gallery-image" />
+            <img
+              src={`/media/${current.name}`}
+              alt={current.name}
+              className="gallery-image"
+              onClick={onZoom ? () => onZoom(`/media/${current.name}`) : undefined}
+              style={onZoom ? { cursor: "zoom-in" } : undefined}
+            />
             <button className="gallery-arrow" onClick={next} aria-label="next">▶</button>
           </div>
           <div className="gallery-caption">{current.name}</div>
@@ -1045,7 +1070,7 @@ function GalleryModal({ onClose }: { onClose: () => void }): React.ReactElement 
   );
 }
 
-function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, imageUrl, imagePending, onGenerateImage }: {
+function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, imageUrl, imagePending, onGenerateImage, onZoomImage }: {
   turn: Turn;
   audioUrl?: string;
   autoPlay?: boolean;
@@ -1055,6 +1080,7 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
   imageUrl?: string;
   imagePending?: boolean;
   onGenerateImage?: () => void;
+  onZoomImage?: (url: string) => void;
 }) {
   const num = String(turn.id).padStart(2, "0");
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1116,7 +1142,15 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
       </div>
       <div className="turn-content">
         <p className="turn-input-echo">{turn.input}</p>
-        {imageUrl && <img className="turn-image" src={imageUrl} alt="" />}
+        {imageUrl && (
+          <img
+            className="turn-image"
+            src={imageUrl}
+            alt=""
+            onClick={onZoomImage ? () => onZoomImage(imageUrl) : undefined}
+            style={onZoomImage ? { cursor: "zoom-in" } : undefined}
+          />
+        )}
         {turn.narrative && <p className="turn-narrative">{turn.narrative}</p>}
         {turn.pending && !turn.narrative && !turn.error && (
           <p className="turn-pending">the world is responding…</p>
