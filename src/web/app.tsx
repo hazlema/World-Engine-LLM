@@ -131,7 +131,7 @@ function App() {
   });
   const [pending, setPending] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  type ModalView = null | "select" | "win" | "voice" | "image" | "inventory" | "debug";
+  type ModalView = null | "select" | "win" | "voice" | "image" | "inventory" | "debug" | "gallery";
   const [modal, setModal] = useState<ModalView>(null);
   const [presets, setPresets] = useState<PresetSummary[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
@@ -560,6 +560,10 @@ function App() {
         setModal("debug");
         return;
       }
+      if (slash.name === "gallery") {
+        setModal("gallery");
+        return;
+      }
       setToast({ kind: "blocked", text: `unknown command: /${slash.name}`, id: Date.now() });
       return;
     }
@@ -902,10 +906,94 @@ function App() {
                 onClose={() => setModal(null)}
               />
             )}
+            {modal === "gallery" && (
+              <GalleryModal onClose={() => setModal(null)} />
+            )}
           </div>
         </div>
       )}
     </>
+  );
+}
+
+interface MediaItem { name: string; mtime: number }
+
+function GalleryModal({ onClose }: { onClose: () => void }): React.ReactElement {
+  const [items, setItems] = useState<MediaItem[] | null>(null);
+  const [idx, setIdx] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/media")
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error(`${r.status}`)))
+      .then((data: { items: MediaItem[] }) => {
+        if (cancelled) return;
+        setItems(data.items);
+      })
+      .catch((err) => { if (!cancelled) setError(String(err)); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const prev = useCallback(() => {
+    setIdx((i) => (items && items.length ? (i - 1 + items.length) % items.length : 0));
+  }, [items]);
+  const next = useCallback(() => {
+    setIdx((i) => (items && items.length ? (i + 1) % items.length : 0));
+  }, [items]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft") prev();
+      else if (e.key === "ArrowRight") next();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, prev, next]);
+
+  // Keep the selected thumbnail visible in the strip.
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const thumb = strip.querySelector<HTMLElement>(`[data-idx="${idx}"]`);
+    if (thumb) thumb.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [idx]);
+
+  const current = items && items.length > 0 ? items[idx] : null;
+  return (
+    <div className="gallery-modal">
+      <div className="gallery-header">
+        <h3>Gallery {items ? `(${items.length})` : ""}</h3>
+        <button className="action-button" onClick={onClose}>close</button>
+      </div>
+      {error && <p className="debug-error">failed to load: {error}</p>}
+      {!items && !error && <p className="debug-muted">loading…</p>}
+      {items && items.length === 0 && <p className="debug-muted">no images in media/</p>}
+      {current && (
+        <>
+          <div className="gallery-main">
+            <button className="gallery-arrow" onClick={prev} aria-label="previous">◀</button>
+            <img src={`/media/${current.name}`} alt={current.name} className="gallery-image" />
+            <button className="gallery-arrow" onClick={next} aria-label="next">▶</button>
+          </div>
+          <div className="gallery-caption">{current.name}</div>
+          <div className="gallery-strip" ref={stripRef}>
+            {(items ?? []).map((it, i) => (
+              <img
+                key={it.name}
+                data-idx={i}
+                src={`/media/${it.name}`}
+                alt={it.name}
+                className={`gallery-thumb${i === idx ? " gallery-thumb-active" : ""}`}
+                onClick={() => setIdx(i)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

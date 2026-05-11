@@ -1,4 +1,4 @@
-import { appendFile } from "node:fs/promises";
+import { appendFile, readdir, stat } from "node:fs/promises";
 import { narratorTurn, archivistTurn, interpreterTurn, type InterpretedAction } from "./engine";
 import {
   posKey,
@@ -519,6 +519,33 @@ async function main() {
           const message = err instanceof Error ? err.message : String(err);
           return new Response(message.slice(0, 500), { status: 500 });
         }
+      }
+      if (url.pathname === "/api/media" && req.method === "GET") {
+        try {
+          const mediaDir = new URL("../media/", import.meta.url).pathname;
+          const entries = await readdir(mediaDir);
+          const items: Array<{ name: string; mtime: number }> = [];
+          for (const name of entries) {
+            if (!/\.(png|jpe?g|webp|gif|avif)$/i.test(name)) continue;
+            const s = await stat(`${mediaDir}/${name}`);
+            items.push({ name, mtime: s.mtimeMs });
+          }
+          items.sort((a, b) => b.mtime - a.mtime);
+          return Response.json({ items });
+        } catch (err) {
+          console.error("[/api/media]", err);
+          return new Response("media listing failed", { status: 500 });
+        }
+      }
+      if (url.pathname.startsWith("/media/") && req.method === "GET") {
+        const rel = url.pathname.slice("/media/".length);
+        if (!rel || rel.includes("/") || rel.includes("..") || rel.startsWith(".")) {
+          return new Response("invalid path", { status: 400 });
+        }
+        const filePath = new URL(`../media/${rel}`, import.meta.url).pathname;
+        const file = Bun.file(filePath);
+        if (!(await file.exists())) return new Response("not found", { status: 404 });
+        return new Response(file, { headers: { "Cache-Control": "public, max-age=300" } });
       }
       return new Response("Not found", { status: 404 });
     },
