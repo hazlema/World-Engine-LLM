@@ -59,7 +59,7 @@ type LastTurnTrace = {
   input: string;
   interpreter: InterpreterTrace;
   archivist: ArchivistTrace | null;
-  error?: { source: "narrator" | "archivist"; message: string };
+  error?: { source: "narrator" | "archivist" | "interpreter"; message: string };
 };
 type ProviderInfo = {
   narrator: { provider: string; model: string };
@@ -94,7 +94,7 @@ type ServerMessage =
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
   | { type: "move-blocked"; input: string }
-  | { type: "error"; source: "narrator" | "archivist"; message: string }
+  | { type: "error"; source: "narrator" | "archivist" | "interpreter"; message: string }
   | { type: "debug-trace"; trace: LastTurnTrace };
 
 const QUICK_ACTIONS = [

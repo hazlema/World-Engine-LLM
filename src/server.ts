@@ -54,7 +54,7 @@ export interface LastTurnTrace {
   input: string;
   interpreter: InterpreterTrace;
   archivist: ArchivistTrace | null;
-  error?: { source: "narrator" | "archivist"; message: string };
+  error?: { source: "narrator" | "archivist" | "interpreter"; message: string };
 }
 
 export interface ProviderInfo {
@@ -92,7 +92,7 @@ function buildLastTurnTrace(args: {
   input: string;
   action: InterpretedAction;
   archivist: ArchivistTrace | null;
-  error?: { source: "narrator" | "archivist"; message: string };
+  error?: { source: "narrator" | "archivist" | "interpreter"; message: string };
 }): LastTurnTrace {
   return {
     ts: new Date().toISOString(),
@@ -130,7 +130,7 @@ export type ServerMessage =
   | { type: "audio-chunk"; data: string }
   | { type: "audio-end" }
   | { type: "move-blocked"; input: string }
-  | { type: "error"; source: "narrator" | "archivist"; message: string }
+  | { type: "error"; source: "narrator" | "archivist" | "interpreter"; message: string }
   | { type: "debug-trace"; trace: LastTurnTrace };
 
 export type ClientMessage =
@@ -179,7 +179,10 @@ export async function processInput(
   let action: InterpretedAction;
   try {
     action = await interpreterTurn(input);
-  } catch {
+  } catch (err) {
+    const message = String(err instanceof Error ? err.message : err);
+    console.error("[interpreter] failed, falling back to stay:", message);
+    send({ type: "error", source: "interpreter", message });
     action = { action: "stay" };
   }
 
