@@ -520,6 +520,29 @@ async function main() {
           return new Response(message.slice(0, 500), { status: 500 });
         }
       }
+      if (url.pathname === "/api/media/save" && req.method === "POST") {
+        try {
+          const contentType = req.headers.get("content-type") || "";
+          if (!contentType.startsWith("image/")) {
+            return new Response("expected image/* content-type", { status: 400 });
+          }
+          const ext = contentType === "image/png" ? "png"
+            : contentType === "image/jpeg" ? "jpg"
+            : contentType === "image/webp" ? "webp"
+            : null;
+          if (!ext) return new Response(`unsupported image type: ${contentType}`, { status: 415 });
+          const buf = await req.arrayBuffer();
+          if (buf.byteLength === 0) return new Response("empty body", { status: 400 });
+          if (buf.byteLength > 20 * 1024 * 1024) return new Response("image too large", { status: 413 });
+          const filename = `${crypto.randomUUID()}.${ext}`;
+          const filePath = new URL(`../media/${filename}`, import.meta.url).pathname;
+          await Bun.write(filePath, buf);
+          return Response.json({ filename });
+        } catch (err) {
+          console.error("[/api/media/save]", err);
+          return new Response("save failed", { status: 500 });
+        }
+      }
       if (url.pathname === "/api/media" && req.method === "GET") {
         try {
           const mediaDir = new URL("../media/", import.meta.url).pathname;

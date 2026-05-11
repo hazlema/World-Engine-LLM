@@ -851,7 +851,7 @@ function App() {
 
       {modal !== null && (
         <div className="modal-overlay" onClick={() => setModal(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className={`modal${modal === "gallery" ? " modal-wide" : ""}`} onClick={(e) => e.stopPropagation()}>
             {modal === "select" && (
               <SelectView
                 presets={presets}
@@ -913,6 +913,54 @@ function App() {
         </div>
       )}
     </>
+  );
+}
+
+function SaveToGalleryButton({ imageUrl }: { imageUrl: string }): React.ReactElement {
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  const save = useCallback(async () => {
+    if (status === "saving" || status === "saved") return;
+    setStatus("saving");
+    try {
+      const blobRes = await fetch(imageUrl);
+      const blob = await blobRes.blob();
+      const res = await fetch("/api/media/save", {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "image/png" },
+        body: blob,
+      });
+      if (!res.ok) throw new Error(`save failed: ${res.status}`);
+      setStatus("saved");
+    } catch (err) {
+      console.warn("[save-to-gallery]", err);
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 2500);
+    }
+  }, [imageUrl, status]);
+
+  const label =
+    status === "saving" ? "Saving…" :
+    status === "saved" ? "Saved to gallery" :
+    status === "error" ? "Save failed — click to retry" :
+    "Save to gallery";
+  const glyph =
+    status === "saving" ? "◌" :
+    status === "saved" ? "✓" :
+    status === "error" ? "!" :
+    "★";
+
+  return (
+    <button
+      type="button"
+      className={`turn-image-btn ${status === "saved" ? "ready" : ""} ${status === "saving" ? "pending" : ""}`}
+      onClick={save}
+      disabled={status === "saving" || status === "saved"}
+      title={label}
+      aria-label={label}
+    >
+      {glyph}
+    </button>
   );
 }
 
@@ -1064,6 +1112,7 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
             {imagePending ? "◌" : "▦"}
           </button>
         )}
+        {imageUrl && <SaveToGalleryButton imageUrl={imageUrl} />}
       </div>
       <div className="turn-content">
         <p className="turn-input-echo">{turn.input}</p>
