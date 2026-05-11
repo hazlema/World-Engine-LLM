@@ -104,11 +104,20 @@ When `NARRATOR_PROVIDER=local` (the default), the narrator hits whatever OpenAI-
 
 - **🥇 `google/gemma-3-12b`** — ~3s/turn, ~125 words. Introduces named NPCs and unfolding mysteries on richer turns; in-character narrator voice. Best overall storyteller and the current baseline.
 - **🥈 `mistralai/devstral-small-2-2512`** — ~5s/turn. World-stack-conservative: names established canonical items by their nouns rather than inventing parallel facts. Use when you want the established world to drive reveals.
-- **🥉 `qwen/qwen3.6-35b-a3b`** with **thinking off** — ~3s/turn, vivid cinematic detail. Fastest of the viable picks.
+- **🥉 `qwen/qwen3.6-35b-a3b`** with **thinking off** — ~3s/turn, vivid cinematic detail. Fastest of the viable picks that works as the whole pipeline.
+- **⚡ `mistralai/ministral-3-3b`** — ~0.8s/turn, ~95 words. Speed pick. With the current `NARRATOR_SYSTEM` it produces vivid concrete prose, names canonical world-stack items, and follows the ending rule. **Caveat:** only viable as the narrator slot — the same model on the archivist breaks LOCATE objectives. Pair with a 12B archivist via the recipe below.
 
 > **Thinking models are mostly unusable** for an interactive narrator with this prompt. With thinking on, most run 30–50s per turn and many burn their full token budget on reasoning, producing empty narrative content. The one disciplined exception is `nvidia/nemotron-3-nano-omni` (also recommended with thinking off).
 >
 > Avoid: `microsoft/phi-4-reasoning-plus` (3rd-person narration, RPG-style asides), `mystral-uncensored-rp-7b` (leaks prompt structure into prose).
+
+### Recommended local archivist models
+
+The archivist's job — extracting world entries, threads, location descriptions, and `achievedObjectiveIndices` as structured JSON — is the small-model-hostile workload in the pipeline. Multi-rule prompts plus grammar-constrained output exceed what 3-4B models reliably handle. Verdict so far:
+
+- **🥇 `google/gemma-3-12b`** — the only model validated end-to-end for this role. Reliably fires LOCATE objectives when the player arrives and the narrative names the canonical target, supersedes entries on item state changes, holds the archivist's 30+ rules under prompt pressure. Validated 2026-05-11 with per-stage routing.
+
+Other 12B-class candidates from the bake-off (`mistralai/devstral-small-2-2512`, `supergemma4-26b-uncensored-v2`) probably work too but haven't been verified for the archivist role yet. **Don't drop below 12B for this slot** — observed failure modes include `achievedObjectiveIndices: []` even when the narrative clearly names the target, dropped canonical item names from entries, and supersession bugs (old + new state both kept).
 
 #### Fast fully-local recipe — narrator on a 3B, archivist on the 12B
 
