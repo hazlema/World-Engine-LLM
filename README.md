@@ -75,6 +75,9 @@ LM_STUDIO_URL=http://localhost:1234
 # Optional: which local model id LM Studio should serve for the
 # narrator, archivist, and interpreter passes. Must match an id
 # LM Studio reports at /v1/models. See docs/local-narrator-bake-off.md.
+# Smaller models (under ~12B) handle narrator OK with the right prompt
+# but tend to fail the archivist's structured-JSON output and miss
+# LOCATE objectives — keep this at a 12B-class model for preset play.
 LOCAL_MODEL=google/gemma-3-12b
 
 # Optional: route the narrator through Gemini for richer prose.
@@ -101,6 +104,8 @@ When `NARRATOR_PROVIDER=local` (the default), the narrator hits whatever OpenAI-
 > **Thinking models are mostly unusable** for an interactive narrator with this prompt. With thinking on, most run 30–50s per turn and many burn their full token budget on reasoning, producing empty narrative content. The one disciplined exception is `nvidia/nemotron-3-nano-omni` (also recommended with thinking off).
 >
 > Avoid: `microsoft/phi-4-reasoning-plus` (3rd-person narration, RPG-style asides), `mystral-uncensored-rp-7b` (leaks prompt structure into prose).
+>
+> **Don't go smaller than 12B for actual play.** Faster 3-7B models (e.g. `mistralai/ministral-3-3b`) can be coaxed into rule-following on the narrator turn alone, but the same model handling the archivist's structured-JSON extraction starts missing LOCATE objectives and dropping canonical item names. Tested 2026-05-11; see the gameplay note in `docs/local-narrator-bake-off.md`.
 
 ## How it works
 

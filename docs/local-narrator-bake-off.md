@@ -293,3 +293,13 @@ For thinking models in general on this prompt: **thinking-off is the only safe m
 - System prompt ~1.8k tokens; user message ~100-200 tokens
 - The probe sends a **simplified** prompt — see README.md
 - Defaults: `temperature=0.8`, `max_tokens=1500`
+
+## Postscript — gameplay test (2026-05-11)
+
+After the bake-off, the `v1-endings` prompt variant brought `mistralai/ministral-3-3b` into rule compliance on the probe (no more menu-of-options closer). The prompt change was shipped to `NARRATOR_SYSTEM` in `src/engine.ts` along with a `LOCAL_MODEL` env override, and ministral was tried as the full-pipeline local model in actual play.
+
+**Result: insufficient for preset play.** Observed:
+- Narrator did NOT proactively surface the canonical `damaged transmitter` in prose when the player walked onto its tile. The model knew the item existed (it produced a description when the player asked "is there a transmitter here") — but the "surface established items by name" rule is one of 30+ bullets in the prompt, and a 3B model can't track all of them under prompt pressure.
+- Archivist (also running on ministral) didn't fire the LOCATE objective when the player typed `look at the transmitter`. Same root cause + structured-JSON output is the riskiest workload for a small model.
+
+**Takeaway:** the probe lab measures narrator quality in isolation on a single turn. Actual gameplay exercises narrator → archivist → interpreter in a feedback loop, and the archivist's structured-JSON extraction is where smaller models break first. **For preset stories with LOCATE objectives, 12B-class is the floor.** Ministral remains interesting for Empty World freeplay (no established items, no LOCATE objectives, narrator's only job is prose) — that's a future experiment.
