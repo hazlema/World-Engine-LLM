@@ -65,10 +65,13 @@ export interface ProviderInfo {
 }
 
 function buildProviderInfo(): ProviderInfo {
+  const localModel = process.env.LOCAL_MODEL || "google/gemma-3-12b";
+  const narratorProvider = process.env.NARRATOR_PROVIDER || "local";
+  const narratorGeminiModel = process.env.NARRATOR_GEMINI_MODEL || "gemini-2.5-flash";
   return {
     narrator: {
-      provider: process.env.NARRATOR_PROVIDER || "local",
-      model: process.env.NARRATOR_MODEL || "gemma-3-12b",
+      provider: narratorProvider,
+      model: narratorProvider === "gemini" ? narratorGeminiModel : localModel,
     },
     interpreter: { provider: interpreterProvider() },
     tts: { provider: "gemini", voice: DEFAULT_VOICE },
