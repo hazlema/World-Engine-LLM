@@ -72,13 +72,18 @@ GEMINI_API_KEY=your_key_here
 # port, a different host, or behind basic auth (include user:pass@).
 LM_STUDIO_URL=http://localhost:1234
 
-# Optional: which local model id LM Studio should serve for the
-# narrator, archivist, and interpreter passes. Must match an id
-# LM Studio reports at /v1/models. See docs/local-narrator-bake-off.md.
-# Smaller models (under ~12B) handle narrator OK with the right prompt
-# but tend to fail the archivist's structured-JSON output and miss
-# LOCATE objectives — keep this at a 12B-class model for preset play.
+# Optional: which local model id LM Studio should serve for each
+# pipeline stage. Each id must match what LM Studio reports at
+# /v1/models. See docs/local-narrator-bake-off.md for picks.
+#
+# LOCAL_MODEL is the default for all three local stages; the per-stage
+# overrides let you mix-and-match — e.g. a fast 3B model for the
+# narrator while keeping a reliable 12B model on the archivist's
+# structured-JSON extraction.
 LOCAL_MODEL=google/gemma-3-12b
+LOCAL_NARRATOR_MODEL=mistralai/ministral-3-3b   # optional override
+LOCAL_ARCHIVIST_MODEL=google/gemma-3-12b        # optional override
+LOCAL_INTERPRETER_MODEL=google/gemma-3-12b      # optional override
 
 # Optional: route the narrator through Gemini for richer prose.
 # Defaults to the local OpenAI-compatible endpoint.

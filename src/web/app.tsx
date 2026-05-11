@@ -63,7 +63,8 @@ type LastTurnTrace = {
 };
 type ProviderInfo = {
   narrator: { provider: string; model: string };
-  interpreter: { provider: "local" | "gemini" };
+  archivist: { model: string };
+  interpreter: { provider: "local" | "gemini"; model: string };
   tts: { provider: string; voice: string };
   image: { provider: string; style: string };
 };
@@ -1341,7 +1342,8 @@ function DebugModal(props: {
           {providers ? (
             <ul>
               <li>narrator: {providers.narrator.provider} / {providers.narrator.model}</li>
-              <li>interpreter: {providers.interpreter.provider}</li>
+              <li>archivist: local / {providers.archivist.model}</li>
+              <li>interpreter: {providers.interpreter.provider} / {providers.interpreter.model}</li>
               <li>tts: {providers.tts.provider} / {providers.tts.voice}</li>
               <li>image: {providers.image.provider} / {providers.image.style}</li>
             </ul>

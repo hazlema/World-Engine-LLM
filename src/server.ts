@@ -59,21 +59,31 @@ export interface LastTurnTrace {
 
 export interface ProviderInfo {
   narrator: { provider: string; model: string };
-  interpreter: { provider: "local" | "gemini" };
+  archivist: { model: string };
+  interpreter: { provider: "local" | "gemini"; model: string };
   tts: { provider: string; voice: string };
   image: { provider: string; style: string };
 }
 
 function buildProviderInfo(): ProviderInfo {
   const localModel = process.env.LOCAL_MODEL || "google/gemma-3-12b";
+  const narratorLocalModel = process.env.LOCAL_NARRATOR_MODEL || localModel;
+  const archivistLocalModel = process.env.LOCAL_ARCHIVIST_MODEL || localModel;
+  const interpreterLocalModel = process.env.LOCAL_INTERPRETER_MODEL || localModel;
   const narratorProvider = process.env.NARRATOR_PROVIDER || "local";
   const narratorGeminiModel = process.env.NARRATOR_GEMINI_MODEL || "gemini-2.5-flash";
+  const interpreterGeminiModel = process.env.INTERPRETER_GEMINI_MODEL || "gemini-2.5-flash";
+  const intProv = interpreterProvider();
   return {
     narrator: {
       provider: narratorProvider,
-      model: narratorProvider === "gemini" ? narratorGeminiModel : localModel,
+      model: narratorProvider === "gemini" ? narratorGeminiModel : narratorLocalModel,
     },
-    interpreter: { provider: interpreterProvider() },
+    archivist: { model: archivistLocalModel },
+    interpreter: {
+      provider: intProv,
+      model: intProv === "gemini" ? interpreterGeminiModel : interpreterLocalModel,
+    },
     tts: { provider: "gemini", voice: DEFAULT_VOICE },
     image: { provider: "gemini", style: DEFAULT_IMAGE_STYLE },
   };
