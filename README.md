@@ -109,8 +109,21 @@ When `NARRATOR_PROVIDER=local` (the default), the narrator hits whatever OpenAI-
 > **Thinking models are mostly unusable** for an interactive narrator with this prompt. With thinking on, most run 30–50s per turn and many burn their full token budget on reasoning, producing empty narrative content. The one disciplined exception is `nvidia/nemotron-3-nano-omni` (also recommended with thinking off).
 >
 > Avoid: `microsoft/phi-4-reasoning-plus` (3rd-person narration, RPG-style asides), `mystral-uncensored-rp-7b` (leaks prompt structure into prose).
->
-> **Don't go smaller than 12B for actual play.** Faster 3-7B models (e.g. `mistralai/ministral-3-3b`) can be coaxed into rule-following on the narrator turn alone, but the same model handling the archivist's structured-JSON extraction starts missing LOCATE objectives and dropping canonical item names. Tested 2026-05-11; see the gameplay note in `docs/local-narrator-bake-off.md`.
+
+#### Fast fully-local recipe — narrator on a 3B, archivist on the 12B
+
+The narrator's job is prose; the archivist's job is structured-JSON extraction (objective completion, entry updates). The narrator tolerates a smaller model with the current prompt — the archivist does not. Per-stage routing wins both speed and reliability:
+
+```env
+NARRATOR_PROVIDER=local
+INTERPRETER_PROVIDER=local
+LOCAL_MODEL=google/gemma-3-12b
+LOCAL_NARRATOR_MODEL=mistralai/ministral-3-3b
+LOCAL_ARCHIVIST_MODEL=google/gemma-3-12b
+LOCAL_INTERPRETER_MODEL=google/gemma-3-12b
+```
+
+Sub-second narrator turns, LOCATE objectives still fire correctly. Validated end-to-end with the Lunar Rescue preset on 2026-05-11.
 
 ## How it works
 
@@ -133,6 +146,8 @@ The world state lives in `world-stack.json` — an append-mostly list of establi
 
 ## Recent changes
 
+- **Fully local play, properly.** New `LM_STUDIO_URL` env var lets you point at a non-default LM Studio (custom port, host, basic auth). New `LOCAL_MODEL` plus per-stage `LOCAL_NARRATOR_MODEL` / `LOCAL_ARCHIVIST_MODEL` / `LOCAL_INTERPRETER_MODEL` let you route each pipeline stage independently — typically a fast 3B model on the narrator with a 12B model on the archivist so LOCATE objectives still fire. The narrator prompt also got a new "ending examples" block that brings smaller models into rule compliance (no more trailing "What do you examine first?" closers). The bake-off behind all of this lives at [`docs/local-narrator-bake-off.md`](docs/local-narrator-bake-off.md).
+- **Better startup and runtime diagnostics.** Boot validates `NARRATOR_PROVIDER` / `INTERPRETER_PROVIDER` are valid values and exits with a clear message if a Gemini provider is set without `GEMINI_API_KEY`. The web UI also stops auto-firing TTS / image requests when the server reports the key is missing — one toast on first failure, then silence, instead of repeated console errors. The `/debug` pane shows each pipeline stage's actual model (`narrator: local / mistralai/ministral-3-3b`, `archivist: local / google/gemma-3-12b`, etc.) so routing is visible at runtime.
 - **`/debug` command.** Type `/debug` in the chatbox to open a modal showing live world state and the last turn's full pipeline — interpreter classification, raw archivist output (entries, threads, `achievedObjectiveIndices`, `moved`, `locationDescription`), provider info. The diagnostic surface that made most of the recent narrative-quality work traceable.
 - **Spatial and content discipline.** Cardinal moves are tile transitions, not in-scene steps — `north` from the lander cabin takes you outside on the regolith, not to a back wall. Items established in the world (especially preset-seeded ones) are surfaced by name in the prose, not via vague descriptors the player can't reference back. When an active "Find / Locate / Reach" objective names an item that's at your tile, the narrative produces the named target — no substitution with alternative objects, no preemptive denial of presence. Action-verb objectives ("Send", "Restore", "Repair") still require depicted action, not just arrival.
 - **Archivist hardening.** Three classes of objective-completion misfires fixed: atmospheric clues no longer mark "find out X" objectives complete; static state-description ("the chest gapes open") no longer marks "open X" objectives complete; cumulative-stack inference is blocked. Completion now requires the narrative to depict the moment of change or discovery this turn. Stack supersession also tightened: when you take, place, break, or change an item — or a count drops (3 candles → 2) — the entries list updates instead of accumulating outdated facts. Established entries that aren't mentioned in a given turn's narrative are preserved unchanged — absence is not invalidation.
