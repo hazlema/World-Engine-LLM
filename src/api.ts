@@ -27,6 +27,20 @@ const INTERPRETER_PROVIDER = (process.env.INTERPRETER_PROVIDER ?? "local").toLow
 const INTERPRETER_GEMINI_MODEL = process.env.INTERPRETER_GEMINI_MODEL ?? "gemini-2.5-flash";
 console.log(`[api] interpreter provider: ${INTERPRETER_PROVIDER}${INTERPRETER_PROVIDER === "gemini" ? ` (${INTERPRETER_GEMINI_MODEL})` : ` (${INTERPRETER_MODEL})`}`);
 
+// Fail fast on Gemini-without-key misconfiguration. Continuing would silently
+// degrade every turn — better to surface it at boot so the user sees one
+// error and fixes the env.
+const geminiNeeded = NARRATOR_PROVIDER === "gemini" || INTERPRETER_PROVIDER === "gemini";
+if (geminiNeeded && !process.env.GEMINI_API_KEY) {
+  const stages = [
+    NARRATOR_PROVIDER === "gemini" ? "NARRATOR_PROVIDER=gemini" : null,
+    INTERPRETER_PROVIDER === "gemini" ? "INTERPRETER_PROVIDER=gemini" : null,
+  ].filter(Boolean).join(" and ");
+  console.error(`[api] ${stages} but GEMINI_API_KEY is not set.`);
+  console.error(`[api] Either set GEMINI_API_KEY in .env, or switch to local (the default).`);
+  process.exit(1);
+}
+
 interface CompletionsResponse {
   choices: Array<{
     message: { content: string; reasoning_content?: string };
