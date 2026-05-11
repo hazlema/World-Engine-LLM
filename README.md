@@ -55,9 +55,15 @@ Toggle narration in-app via the **voice off / voice on** button in the action ba
 
 ### Images (optional)
 
-Each turn has a `▦` button stacked under the speaker icon in the margin. Click it and the turn's narrative is sent to Google's `gemini-2.5-flash-image` (Nano Banana). The result drops in above the text as a cinematic 21:9 still — an establishing shot for the scene you just read. Cached per turn; the button greys out once an image exists.
+Each turn has a `▦` button stacked under the speaker icon in the margin. Click it and the turn's narrative is sent to Google's `gemini-2.5-flash-image` (Nano Banana). The result drops in above the text as an establishing shot for the scene you just read. The model generates 1:1; the timeline crops it to a cinematic strip — **click any image to open the full square in a fullscreen lightbox** (ESC or click outside to close). Cached per turn; the button greys out once an image exists.
 
 > **Note:** like narration, this is **never automatic** — images only generate when you click `▦`. Uses the same `GEMINI_API_KEY` you already set for narration. Cost is per-image and falls under Google AI Studio's free tier for light play. The same future in-app configuration screen will cover image settings.
+
+### Gallery
+
+When a turn produces an image you want to keep, click the ★ button next to the `▦` — it saves the image to the server's `media/` directory. To browse everything you've saved, type `/gallery` in the chat window. A wide modal opens with the selected image on top, prev/next arrows on either side, and a horizontally-scrolling thumbnail strip below. Click any thumbnail to jump to it, click the big image to lightbox it, ← / → keys to navigate, ESC to close.
+
+> Galleries are local to your machine right now — every player on this server shares the same `media/` folder. With the planned multi-user setup, each player will have their own scoped gallery.
 
 ### Configuration
 
@@ -155,6 +161,7 @@ The world state lives in `world-stack.json` — an append-mostly list of establi
 
 ## Recent changes
 
+- **Image gallery + lightbox.** New `/gallery` slash command opens a wide modal listing every image in the server's `media/` directory — big preview on top, prev/next arrows, scrolling thumbnail strip below, ← / → keys + ESC. Each turn's generated image gets a new ★ button to save it to the gallery in one click (no more right-click-save-as). And anywhere an image appears — turn card or gallery — clicking it opens a fullscreen lightbox at the image's true resolution. Useful since the timeline view crops images to a cinematic strip by CSS, but the underlying frame is square; the lightbox shows what the model actually rendered.
 - **Fully local play, properly.** New `LM_STUDIO_URL` env var lets you point at a non-default LM Studio (custom port, host, basic auth). New `LOCAL_MODEL` plus per-stage `LOCAL_NARRATOR_MODEL` / `LOCAL_ARCHIVIST_MODEL` / `LOCAL_INTERPRETER_MODEL` let you route each pipeline stage independently — typically a fast 3B model on the narrator with a 12B model on the archivist so LOCATE objectives still fire. The narrator prompt also got a new "ending examples" block that brings smaller models into rule compliance (no more trailing "What do you examine first?" closers). The bake-off behind all of this lives at [`docs/local-narrator-bake-off.md`](docs/local-narrator-bake-off.md).
 - **Better startup and runtime diagnostics.** Boot validates `NARRATOR_PROVIDER` / `INTERPRETER_PROVIDER` are valid values and exits with a clear message if a Gemini provider is set without `GEMINI_API_KEY`. The web UI also stops auto-firing TTS / image requests when the server reports the key is missing — one toast on first failure, then silence, instead of repeated console errors. The `/debug` pane shows each pipeline stage's actual model (`narrator: local / mistralai/ministral-3-3b`, `archivist: local / google/gemma-3-12b`, etc.) so routing is visible at runtime.
 - **`/debug` command.** Type `/debug` in the chatbox to open a modal showing live world state and the last turn's full pipeline — interpreter classification, raw archivist output (entries, threads, `achievedObjectiveIndices`, `moved`, `locationDescription`), provider info. The diagnostic surface that made most of the recent narrative-quality work traceable.
