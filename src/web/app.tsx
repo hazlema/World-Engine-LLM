@@ -141,6 +141,9 @@ function App() {
   const [audioByTurn, setAudioByTurn] = useState<Record<number, string>>({});
   const [imageByTurn, setImageByTurn] = useState<Record<number, string>>({});
   const [imagePending, setImagePending] = useState<Set<number>>(() => new Set());
+  // Sticky once true: stops auto-render from retrying when the server reports
+  // GEMINI_API_KEY missing. Either path (image or TTS) can flip it.
+  const [geminiUnavailable, setGeminiUnavailable] = useState(false);
   const [imagesOn, setImagesOn] = useState<boolean>(() => {
     try { return localStorage.getItem("imagesOn") === "1"; } catch { return false; }
   });
@@ -229,7 +232,12 @@ function App() {
         const url = URL.createObjectURL(blob);
         setImageByTurn((prev) => ({ ...prev, [turnId]: url }));
       })
-      .catch((err) => { console.warn("[image]", err); })
+      .catch((err) => {
+        console.warn("[image]", err);
+        if (String(err?.message ?? err).includes("GEMINI_API_KEY")) {
+          setGeminiUnavailable(true);
+        }
+      })
       .finally(() => {
         setImagePending((prev) => {
           if (!prev.has(turnId)) return prev;
@@ -283,6 +291,23 @@ function App() {
     try { localStorage.setItem("narrationVoice", voice); } catch {}
     invalidateAudioCache();
   }, [invalidateAudioCache]);
+
+  // If the TTS engine reports a key-missing error, lock down Gemini features.
+  useEffect(() => {
+    if (engineStatus.kind === "error" && engineStatus.message.includes("GEMINI_API_KEY")) {
+      setGeminiUnavailable(true);
+    }
+  }, [engineStatus]);
+
+  // One-time toast the first time we detect Gemini is unavailable.
+  useEffect(() => {
+    if (!geminiUnavailable) return;
+    setToast({
+      kind: "blocked",
+      text: "Narration and per-turn images are disabled — set GEMINI_API_KEY in .env to enable.",
+      id: Date.now(),
+    });
+  }, [geminiUnavailable]);
 
   const changeVolume = useCallback((next: number) => {
     setVolume(next);
@@ -488,7 +513,7 @@ function App() {
     // Gate on engineStatus so we never call render() before AudioContext is
     // running. AudioContext.resume() requires a user gesture; load() is only
     // allowed to succeed in that context, and sets status to "ready" after.
-    if (!narrationOn || engineStatus.kind !== "ready") return;
+    if (!narrationOn || engineStatus.kind !== "ready" || geminiUnavailable) return;
     // Only consider the LATEST turn. Walking backward used to fire a duplicate
     // render of an in-flight earlier turn (e.g. briefing) whenever a newer turn
     // came in pending server audio — that queued render then fought with the
@@ -502,13 +527,13 @@ function App() {
     if (!text) return;
     renderTurn(t.id, text);
     setLastNarratedId(t.id);
-  }, [turns, narrationOn, audioByTurn, renderTurn, engineStatus]);
+  }, [turns, narrationOn, audioByTurn, renderTurn, engineStatus, geminiUnavailable]);
 
   // Auto-generate image for the latest narrative turn when imagesOn.
   // Mirrors the audio auto-render: walk newest-first, kick off the most recent
   // un-imaged regular turn. System briefings don't auto-image (no manual button there either).
   useEffect(() => {
-    if (!imagesOn) return;
+    if (!imagesOn || geminiUnavailable) return;
     for (let i = turns.length - 1; i >= 0; i--) {
       const t = turns[i];
       if (!t || isSystemTurn(t)) continue;
@@ -517,7 +542,7 @@ function App() {
         break;
       }
     }
-  }, [turns, imagesOn, imageByTurn, imagePending, renderImage]);
+  }, [turns, imagesOn, imageByTurn, imagePending, renderImage, geminiUnavailable]);
 
   // Restore focus to the input when it becomes interactive again
   useEffect(() => {

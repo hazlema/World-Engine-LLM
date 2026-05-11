@@ -194,7 +194,8 @@ export class TTSEngine {
         body: JSON.stringify({ text, voice }),
       });
       if (!res.ok) {
-        const message = `speak failed: ${res.status}`;
+        const detail = await res.text().catch(() => "");
+        const message = `speak failed: ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`;
         this.setStatus({ kind: "error", message });
         throw new Error(message);
       }
