@@ -109,6 +109,7 @@ The world state lives in `world-stack.json` — an append-mostly list of establi
 
 ## Tips
 
+- **Presets are fun; Empty World is where the real magic happens.** The bundled stories (Cellar of Glass, Lunar Rescue, The Last Train) give you a setting and a goal — great for a focused session or first-time play. But for the *best* experience, start with no preset and just type your opening line. You genuinely don't know what you're going to get, and that's the point — your mind shapes the adventure. The world grows around whatever premise you bring.
 - **The world builds as you look.** Rooms, objects, and details only exist after the narrator establishes them — and once established, the engine has to honor them in later turns. A tile you walked straight through is thin; a tile you actually examined has weight. Spending turns on `look`, `examine`, and `search` isn't downtime — it's what makes the world feel real to come back to.
 - **Seed the scene on turn one in freeplay.** Empty World mode has no preset, so the narrator improvises a setting from your first input. `look around` gives it nothing to anchor to and you'll get a generic room. A scene-setting line does the work for you:
   > Don't open the airlock! We're on a deep-space station with over 300,000 people aboard — open it and you'll suck them all into space.
