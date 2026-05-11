@@ -3,10 +3,12 @@ import { GoogleGenAI } from "@google/genai";
 const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? "http://localhost:1234";
 const ENDPOINT = `${LM_STUDIO_URL.replace(/\/$/, "")}/v1/chat/completions`;
 console.log(`[api] local endpoint: ${ENDPOINT}`);
-// google/gemma-3-12b
-// Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF
-const NARRATOR_MODEL = "google/gemma-3-12b";
-const ARCHIVIST_MODEL = "google/gemma-3-12b";
+// Local model id sent to LM Studio. Override with LOCAL_MODEL=...
+// (must match an id LM Studio reports at /v1/models, e.g. "google/gemma-3-12b",
+// "mistralai/ministral-3-3b").
+const LOCAL_MODEL = process.env.LOCAL_MODEL ?? "google/gemma-3-12b";
+const NARRATOR_MODEL = LOCAL_MODEL;
+const ARCHIVIST_MODEL = LOCAL_MODEL;
 const TIMEOUT_MS = 30_000;
 const ARCHIVIST_TIMEOUT_MS = 60_000;
 const MAX_TOKENS = 2500;
@@ -20,7 +22,7 @@ const NARRATOR_PROVIDER = (process.env.NARRATOR_PROVIDER ?? "local").toLowerCase
 const NARRATOR_GEMINI_MODEL = process.env.NARRATOR_GEMINI_MODEL ?? "gemini-2.5-flash";
 console.log(`[api] narrator provider: ${NARRATOR_PROVIDER}${NARRATOR_PROVIDER === "gemini" ? ` (${NARRATOR_GEMINI_MODEL})` : ` (${NARRATOR_MODEL})`}`);
 
-const INTERPRETER_MODEL = "google/gemma-3-12b";
+const INTERPRETER_MODEL = LOCAL_MODEL;
 const INTERPRETER_PROVIDER = (process.env.INTERPRETER_PROVIDER ?? "local").toLowerCase();
 const INTERPRETER_GEMINI_MODEL = process.env.INTERPRETER_GEMINI_MODEL ?? "gemini-2.5-flash";
 console.log(`[api] interpreter provider: ${INTERPRETER_PROVIDER}${INTERPRETER_PROVIDER === "gemini" ? ` (${INTERPRETER_GEMINI_MODEL})` : ` (${INTERPRETER_MODEL})`}`);

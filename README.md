@@ -72,6 +72,11 @@ GEMINI_API_KEY=your_key_here
 # port, a different host, or behind basic auth (include user:pass@).
 LM_STUDIO_URL=http://localhost:1234
 
+# Optional: which local model id LM Studio should serve for the
+# narrator, archivist, and interpreter passes. Must match an id
+# LM Studio reports at /v1/models. See docs/local-narrator-bake-off.md.
+LOCAL_MODEL=google/gemma-3-12b
+
 # Optional: route the narrator through Gemini for richer prose.
 # Defaults to the local OpenAI-compatible endpoint.
 NARRATOR_PROVIDER=gemini                # gemini | local
