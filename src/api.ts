@@ -29,33 +29,32 @@ const INTERPRETER_GEMINI_MODEL = process.env.INTERPRETER_GEMINI_MODEL ?? "gemini
 console.log(`[api] interpreter provider: ${INTERPRETER_PROVIDER}${INTERPRETER_PROVIDER === "gemini" ? ` (${INTERPRETER_GEMINI_MODEL})` : ` (${INTERPRETER_MODEL})`}`);
 console.log(`[api] archivist model: ${ARCHIVIST_MODEL} (always local)`);
 
-// Fail fast on invalid provider values. The previous behavior treated any
-// non-"gemini" value as "local", which silently masks typos like
-// NARRATOR_PROVIDER=gemma-3-12b (which the user actually meant as a model id).
-const VALID_PROVIDERS = ["local", "gemini"];
-for (const [name, value] of [
-  ["NARRATOR_PROVIDER", NARRATOR_PROVIDER],
-  ["INTERPRETER_PROVIDER", INTERPRETER_PROVIDER],
-] as const) {
-  if (!VALID_PROVIDERS.includes(value)) {
-    console.error(`[api] ${name}="${value}" is invalid. Must be "local" or "gemini".`);
-    console.error(`[api] (If you meant to pick a local model id, use LOCAL_MODEL or LOCAL_${name.replace("_PROVIDER", "_MODEL")} instead.)`);
+// Validation is exported (rather than run at module load) so tests can
+// import this module without process.exit firing on a real-but-test-broken
+// .env. Call from the actual server entry point (src/server.ts main()).
+export function validateApiConfig(): void {
+  const VALID_PROVIDERS = ["local", "gemini"];
+  for (const [name, value] of [
+    ["NARRATOR_PROVIDER", NARRATOR_PROVIDER],
+    ["INTERPRETER_PROVIDER", INTERPRETER_PROVIDER],
+  ] as const) {
+    if (!VALID_PROVIDERS.includes(value)) {
+      console.error(`[api] ${name}="${value}" is invalid. Must be "local" or "gemini".`);
+      console.error(`[api] (If you meant to pick a local model id, use LOCAL_MODEL or LOCAL_${name.replace("_PROVIDER", "_MODEL")} instead.)`);
+      process.exit(1);
+    }
+  }
+
+  const geminiNeeded = NARRATOR_PROVIDER === "gemini" || INTERPRETER_PROVIDER === "gemini";
+  if (geminiNeeded && !process.env.GEMINI_API_KEY) {
+    const stages = [
+      NARRATOR_PROVIDER === "gemini" ? "NARRATOR_PROVIDER=gemini" : null,
+      INTERPRETER_PROVIDER === "gemini" ? "INTERPRETER_PROVIDER=gemini" : null,
+    ].filter(Boolean).join(" and ");
+    console.error(`[api] ${stages} but GEMINI_API_KEY is not set.`);
+    console.error(`[api] Either set GEMINI_API_KEY in .env, or switch to local (the default).`);
     process.exit(1);
   }
-}
-
-// Fail fast on Gemini-without-key misconfiguration. Continuing would silently
-// degrade every turn — better to surface it at boot so the user sees one
-// error and fixes the env.
-const geminiNeeded = NARRATOR_PROVIDER === "gemini" || INTERPRETER_PROVIDER === "gemini";
-if (geminiNeeded && !process.env.GEMINI_API_KEY) {
-  const stages = [
-    NARRATOR_PROVIDER === "gemini" ? "NARRATOR_PROVIDER=gemini" : null,
-    INTERPRETER_PROVIDER === "gemini" ? "INTERPRETER_PROVIDER=gemini" : null,
-  ].filter(Boolean).join(" and ");
-  console.error(`[api] ${stages} but GEMINI_API_KEY is not set.`);
-  console.error(`[api] Either set GEMINI_API_KEY in .env, or switch to local (the default).`);
-  process.exit(1);
 }
 
 interface CompletionsResponse {

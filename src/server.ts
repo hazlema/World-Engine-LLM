@@ -14,6 +14,7 @@ import {
 import { loadAllPresets, type Preset } from "./presets";
 import { synthesizeStream, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
 import { generateImage, IMAGE_STYLES, DEFAULT_IMAGE_STYLE, type ImageStyle } from "./gemini-image";
+import { validateApiConfig } from "./api";
 
 let presets: Map<string, Preset> = new Map();
 
@@ -455,6 +456,7 @@ async function handleClientMessage(
 }
 
 async function main() {
+  validateApiConfig();
   presets = await loadAllPresets();
   currentStack = await loadStack();
 
