@@ -1,6 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ENDPOINT = "http://localhost:1234/v1/chat/completions";
+const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? "http://localhost:1234";
+const ENDPOINT = `${LM_STUDIO_URL.replace(/\/$/, "")}/v1/chat/completions`;
+console.log(`[api] local endpoint: ${ENDPOINT}`);
 // google/gemma-3-12b
 // Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF
 const NARRATOR_MODEL = "google/gemma-3-12b";

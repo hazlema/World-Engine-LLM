@@ -67,6 +67,11 @@ All settings live in `.env`. Bun loads it automatically — no `dotenv` needed.
 # Required for narration and per-turn images.
 GEMINI_API_KEY=your_key_here
 
+# Optional: where to find your local OpenAI-compatible endpoint
+# (LM Studio by default). Override if your server runs on a different
+# port, a different host, or behind basic auth (include user:pass@).
+LM_STUDIO_URL=http://localhost:1234
+
 # Optional: route the narrator through Gemini for richer prose.
 # Defaults to the local OpenAI-compatible endpoint.
 NARRATOR_PROVIDER=gemini                # gemini | local
