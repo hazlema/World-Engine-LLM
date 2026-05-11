@@ -80,6 +80,18 @@ INTERPRETER_GEMINI_MODEL=gemini-2.5-flash  # optional; flash is the default
 
 > **Turning the Gemini narrator on upgrades both features at once.** Gemini writes noticeably tighter, more sensory prose than a 12B local model. And because the image generator's prompt _is_ the narrator's output, a sharper narrative also produces a sharper image downstream — better text feeds better pictures. Cost is one extra Gemini call per turn (~$0.0002 on Flash); the archivist still runs locally, and the interpreter can be routed independently via `INTERPRETER_PROVIDER` (see above).
 
+### Recommended local narrator models
+
+When `NARRATOR_PROVIDER=local` (the default), the narrator hits whatever OpenAI-compatible endpoint is at `http://localhost:1234` — typically [LM Studio](https://lmstudio.ai/). Quality varies wildly across local models. Picks after a 12-model bake-off ([full results](docs/local-narrator-bake-off.md)):
+
+- **🥇 `google/gemma-3-12b`** — ~3s/turn, ~125 words. Introduces named NPCs and unfolding mysteries on richer turns; in-character narrator voice. Best overall storyteller and the current baseline.
+- **🥈 `mistralai/devstral-small-2-2512`** — ~5s/turn. World-stack-conservative: names established canonical items by their nouns rather than inventing parallel facts. Use when you want the established world to drive reveals.
+- **🥉 `qwen/qwen3.6-35b-a3b`** with **thinking off** — ~3s/turn, vivid cinematic detail. Fastest of the viable picks.
+
+> **Thinking models are mostly unusable** for an interactive narrator with this prompt. With thinking on, most run 30–50s per turn and many burn their full token budget on reasoning, producing empty narrative content. The one disciplined exception is `nvidia/nemotron-3-nano-omni` (also recommended with thinking off).
+>
+> Avoid: `microsoft/phi-4-reasoning-plus` (3rd-person narration, RPG-style asides), `mystral-uncensored-rp-7b` (leaks prompt structure into prose).
+
 ## How it works
 
 Each turn runs three model passes:
