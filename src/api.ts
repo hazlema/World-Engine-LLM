@@ -21,13 +21,18 @@ const ARCHIVIST_RETRIES = 3;
 // always use the local model (structured-extraction tasks where Gemma is fine).
 const NARRATOR_PROVIDER = (process.env.NARRATOR_PROVIDER ?? "local").toLowerCase();
 const NARRATOR_GEMINI_MODEL = process.env.NARRATOR_GEMINI_MODEL ?? "gemini-2.5-flash";
-console.log(`[api] narrator provider: ${NARRATOR_PROVIDER}${NARRATOR_PROVIDER === "gemini" ? ` (${NARRATOR_GEMINI_MODEL})` : ` (${NARRATOR_MODEL})`}`);
 
 const INTERPRETER_MODEL = process.env.LOCAL_INTERPRETER_MODEL ?? LOCAL_MODEL;
 const INTERPRETER_PROVIDER = (process.env.INTERPRETER_PROVIDER ?? "local").toLowerCase();
 const INTERPRETER_GEMINI_MODEL = process.env.INTERPRETER_GEMINI_MODEL ?? "gemini-2.5-flash";
-console.log(`[api] interpreter provider: ${INTERPRETER_PROVIDER}${INTERPRETER_PROVIDER === "gemini" ? ` (${INTERPRETER_GEMINI_MODEL})` : ` (${INTERPRETER_MODEL})`}`);
-console.log(`[api] archivist model: ${ARCHIVIST_MODEL} (always local)`);
+
+function logStage(job: string, provider: string, model: string): void {
+  const where = provider === "gemini" ? "remote" : "local";
+  console.log(`[api] [${job}] [${where}] [${model}]`);
+}
+logStage("narrator", NARRATOR_PROVIDER, NARRATOR_PROVIDER === "gemini" ? NARRATOR_GEMINI_MODEL : NARRATOR_MODEL);
+logStage("archivist", "local", ARCHIVIST_MODEL);
+logStage("interpreter", INTERPRETER_PROVIDER, INTERPRETER_PROVIDER === "gemini" ? INTERPRETER_GEMINI_MODEL : INTERPRETER_MODEL);
 
 // Validation is exported (rather than run at module load) so tests can
 // import this module without process.exit firing on a real-but-test-broken
