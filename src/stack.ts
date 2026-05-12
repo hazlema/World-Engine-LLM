@@ -196,7 +196,7 @@ export function formatStackForNarrator(stack: WorldStack, briefing?: string): st
         const hint = obj.position ? travelHint(stack.position, obj.position) : "elsewhere";
         return `[${obj.achieved ? "x" : " "}] ${obj.text} (${hint})`;
       });
-      parts.push(`DISTANT OBJECTIVES (require travel):\n${lines.join("\n")}`);
+      parts.push(`OFF-TILE OBJECTIVES (require travel):\n${lines.join("\n")}`);
     }
   }
   const here = stack.places[posKey(stack.position)];
@@ -227,7 +227,7 @@ export function formatStackForArchivist(stack: WorldStack): string {
       const status = o.achieved ? "x" : " ";
       const distantFlag =
         o.position && manhattan(stack.position, o.position) > 0
-          ? " [DISTANT — cannot be completed this turn]"
+          ? " [OFF-TILE — cannot be completed this turn]"
           : "";
       return `${i}: [${status}] ${o.text}${distantFlag}`;
     });

@@ -463,7 +463,7 @@ test("formatStackForNarrator: positionless objectives still render under OBJECTI
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
   expect(out).toContain("[ ] Find the journal");
-  expect(out).not.toContain("DISTANT OBJECTIVES");
+  expect(out).not.toContain("OFF-TILE OBJECTIVES");
 });
 
 test("formatStackForNarrator: positioned objective at current tile is active", () => {
@@ -479,7 +479,7 @@ test("formatStackForNarrator: positioned objective at current tile is active", (
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
   expect(out).toContain("[ ] Open the chest");
-  expect(out).not.toContain("DISTANT OBJECTIVES");
+  expect(out).not.toContain("OFF-TILE OBJECTIVES");
 });
 
 test("formatStackForNarrator: positioned objective elsewhere is distant with travel hint", () => {
@@ -493,7 +493,7 @@ test("formatStackForNarrator: positioned objective elsewhere is distant with tra
     presetSlug: null,
   };
   const out = formatStackForNarrator(stack);
-  expect(out).toContain("DISTANT OBJECTIVES (require travel):");
+  expect(out).toContain("OFF-TILE OBJECTIVES (require travel):");
   expect(out).toContain("[ ] Open the chest (3 moves: 2 north, 1 east)");
   expect(out).not.toContain("OBJECTIVES (active this turn):");
 });
@@ -516,7 +516,7 @@ test("formatStackForNarrator: mixed active and distant render in their own secti
   expect(out).toContain("OBJECTIVES (active this turn):");
   expect(out).toContain("[ ] Find the journal");
   expect(out).toContain("[ ] Escape");
-  expect(out).toContain("DISTANT OBJECTIVES (require travel):");
+  expect(out).toContain("OFF-TILE OBJECTIVES (require travel):");
   expect(out).toContain("[ ] Open the chest (1 move north)");
 });
 
@@ -554,7 +554,7 @@ test("formatStackForArchivist: positionless objective shows no flag", () => {
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Find the journal");
-  expect(out).not.toContain("[DISTANT");
+  expect(out).not.toContain("[OFF-TILE");
 });
 
 test("formatStackForArchivist: positioned-at-current-tile objective shows no flag", () => {
@@ -569,10 +569,10 @@ test("formatStackForArchivist: positioned-at-current-tile objective shows no fla
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Open the chest");
-  expect(out).not.toContain("[DISTANT");
+  expect(out).not.toContain("[OFF-TILE");
 });
 
-test("formatStackForArchivist: positioned-elsewhere objective is flagged [DISTANT — cannot be completed this turn]", () => {
+test("formatStackForArchivist: positioned-elsewhere objective is flagged [OFF-TILE — cannot be completed this turn]", () => {
   const stack: WorldStack = {
     entries: [],
     threads: [],
@@ -586,6 +586,6 @@ test("formatStackForArchivist: positioned-elsewhere objective is flagged [DISTAN
     presetSlug: null,
   };
   const out = formatStackForArchivist(stack);
-  expect(out).toContain("0: [ ] Open the chest [DISTANT — cannot be completed this turn]");
+  expect(out).toContain("0: [ ] Open the chest [OFF-TILE — cannot be completed this turn]");
   expect(out).toContain("1: [ ] Find the journal");
 });
