@@ -1,5 +1,6 @@
+import { appendFileSync } from "node:fs";
 import * as api from "./api";
-import { WorldStack, MAX_STACK_ENTRIES, MAX_THREADS, formatStackForNarrator, formatStackForArchivist } from "./stack";
+import { WorldStack, MAX_STACK_ENTRIES, MAX_THREADS, formatStackForNarrator, formatStackForArchivist, locateObjectiveAnchor } from "./stack";
 
 export const NARRATOR_SYSTEM = `You are a living world. Not an assistant. A world.
 
@@ -127,23 +128,10 @@ const ARCHIVIST_SCHEMA = {
   additionalProperties: false,
 };
 
-// Extract the trailing-noun anchor from a LOCATE-style objective text.
-// Mirrors inferLocateCompletions in src/stack.ts. Returns null if not LOCATE-shaped.
-function extractMustNameAnchor(objectiveText: string): string | null {
-  const m = objectiveText.match(/^(?:Find|Locate|Reach|Discover the location of)\s+(?:the\s+)?(.+)$/i);
-  if (!m || !m[1]) return null;
-  const words = m[1].trim().split(/\s+/).filter((w) => w.length > 2);
-  const last = words[words.length - 1];
-  if (!last) return null;
-  return last.toLowerCase();
-}
-
 async function appendSnapshot(row: Record<string, unknown>): Promise<void> {
   const path = process.env.SNAPSHOT_FIXTURES;
   if (!path) return;
-  const line = JSON.stringify(row) + "\n";
-  const existing = await Bun.file(path).exists() ? await Bun.file(path).text() : "";
-  await Bun.write(path, existing + line);
+  appendFileSync(path, JSON.stringify(row) + "\n");
 }
 
 export function stripNarratorMarkup(text: string): string {
@@ -162,7 +150,7 @@ export async function narratorTurn(
     if (obj.achieved) continue;
     if (!obj.position) continue;
     if (obj.position[0] !== stack.position[0] || obj.position[1] !== stack.position[1]) continue;
-    const anchor = extractMustNameAnchor(obj.text);
+    const anchor = locateObjectiveAnchor(obj.text);
     if (anchor) { mustNameTarget = anchor; break; }
   }
   await appendSnapshot({

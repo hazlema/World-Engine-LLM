@@ -180,6 +180,18 @@ export async function saveStack(stack: WorldStack): Promise<void> {
   }
 }
 
+// Returns the lowercased trailing-noun anchor of a LOCATE-style objective text
+// (Find / Locate / Reach / Discover the location of <the> ... <noun>), or null
+// if the text doesn't match the pattern.
+export function locateObjectiveAnchor(objectiveText: string): string | null {
+  const m = objectiveText.match(/^(?:Find|Locate|Reach|Discover the location of)\s+(?:the\s+)?(.+)$/i);
+  if (!m || !m[1]) return null;
+  const words = m[1].trim().split(/\s+/).filter((w) => w.length > 2);
+  const last = words[words.length - 1];
+  if (!last) return null;
+  return last.toLowerCase();
+}
+
 // Match LOCATE-style objectives ("Find the X", "Locate the X", "Reach the X",
 // "Discover the location of X") against entries containing the target noun.
 // Returns explicit per-turn naming directives so the narrator can't substitute
@@ -188,14 +200,8 @@ function findTargetNamingHints(activeObjectives: Objective[], entries: string[])
   const hints: string[] = [];
   for (const obj of activeObjectives) {
     if (obj.achieved) continue;
-    const m = obj.text.match(/^(?:Find|Locate|Reach|Discover the location of)\s+(?:the\s+)?(.+)$/i);
-    if (!m || !m[1]) continue;
-    const target = m[1].trim();
-    // Use the trailing word as the noun anchor ("the iron key" → "key").
-    const words = target.split(/\s+/).filter((w) => w.length > 2);
-    const last = words[words.length - 1];
-    if (!last) continue;
-    const anchor = last.toLowerCase();
+    const anchor = locateObjectiveAnchor(obj.text);
+    if (!anchor) continue;
     const re = new RegExp(`\\b${anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
     const match = entries.find((e) => re.test(e));
     if (match) hints.push(`- "${match}" (matches active objective: "${obj.text}")`);
@@ -260,17 +266,13 @@ export function inferLocateCompletions(
     const obj = objectives[i];
     if (!obj || obj.achieved) continue;
     // Must be a LOCATE-style objective.
-    const m = obj.text.match(/^(?:Find|Locate|Reach|Discover the location of)\s+(?:the\s+)?(.+)$/i);
-    if (!m || !m[1]) continue;
+    const anchor = locateObjectiveAnchor(obj.text);
+    if (!anchor) continue;
     // Player must be on the objective's target tile.
     if (!obj.position) continue;
     if (obj.position[0] !== position[0] || obj.position[1] !== position[1]) continue;
     // Trailing-noun anchor whole-word search in the narrative.
-    const words = m[1].trim().split(/\s+/).filter((w) => w.length > 2);
-    const last = words[words.length - 1];
-    if (!last) continue;
-    const anchor = last.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(`\\b${anchor}\\b`, "i");
+    const re = new RegExp(`\\b${anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
     if (re.test(narrative)) indices.push(i);
   }
   return indices;

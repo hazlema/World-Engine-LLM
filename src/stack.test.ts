@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, type WorldStack } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, type WorldStack } from "./stack";
 import type { Preset } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
@@ -588,4 +588,30 @@ test("formatStackForArchivist: positioned-elsewhere objective is flagged [OFF-TI
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Open the chest [OFF-TILE — cannot be completed this turn]");
   expect(out).toContain("1: [ ] Find the journal");
+});
+
+// locateObjectiveAnchor tests
+
+test("locateObjectiveAnchor: extracts trailing noun from 'Find the rusted key'", () => {
+  expect(locateObjectiveAnchor("Find the rusted key")).toBe("key");
+});
+
+test("locateObjectiveAnchor: extracts trailing noun from 'Locate the broken lantern'", () => {
+  expect(locateObjectiveAnchor("Locate the broken lantern")).toBe("lantern");
+});
+
+test("locateObjectiveAnchor: extracts trailing noun from 'Discover the location of the iron chest'", () => {
+  expect(locateObjectiveAnchor("Discover the location of the iron chest")).toBe("chest");
+});
+
+test("locateObjectiveAnchor: returns null for non-LOCATE input", () => {
+  expect(locateObjectiveAnchor("go north")).toBeNull();
+});
+
+test("locateObjectiveAnchor: returns null for bare 'Find' with no target", () => {
+  expect(locateObjectiveAnchor("Find")).toBeNull();
+});
+
+test("locateObjectiveAnchor: handles 'Reach the broken spire'", () => {
+  expect(locateObjectiveAnchor("Reach the broken spire")).toBe("spire");
 });

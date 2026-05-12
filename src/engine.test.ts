@@ -1,4 +1,7 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import * as api from "./api";
 import { narratorTurn, archivistTurn, interpreterTurn, NARRATOR_SYSTEM } from "./engine";
 import { MAX_STACK_ENTRIES, MAX_THREADS } from "./stack";
@@ -18,6 +21,19 @@ const populatedStack: WorldStack = {
   objectives: [],
   presetSlug: null,
 };
+
+function makeStack(overrides: Partial<WorldStack> = {}): WorldStack {
+  return {
+    entries: ["a rusted key lies on the floor here"],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: { "0,0": "a stone cellar with damp walls" },
+    objectives: [{ text: "Find the rusted key", achieved: false, position: [0, 0] }],
+    presetSlug: null,
+    ...overrides,
+  };
+}
 
 beforeEach(() => {
   callModelSpy = spyOn(api, "callModel");
@@ -511,23 +527,6 @@ test("interpreterTurn: classifies movement-without-cardinal as move-blocked", as
 
 // SNAPSHOT_FIXTURES tests
 
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-function makeStack(overrides: Partial<WorldStack> = {}): WorldStack {
-  return {
-    entries: ["a rusted key lies on the floor here"],
-    threads: [],
-    turn: 1,
-    position: [0, 0],
-    places: { "0,0": "a stone cellar with damp walls" },
-    objectives: [{ text: "Find the rusted key", achieved: false, position: [0, 0] }],
-    presetSlug: null,
-    ...overrides,
-  };
-}
-
 test("SNAPSHOT_FIXTURES off → no fixture file written", async () => {
   const prev = process.env.SNAPSHOT_FIXTURES;
   delete process.env.SNAPSHOT_FIXTURES;
@@ -537,8 +536,7 @@ test("SNAPSHOT_FIXTURES off → no fixture file written", async () => {
   } finally {
     if (prev !== undefined) process.env.SNAPSHOT_FIXTURES = prev;
   }
-  // Nothing to assert on file system — the test passes by not throwing.
-  expect(true).toBe(true);
+  expect(callModelSpy).toHaveBeenCalledTimes(1);
 });
 
 test("SNAPSHOT_FIXTURES on → narrator + archivist rows appended", async () => {
