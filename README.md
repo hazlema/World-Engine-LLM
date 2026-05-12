@@ -87,9 +87,9 @@ LM_STUDIO_URL=http://localhost:1234
 # narrator while keeping a reliable 12B model on the archivist's
 # structured-JSON extraction.
 LOCAL_MODEL=google/gemma-3-12b
-LOCAL_NARRATOR_MODEL=mistralai/ministral-3-3b   # optional override
-LOCAL_ARCHIVIST_MODEL=google/gemma-3-12b        # optional override
-LOCAL_INTERPRETER_MODEL=google/gemma-3-12b      # optional override
+LOCAL_NARRATOR_MODEL=mistralai/ministral-3-3b      # optional override
+LOCAL_ARCHIVIST_MODEL=google/gemma-3-12b           # optional override
+LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano-4b  # optional override; validated 22/22 on the lab testbed
 
 # Optional: per-stage sampling. Defaults shown — raise narrator
 # temp for more creative prose, keep archivist temp low so its
@@ -136,9 +136,13 @@ The archivist's job — extracting world entries, threads, location descriptions
 
 Other 12B-class candidates from the bake-off (`mistralai/devstral-small-2-2512`, `supergemma4-26b-uncensored-v2`) probably work too but haven't been verified for the archivist role yet. **Don't drop below 12B for this slot** — observed failure modes include `achievedObjectiveIndices: []` even when the narrative clearly names the target, dropped canonical item names from entries, and supersession bugs (old + new state both kept).
 
-#### Fast fully-local recipe — narrator on a 3B, archivist on the 12B
+#### Fast fully-local recipe — narrator on 3B, archivist on 12B, interpreter on 4B
 
-The narrator's job is prose; the archivist's job is structured-JSON extraction (objective completion, entry updates). The narrator tolerates a smaller model with the current prompt — the archivist does not. Per-stage routing wins both speed and reliability:
+The three stages have different jobs and different model needs:
+
+- **Narrator** writes prose. A small fast model (3B) handles the current narrator prompt well.
+- **Archivist** does structured-JSON extraction (objective completion, entry updates). Needs a capable 12B-class model to hold the 30+ rules under prompt pressure.
+- **Interpreter** classifies the player's input into one of six action enums. A small fast model is plenty — `nvidia/nemotron-3-nano-4b` hit 22/22 deterministic on the lab testbed (lab/local-models, v3-movement-verbs prompt). Way faster than the 12B baseline.
 
 ```env
 NARRATOR_PROVIDER=local
@@ -146,10 +150,10 @@ INTERPRETER_PROVIDER=local
 LOCAL_MODEL=google/gemma-3-12b
 LOCAL_NARRATOR_MODEL=mistralai/ministral-3-3b
 LOCAL_ARCHIVIST_MODEL=google/gemma-3-12b
-LOCAL_INTERPRETER_MODEL=google/gemma-3-12b
+LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano-4b
 ```
 
-Sub-second narrator turns, LOCATE objectives still fire correctly. Validated end-to-end with the Lunar Rescue preset on 2026-05-11.
+Sub-second narrator turns, deterministic interpreter classification, LOCATE objectives still fire correctly. Narrator + archivist validated end-to-end with the Lunar Rescue preset 2026-05-11; interpreter prompt + model pair validated 2026-05-12 on the testbed (22/22 across all 22 hand-labeled cases).
 
 ## How it works
 

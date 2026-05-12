@@ -226,14 +226,19 @@ Output JSON with one field, "action", whose value is exactly one of:
 - "move-east"  — the player intends to move eastward
 - "move-west"  — the player intends to move westward
 - "stay"       — the player is doing something other than moving (looking, waiting, examining, talking)
-- "move-blocked" — the player is trying to MOVE but did not name a cardinal direction
+- "move-blocked" — the player is trying to MOVE but did not name a single cardinal direction
 
-Rules:
-- If a cardinal direction (north / south / east / west) is named anywhere in the input, classify by that direction even with surrounding words. "go north through the door" → "move-north".
-- Pure observation or interaction without movement intent is "stay" (e.g. "look around", "wait", "examine the door", "talk to the woman", "pick up the satchel").
-- Movement intent without a cardinal is "move-blocked" (e.g. "go to the train", "walk to the lander", "follow the path", "head toward the crater", "return to the ship", "go through the door").
-- "head up the road" alone is "move-blocked"; "head north" is "move-north".
-- Output only the JSON object. No prose.`;
+Cardinal directions are the four words north / south / east / west, and their single-letter abbreviations n / s / e / w.
+
+Movement verbs are: go, walk, move, head, run, travel, return, follow.
+
+Rules (apply in order):
+1. If the input is exactly one of the compound direction words "northeast", "northwest", "southeast", "southwest" (or "NE", "NW", "SE", "SW"), classify as "move-blocked". These are diagonals — they are NOT cardinal and have no valid action enum.
+2. If a cardinal word (north / south / east / west) or abbreviation (n / s / e / w) appears anywhere in the input AND the input is not itself a compound direction word, classify by that cardinal. Examples: "n" → "move-north", "go north" → "move-north", "head north then look around" → "move-north", "go north through the door" → "move-north".
+3. If the input contains a movement verb (go, walk, move, head, run, travel, return, follow) but no cardinal, classify as "move-blocked" — regardless of what noun comes after the verb. Examples: "go through the door" → "move-blocked", "walk to the lander" → "move-blocked", "follow the path" → "move-blocked", "head toward the crater" → "move-blocked", "return to the ship" → "move-blocked".
+4. Otherwise, the input is pure observation or interaction without movement intent — classify as "stay". Examples: "look around" → "stay", "wait" → "stay", "examine the door" → "stay", "talk to the woman" → "stay", "pick up the satchel" → "stay".
+
+Output only the JSON object. No prose. No markdown fences.`;
 
 const INTERPRETER_SCHEMA = {
   type: "object",
