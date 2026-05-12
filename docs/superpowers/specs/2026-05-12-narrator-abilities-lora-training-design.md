@@ -254,7 +254,24 @@ A trained model gets promoted if:
 - Pass rate on `ability-cases.jsonl` ≥ 80% (the actual training target)
 - Manual play-test of the Merlin scenario shows the trained narrator refusing "use your magic"
 
-If any gate fails, the training run is logged in `output/runs.md` with what was tried and what failed, and we iterate on dataset composition or hyperparameters before re-training.
+### Run log
+
+**Every training run is logged in `output/runs.md`** — successes and failures alike. One entry per run:
+
+```markdown
+## run-2026-05-XX-NN
+
+- dataset: abilities-2026-05-XX.jsonl (N pairs, N ambiguous)
+- hyperparameters: β=0.1, lr=5e-5, epochs=1, lora_rank=16
+- training wall time: X min
+- existing-fixture sweep: <before/after pass counts per check>
+- ability-cases sweep: <pass count>
+- manual play notes: <what felt right/wrong>
+- outcome: promoted | held | rejected (with reason)
+- artifacts: output/ministral-3b-world-engine-vN-Q4_K_M.gguf
+```
+
+Lets us see the trajectory across runs — what hyperparameter / dataset changes moved which checks. If v1 doesn't clear the gates, we look at the log to decide what to change for v2 (more pairs? higher β? a different LoRA rank? extra patterns?) rather than guessing fresh each time.
 
 ## Integration — out of scope
 
