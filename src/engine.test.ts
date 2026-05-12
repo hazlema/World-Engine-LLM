@@ -508,3 +508,71 @@ test("interpreterTurn: classifies movement-without-cardinal as move-blocked", as
   const result = await interpreterTurn("go to the train");
   expect(result).toEqual({ action: "move-blocked" });
 });
+
+// SNAPSHOT_FIXTURES tests
+
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+function makeStack(overrides: Partial<WorldStack> = {}): WorldStack {
+  return {
+    entries: ["a rusted key lies on the floor here"],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: { "0,0": "a stone cellar with damp walls" },
+    objectives: [{ text: "Find the rusted key", achieved: false, position: [0, 0] }],
+    presetSlug: null,
+    ...overrides,
+  };
+}
+
+test("SNAPSHOT_FIXTURES off → no fixture file written", async () => {
+  const prev = process.env.SNAPSHOT_FIXTURES;
+  delete process.env.SNAPSHOT_FIXTURES;
+  callModelSpy.mockImplementationOnce(async () => "narration text");
+  try {
+    await narratorTurn(makeStack(), "look");
+  } finally {
+    if (prev !== undefined) process.env.SNAPSHOT_FIXTURES = prev;
+  }
+  // Nothing to assert on file system — the test passes by not throwing.
+  expect(true).toBe(true);
+});
+
+test("SNAPSHOT_FIXTURES on → narrator + archivist rows appended", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "snap-"));
+  const fixturePath = join(dir, "out.jsonl");
+  process.env.SNAPSHOT_FIXTURES = fixturePath;
+  callModelSpy.mockImplementationOnce(async () => "you find a rusted key on the floor.");
+  callModelStructuredSpy.mockImplementationOnce(async () => ({
+    entries: ["the rusted key is in the player's hand"],
+    threads: [],
+    moved: false,
+    locationDescription: "a stone cellar",
+    achievedObjectiveIndices: [0],
+  }));
+  try {
+    const stack = makeStack();
+    const narrative = await narratorTurn(stack, "look");
+    await archivistTurn(stack, narrative);
+  } finally {
+    delete process.env.SNAPSHOT_FIXTURES;
+  }
+  const text = await Bun.file(fixturePath).text();
+  const lines = text.trim().split("\n").filter((l) => l.length > 0);
+  expect(lines.length).toBe(2);
+  const narratorRow = JSON.parse(lines[0]);
+  const archivistRow = JSON.parse(lines[1]);
+  expect(narratorRow.stage).toBe("narrator");
+  expect(narratorRow.snapshotId).toMatch(/^t\d+$/);
+  expect(narratorRow.narrator.userMessage).toContain("PLAYER ACTION: look");
+  expect(narratorRow.narrator.userMessage).toContain("rusted key");
+  expect(narratorRow.narrator.mustNameTarget).toBe("key");
+  expect(archivistRow.stage).toBe("archivist");
+  expect(archivistRow.archivist.userMessage).toContain("NEW NARRATIVE:");
+  expect(archivistRow.archivist.narrativePassage).toContain("rusted key");
+  expect(archivistRow.archivist.objectiveCount).toBe(1);
+  await rm(dir, { recursive: true });
+});

@@ -127,6 +127,25 @@ const ARCHIVIST_SCHEMA = {
   additionalProperties: false,
 };
 
+// Extract the trailing-noun anchor from a LOCATE-style objective text.
+// Mirrors inferLocateCompletions in src/stack.ts. Returns null if not LOCATE-shaped.
+function extractMustNameAnchor(objectiveText: string): string | null {
+  const m = objectiveText.match(/^(?:Find|Locate|Reach|Discover the location of)\s+(?:the\s+)?(.+)$/i);
+  if (!m || !m[1]) return null;
+  const words = m[1].trim().split(/\s+/).filter((w) => w.length > 2);
+  const last = words[words.length - 1];
+  if (!last) return null;
+  return last.toLowerCase();
+}
+
+async function appendSnapshot(row: Record<string, unknown>): Promise<void> {
+  const path = process.env.SNAPSHOT_FIXTURES;
+  if (!path) return;
+  const line = JSON.stringify(row) + "\n";
+  const existing = await Bun.file(path).exists() ? await Bun.file(path).text() : "";
+  await Bun.write(path, existing + line);
+}
+
 export function stripNarratorMarkup(text: string): string {
   return text.replace(/\*/g, "");
 }
@@ -137,6 +156,23 @@ export async function narratorTurn(
   briefing?: string
 ): Promise<string> {
   const input = `${formatStackForNarrator(stack, briefing)}PLAYER ACTION: ${playerInput}`;
+  // Determine mustNameTarget: first active LOCATE-style objective on the current tile.
+  let mustNameTarget: string | null = null;
+  for (const obj of stack.objectives) {
+    if (obj.achieved) continue;
+    if (!obj.position) continue;
+    if (obj.position[0] !== stack.position[0] || obj.position[1] !== stack.position[1]) continue;
+    const anchor = extractMustNameAnchor(obj.text);
+    if (anchor) { mustNameTarget = anchor; break; }
+  }
+  await appendSnapshot({
+    stage: "narrator",
+    snapshotId: `t${stack.turn}`,
+    turn: stack.turn,
+    position: stack.position,
+    playerInput,
+    narrator: { userMessage: input, mustNameTarget },
+  });
   const raw = await api.callModel(NARRATOR_SYSTEM, input);
   return stripNarratorMarkup(raw);
 }
@@ -155,6 +191,17 @@ export async function archivistTurn(
   narrative: string
 ): Promise<ArchivistResult> {
   const input = `${formatStackForArchivist(stack)}NEW NARRATIVE:\n${narrative}\n\nReturn updated entries, threads, whether the player moved to a new location, a 1-2 sentence canonical description of the place the player is now at, and the indices of any objectives just completed:`;
+  await appendSnapshot({
+    stage: "archivist",
+    snapshotId: `t${stack.turn}`,
+    turn: stack.turn,
+    position: stack.position,
+    archivist: {
+      userMessage: input,
+      narrativePassage: narrative,
+      objectiveCount: stack.objectives.length,
+    },
+  });
   const result = await api.callModelStructured<{
     entries: string[];
     threads: string[];
