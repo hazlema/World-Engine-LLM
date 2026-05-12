@@ -249,7 +249,7 @@ This is a manual gameplay step. The engineer (or Claude) plays a session with th
 - [ ] **Step 1: Start the server with the env var set**
 
 ```bash
-SNAPSHOT_FIXTURES=/tmp/lab-snapshots.jsonl bun --hot ./index.ts
+SNAPSHOT_FIXTURES=/tmp/lab-snapshots.jsonl bun --hot src/server.ts
 ```
 
 - [ ] **Step 2: Play a session covering required scenarios**
@@ -2612,7 +2612,7 @@ Snapshots are captured on `main` via the `SNAPSHOT_FIXTURES` env var:
 
 ```sh
 git checkout main
-SNAPSHOT_FIXTURES=/tmp/new-snaps.jsonl bun --hot ./index.ts
+SNAPSHOT_FIXTURES=/tmp/new-snaps.jsonl bun --hot src/server.ts
 # play a session covering desired scenarios
 git checkout lab/local-models
 cp /tmp/new-snaps.jsonl fixtures/snapshots.jsonl
