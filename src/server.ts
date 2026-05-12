@@ -7,6 +7,7 @@ import {
   saveStack,
   applyPresetToStack,
   unionAchievedIndices,
+  inferLocateCompletions,
   type WorldStack,
   type Direction,
   type Objective,
@@ -296,10 +297,13 @@ export async function processInput(
 
   const wasAllDone =
     stack.objectives.length > 0 && stack.objectives.every((o) => o.achieved);
-  const newObjectives = unionAchievedIndices(
-    stack.objectives,
-    archived.achievedObjectiveIndices
+  // Backstop: even if the archivist missed an obvious LOCATE match, infer
+  // completions from (player position, objective target, narrative text).
+  const inferredIndices = inferLocateCompletions(stack.objectives, finalPosition, narrative);
+  const combinedIndices = Array.from(
+    new Set([...archived.achievedObjectiveIndices, ...inferredIndices])
   );
+  const newObjectives = unionAchievedIndices(stack.objectives, combinedIndices);
   const isAllDone =
     newObjectives.length > 0 && newObjectives.every((o) => o.achieved);
 
@@ -331,7 +335,7 @@ export async function processInput(
       archivist: {
         entries: archived.entries,
         threads: archived.threads,
-        achievedObjectiveIndices: archived.achievedObjectiveIndices,
+        achievedObjectiveIndices: combinedIndices,
         moved: archived.moved,
         locationDescription: archived.locationDescription,
       },

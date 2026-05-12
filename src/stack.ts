@@ -245,6 +245,37 @@ export function formatStackForNarrator(stack: WorldStack, briefing?: string): st
   return parts.length === 0 ? "" : `${parts.join("\n\n")}\n\n`;
 }
 
+// Deterministic safety net for LOCATE-objective completion: if the player is
+// on a LOCATE objective's target tile AND the new narrative contains the
+// target noun as a whole word, return that objective's index. This backstops
+// the archivist LLM which has been observed to miss obvious matches at higher
+// temperatures or with abstract prompt examples.
+export function inferLocateCompletions(
+  objectives: Objective[],
+  position: [number, number],
+  narrative: string,
+): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < objectives.length; i++) {
+    const obj = objectives[i];
+    if (!obj || obj.achieved) continue;
+    // Must be a LOCATE-style objective.
+    const m = obj.text.match(/^(?:Find|Locate|Reach|Discover the location of)\s+(?:the\s+)?(.+)$/i);
+    if (!m || !m[1]) continue;
+    // Player must be on the objective's target tile.
+    if (!obj.position) continue;
+    if (obj.position[0] !== position[0] || obj.position[1] !== position[1]) continue;
+    // Trailing-noun anchor whole-word search in the narrative.
+    const words = m[1].trim().split(/\s+/).filter((w) => w.length > 2);
+    const last = words[words.length - 1];
+    if (!last) continue;
+    const anchor = last.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\b${anchor}\\b`, "i");
+    if (re.test(narrative)) indices.push(i);
+  }
+  return indices;
+}
+
 export function formatStackForArchivist(stack: WorldStack): string {
   const facts =
     stack.entries.length === 0
