@@ -91,6 +91,17 @@ LOCAL_NARRATOR_MODEL=mistralai/ministral-3-3b   # optional override
 LOCAL_ARCHIVIST_MODEL=google/gemma-3-12b        # optional override
 LOCAL_INTERPRETER_MODEL=google/gemma-3-12b      # optional override
 
+# Optional: per-stage sampling. Defaults shown — raise narrator
+# temp for more creative prose, keep archivist temp low so its
+# structured-JSON stays reliable, interpreter temp at 0 for
+# deterministic classification. top_p left unset = LM Studio default.
+LOCAL_NARRATOR_TEMP=0.95
+LOCAL_ARCHIVIST_TEMP=0.5
+LOCAL_INTERPRETER_TEMP=0
+# LOCAL_NARRATOR_TOP_P=0.95
+# LOCAL_ARCHIVIST_TOP_P=0.9
+# LOCAL_INTERPRETER_TOP_P=1.0
+
 # Optional: route the narrator through Gemini for richer prose.
 # Defaults to the local OpenAI-compatible endpoint.
 NARRATOR_PROVIDER=gemini                # gemini | local

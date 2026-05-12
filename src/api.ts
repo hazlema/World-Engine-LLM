@@ -26,13 +26,48 @@ const INTERPRETER_MODEL = process.env.LOCAL_INTERPRETER_MODEL ?? LOCAL_MODEL;
 const INTERPRETER_PROVIDER = (process.env.INTERPRETER_PROVIDER ?? "local").toLowerCase();
 const INTERPRETER_GEMINI_MODEL = process.env.INTERPRETER_GEMINI_MODEL ?? "gemini-2.5-flash";
 
-function logStage(job: string, provider: string, model: string): void {
-  const where = provider === "gemini" ? "remote" : "local";
-  console.log(`[api] [${job}] [${where}] [${model}]`);
+// Per-stage sampling for LOCAL calls. Temperature defaults preserve previous
+// behavior; top_p is undefined unless explicitly set (LM Studio default kicks in).
+function envFloat(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return fallback;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : fallback;
 }
-logStage("narrator", NARRATOR_PROVIDER, NARRATOR_PROVIDER === "gemini" ? NARRATOR_GEMINI_MODEL : NARRATOR_MODEL);
-logStage("archivist", "local", ARCHIVIST_MODEL);
-logStage("interpreter", INTERPRETER_PROVIDER, INTERPRETER_PROVIDER === "gemini" ? INTERPRETER_GEMINI_MODEL : INTERPRETER_MODEL);
+function envFloatOpt(name: string): number | undefined {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return undefined;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+const LOCAL_NARRATOR_TEMP    = envFloat("LOCAL_NARRATOR_TEMP", 0.95);
+const LOCAL_ARCHIVIST_TEMP   = envFloat("LOCAL_ARCHIVIST_TEMP", 0.5);
+const LOCAL_INTERPRETER_TEMP = envFloat("LOCAL_INTERPRETER_TEMP", 0);
+const LOCAL_NARRATOR_TOP_P    = envFloatOpt("LOCAL_NARRATOR_TOP_P");
+const LOCAL_ARCHIVIST_TOP_P   = envFloatOpt("LOCAL_ARCHIVIST_TOP_P");
+const LOCAL_INTERPRETER_TOP_P = envFloatOpt("LOCAL_INTERPRETER_TOP_P");
+
+function logStage(job: string, provider: string, model: string, temp?: number, topP?: number): void {
+  const where = provider === "gemini" ? "remote" : "local";
+  const tempPart = where === "local" && temp !== undefined ? ` [temp=${temp}]` : "";
+  const topPart = where === "local" && topP !== undefined ? ` [top_p=${topP}]` : "";
+  console.log(`[api] [${job}] [${where}] [${model}]${tempPart}${topPart}`);
+}
+logStage(
+  "narrator",
+  NARRATOR_PROVIDER,
+  NARRATOR_PROVIDER === "gemini" ? NARRATOR_GEMINI_MODEL : NARRATOR_MODEL,
+  LOCAL_NARRATOR_TEMP,
+  LOCAL_NARRATOR_TOP_P,
+);
+logStage("archivist", "local", ARCHIVIST_MODEL, LOCAL_ARCHIVIST_TEMP, LOCAL_ARCHIVIST_TOP_P);
+logStage(
+  "interpreter",
+  INTERPRETER_PROVIDER,
+  INTERPRETER_PROVIDER === "gemini" ? INTERPRETER_GEMINI_MODEL : INTERPRETER_MODEL,
+  LOCAL_INTERPRETER_TEMP,
+  LOCAL_INTERPRETER_TOP_P,
+);
 
 // Validation is exported (rather than run at module load) so tests can
 // import this module without process.exit firing on a real-but-test-broken
@@ -152,7 +187,8 @@ export async function callInterpreterStructured<T>(
           json_schema: { name: schemaName, schema },
         },
         max_tokens: 64,
-        temperature: 0,
+        temperature: LOCAL_INTERPRETER_TEMP,
+        ...(LOCAL_INTERPRETER_TOP_P !== undefined ? { top_p: LOCAL_INTERPRETER_TOP_P } : {}),
       }),
       signal: controller.signal,
     });
@@ -204,7 +240,8 @@ export async function callModel(systemPrompt: string, input: string): Promise<st
         ],
         reasoning: { effort: "off" },
         max_tokens: MAX_TOKENS,
-        temperature: 0.95,
+        temperature: LOCAL_NARRATOR_TEMP,
+        ...(LOCAL_NARRATOR_TOP_P !== undefined ? { top_p: LOCAL_NARRATOR_TOP_P } : {}),
       }),
       signal: controller.signal,
     });
@@ -256,6 +293,8 @@ async function callModelStructuredOnce<T>(
           json_schema: { name: schemaName, schema },
         },
         max_tokens: ARCHIVIST_MAX_TOKENS,
+        temperature: LOCAL_ARCHIVIST_TEMP,
+        ...(LOCAL_ARCHIVIST_TOP_P !== undefined ? { top_p: LOCAL_ARCHIVIST_TOP_P } : {}),
       }),
       signal: controller.signal,
     });
