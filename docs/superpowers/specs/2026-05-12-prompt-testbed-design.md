@@ -108,8 +108,9 @@ One JSON line per snapshot. Each line captures what the real engine would feed n
     "mustNameTarget": "rusted key"
   },
   "archivist": {
-    "userMessage": "<narrative passage from production at that turn>",
-    "knownEntities": ["rusted key", "stable door"]
+    "userMessage": "<formatStackForArchivist + NEW NARRATIVE: ... block, mirroring archivistTurn() in src/engine.ts>",
+    "narrativePassage": "<just the narrative text portion, for entries_reference_input scoring>",
+    "objectiveCount": 3
   }
 }
 ```
@@ -125,12 +126,14 @@ One JSON line per snapshot. Each line captures what the real engine would feed n
 Hand-labeled command → expected action pairs. Seeded with ~20–30 cases covering cardinals, abbreviations, compound commands, non-cardinal verbs, edge cases.
 
 ```json
-{ "id": "i1", "input": "go north", "expected": "north" }
-{ "id": "i2", "input": "n", "expected": "north" }
-{ "id": "i3", "input": "look around", "expected": "look" }
-{ "id": "i4", "input": "grab the key", "expected": "none" }
-{ "id": "i5", "input": "north then east", "expected": "north" }
+{ "id": "i1", "input": "go north", "expected": "move-north" }
+{ "id": "i2", "input": "n", "expected": "move-north" }
+{ "id": "i3", "input": "look around", "expected": "stay" }
+{ "id": "i4", "input": "grab the key", "expected": "stay" }
+{ "id": "i5", "input": "head toward the crater", "expected": "move-blocked" }
 ```
+
+Action enum matches production: `move-north / move-south / move-east / move-west / stay / move-blocked`.
 
 ### Selection criteria for snapshots
 
@@ -172,18 +175,18 @@ Each check is a pure function `(stage_input, stage_output) → { name, pass, not
 | Check | Logic |
 |---|---|
 | `json_parse` | Response body parses as JSON. Hard fail otherwise. |
-| `schema_valid` | Has `entries: []`, `threads: []`, `supersessions: []` as arrays. Field types correct. Hard fail otherwise. |
+| `schema_valid` | Has `entries: string[]` and `threads: string[]` (arrays of strings, even if empty). Optional fields `moved: boolean`, `locationDescription: string`, `achievedObjectiveIndices: number[]` if present must have correct types. Hard fail otherwise. |
 | `entry_count_sane` | `0 ≤ entries.length ≤ 8` for a single passage. |
-| `entries_reference_input` | Each entry's text contains ≥1 token also present in the narrative passage (loose substring against `snapshot.archivist.userMessage`). |
-| `no_label_leak` | Same regex as narrator, applied to every entry text and thread description. |
-| `threads_referentially_consistent` | Any thread referenced by id in `supersessions` must exist in `threads`. |
+| `entries_reference_input` | Each entry string contains ≥1 alphabetic token (≥4 chars) also present in the narrative passage (loose substring against `snapshot.archivist.userMessage`). Catches purely-hallucinated entries. |
+| `no_label_leak` | Same regex as narrator, applied to every entry string and thread string. |
+| `objective_indices_valid` | If `achievedObjectiveIndices` is present, every index must be a non-negative integer within `snapshot.archivist.objectiveCount`. |
 
 ### Interpreter (`score/interpreter.ts`)
 
 | Check | Logic |
 |---|---|
 | `json_parse` | Response parses. Hard fail otherwise. |
-| `schema_valid` | `action` is in `{north, south, east, west, up, down, look, none}`. |
+| `schema_valid` | `action` is in `{move-north, move-south, move-east, move-west, stay, move-blocked}`. |
 | `matches_expected` | `action === case.expected`. |
 
 ### Output row format
