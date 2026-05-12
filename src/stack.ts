@@ -180,13 +180,38 @@ export async function saveStack(stack: WorldStack): Promise<void> {
   }
 }
 
+// Match LOCATE-style objectives ("Find the X", "Locate the X", "Reach the X",
+// "Discover the location of X") against entries containing the target noun.
+// Returns explicit per-turn naming directives so the narrator can't substitute
+// a decoy item — the load-bearing rule for LOCATE objective completion.
+function findTargetNamingHints(activeObjectives: Objective[], entries: string[]): string[] {
+  const hints: string[] = [];
+  for (const obj of activeObjectives) {
+    if (obj.achieved) continue;
+    const m = obj.text.match(/^(?:Find|Locate|Reach|Discover the location of)\s+(?:the\s+)?(.+)$/i);
+    if (!m || !m[1]) continue;
+    const target = m[1].trim();
+    // Use the trailing word as the noun anchor ("the iron key" → "key").
+    const words = target.split(/\s+/).filter((w) => w.length > 2);
+    const last = words[words.length - 1];
+    if (!last) continue;
+    const anchor = last.toLowerCase();
+    const re = new RegExp(`\\b${anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    const match = entries.find((e) => re.test(e));
+    if (match) hints.push(`- "${match}" (matches active objective: "${obj.text}")`);
+  }
+  return hints;
+}
+
 export function formatStackForNarrator(stack: WorldStack, briefing?: string): string {
   const parts: string[] = [];
   if (briefing && briefing.trim().length > 0) {
     parts.push(`MISSION BRIEFING (durable premise):\n${briefing.trim()}`);
   }
+  let activeObjs: Objective[] = [];
   if (stack.objectives.length > 0) {
     const { active, distant } = partitionObjectivesByReach(stack.objectives, stack.position);
+    activeObjs = active.map(({ obj }) => obj);
     if (active.length > 0) {
       const lines = active.map(({ obj }) => `[${obj.achieved ? "x" : " "}] ${obj.text}`);
       parts.push(`OBJECTIVES (active this turn):\n${lines.join("\n")}`);
@@ -208,6 +233,14 @@ export function formatStackForNarrator(stack: WorldStack, briefing?: string): st
   }
   if (stack.threads.length > 0) {
     parts.push(`ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`);
+  }
+  // Append explicit per-turn naming directives LAST so they sit closest to the
+  // player input — most recency-weighted position for next-token attention.
+  const namingHints = findTargetNamingHints(activeObjs, stack.entries);
+  if (namingHints.length > 0) {
+    parts.push(
+      `THIS TURN — NAME THESE ITEMS EXPLICITLY (use the exact noun, do not substitute or invent a decoy):\n${namingHints.join("\n")}`
+    );
   }
   return parts.length === 0 ? "" : `${parts.join("\n\n")}\n\n`;
 }
