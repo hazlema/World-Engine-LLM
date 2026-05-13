@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { TTSEngine, type EngineStatus } from "./tts";
 import { PlaybackController } from "./playback-controller";
 import { createRoot } from "react-dom/client";
 import { diffNewItems } from "./utils";
@@ -46,7 +45,7 @@ type ToastData =
   | { kind: "world-update"; entries: string[]; threads: string[]; id: number }
   | { kind: "blocked"; text: string; id: number };
 
-type InterpreterTrace = { action: string; provider: "local" | "gemini" };
+type InterpreterTrace = { action: string; provider: "local" | "openrouter" };
 type ArchivistTrace = {
   entries: string[];
   threads: string[];
@@ -69,7 +68,9 @@ type ProviderInfo = {
   tts: { provider: string; voice: string };
   image: { provider: string; style: string };
   useGeminiImages: boolean;
-  useGeminiNarration: boolean;
+  useNarration: boolean;
+  narrationReady: boolean;
+  voices: string[];
 };
 
 type ServerMessage =
@@ -94,9 +95,8 @@ type ServerMessage =
       position: Position;
     }
   | { type: "win" }
-  | { type: "audio-start" }
-  | { type: "audio-chunk"; data: string }
-  | { type: "audio-end" }
+  | { type: "audio-ready"; turnId: number; url: string }
+  | { type: "audio-error"; turnId: number; message: string }
   | { type: "move-blocked"; input: string }
   | { type: "error"; source: "narrator" | "archivist" | "interpreter"; message: string }
   | { type: "debug-trace"; trace: LastTurnTrace };
@@ -141,7 +141,6 @@ function App() {
   const [narrationOn, setNarrationOn] = useState<boolean>(() => {
     try { return localStorage.getItem("narrationOn") === "1"; } catch { return false; }
   });
-  const [engineStatus, setEngineStatus] = useState<EngineStatus>({ kind: "idle" });
   const [audioByTurn, setAudioByTurn] = useState<Record<number, string>>({});
   const [imageByTurn, setImageByTurn] = useState<Record<number, string>>({});
   const [imagePending, setImagePending] = useState<Set<number>>(() => new Set());
@@ -168,10 +167,13 @@ function App() {
   const [providers, setProviders] = useState<ProviderInfo | null>(null);
   const [lastTrace, setLastTrace] = useState<LastTurnTrace | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
-  const ttsRef = useRef<TTSEngine | null>(null);
-  if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
   const playbackRef = useRef<PlaybackController | null>(null);
-  if (!playbackRef.current) playbackRef.current = new PlaybackController(ttsRef.current);
+  if (!playbackRef.current) playbackRef.current = new PlaybackController();
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    playbackRef.current?.attachElement(audioElementRef.current);
+  }, []);
 
   const [entriesCollapsed, toggleEntries] = useCollapsed("rail.entriesCollapsed", true);
   const [threadsCollapsed, toggleThreads] = useCollapsed("rail.threadsCollapsed", true);
@@ -184,9 +186,6 @@ function App() {
   const threadsCollapsedRef = useRef(threadsCollapsed);
   entriesCollapsedRef.current = entriesCollapsed;
   threadsCollapsedRef.current = threadsCollapsed;
-  // Tracks the most recent input turn waiting for server-pushed audio.
-  const serverAudioPendingTurnIdRef = useRef<number | null>(null);
-
   const [toast, setToast] = useState<ToastData | null>(null);
 
   // Actions menu (collapsed quick-action list under one button)
@@ -266,48 +265,26 @@ function App() {
     try { localStorage.setItem("imageStyle", style); } catch {}
   }, []);
 
-  const renderTurn = useCallback((turnId: number, text: string) => {
-    const pc = playbackRef.current;
-    if (!pc) return;
-    pc.renderManual(turnId, text, selectedVoice || undefined)
-      .then(({ url }) => {
-        setAudioByTurn((prev) => ({ ...prev, [turnId]: url }));
-        // Web Audio already played it — suppress <audio> autoplay
-        setLastNarratedId(null);
-      })
-      .catch((err: unknown) => {
-        if ((err as Error)?.name === "AbortError") return;
-        console.warn("[narration] render failed", err);
-      });
-  }, [selectedVoice]);
+  const renderTurn = useCallback((turnId: number, _text: string) => {
+    // On-demand regeneration isn't wired in this version — audio is produced
+    // server-side at turn time. If audioUrl is missing, narration was off or
+    // the sidecar errored. The speaker click in that case is a no-op.
+    console.warn(`[narration] audio not available for turn ${turnId}; renderTurn is a no-op`);
+  }, []);
 
   const toggleNarration = useCallback(async () => {
     const next = !narrationOn;
     setNarrationOn(next);
     try { localStorage.setItem("narrationOn", next ? "1" : "0"); } catch {}
-    if (next) {
-      try { await ttsRef.current?.load(); } catch {}
-    } else {
-      playbackRef.current?.setEnabled(false);
-      serverAudioPendingTurnIdRef.current = null;
-    }
+    playbackRef.current?.setEnabled(next);
   }, [narrationOn]);
 
   const changeVoice = useCallback((voice: string) => {
     playbackRef.current?.setVoice(voice);
     setSelectedVoice(voice);
     try { localStorage.setItem("narrationVoice", voice); } catch {}
-    setAudioByTurn({});
-    setLastNarratedId(null);
-    serverAudioPendingTurnIdRef.current = null;
+    setAudioByTurn({});  // old cached URLs were for the old voice
   }, []);
-
-  // If the TTS engine reports a key-missing error, lock down Gemini features.
-  useEffect(() => {
-    if (engineStatus.kind === "error" && engineStatus.message.includes("GEMINI_API_KEY")) {
-      setGeminiUnavailable(true);
-    }
-  }, [engineStatus]);
 
   // One-time toast the first time we detect Gemini is unavailable.
   useEffect(() => {
@@ -324,9 +301,8 @@ function App() {
     try { localStorage.setItem("narrationVolume", String(next)); } catch {}
   }, []);
 
-  // Apply volume to the streaming GainNode (separate from <audio> element volume).
   useEffect(() => {
-    ttsRef.current?.setVolume(volume);
+    playbackRef.current?.setVolume(volume);
   }, [volume]);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -409,7 +385,6 @@ function App() {
           const removeId = optimisticTurnIdRef.current;
           setTurns((prev) => prev.filter((t) => t.id !== removeId));
           optimisticTurnIdRef.current = null;
-          serverAudioPendingTurnIdRef.current = null;
           setPending(false);
         }
         addTurn({
@@ -427,9 +402,6 @@ function App() {
         // turn exists (server-initiated turn or unexpected ordering).
         if (optimisticTurnIdRef.current === null) {
           const tid = nextIdRef.current++;
-          if (narrationOnRef.current) {
-            serverAudioPendingTurnIdRef.current = tid;
-          }
           addTurn({ id: tid, input: msg.input, pending: true });
           setPending(true);
         }
@@ -482,24 +454,16 @@ function App() {
         setModal("win");
         return;
       }
-      if (msg.type === "audio-start") {
-        const tid = serverAudioPendingTurnIdRef.current;
-        if (tid !== null) playbackRef.current?.beginStream(tid);
-        return;
-      }
-      if (msg.type === "audio-chunk") {
-        const bytes = Uint8Array.from(atob(msg.data), (c) => c.charCodeAt(0));
-        playbackRef.current?.addChunk(bytes);
-        return;
-      }
-      if (msg.type === "audio-end") {
-        const result = playbackRef.current?.endStream();
-        if (result) {
-          setAudioByTurn((prev) => ({ ...prev, [result.turnId]: result.url }));
-          // Web Audio already played it — don't trigger <audio> autoplay
-          setLastNarratedId(null);
+      if (msg.type === "audio-ready") {
+        setAudioByTurn((prev) => ({ ...prev, [msg.turnId]: msg.url }));
+        if (narrationOnRef.current) {
+          playbackRef.current?.play(msg.turnId, msg.url);
         }
-        serverAudioPendingTurnIdRef.current = null;
+        return;
+      }
+      if (msg.type === "audio-error") {
+        // Log it, but don't break the turn — the narrative is already on screen.
+        console.warn("[narration]", msg.message);
         return;
       }
       if (msg.type === "debug-trace") {
@@ -507,7 +471,6 @@ function App() {
         return;
       }
       if (msg.type === "error") {
-        serverAudioPendingTurnIdRef.current = null;
         updateLastInputTurn((t) => ({
           ...t,
           pending: false,
@@ -534,27 +497,6 @@ function App() {
   // Auto-render narration audio when narrationOn and a turn has narrative but no audio yet.
   // Using useEffect (not inline in the WS handler) avoids stale-closure bugs: narrationOn
   // is always current here because this effect re-runs whenever either turns or narrationOn changes.
-  const [lastNarratedId, setLastNarratedId] = useState<number | null>(null);
-  useEffect(() => {
-    // Gate on engineStatus so we never call render() before AudioContext is
-    // running. AudioContext.resume() requires a user gesture; load() is only
-    // allowed to succeed in that context, and sets status to "ready" after.
-    if (!narrationOn || engineStatus.kind !== "ready" || geminiUnavailable) return;
-    // Only consider the LATEST turn. Walking backward used to fire a duplicate
-    // render of an in-flight earlier turn (e.g. briefing) whenever a newer turn
-    // came in pending server audio — that queued render then fought with the
-    // WS-streamed new turn for the AudioContext. Older un-audio'd turns now
-    // require an explicit speaker click.
-    const t = turns[turns.length - 1];
-    if (!t) return;
-    if (t.id === serverAudioPendingTurnIdRef.current) return;
-    if (t.id in audioByTurn) return;
-    const text = narratableText(t);
-    if (!text) return;
-    renderTurn(t.id, text);
-    setLastNarratedId(t.id);
-  }, [turns, narrationOn, audioByTurn, renderTurn, engineStatus, geminiUnavailable]);
-
   // Auto-generate image for the latest narrative turn when imagesOn.
   // Mirrors the audio auto-render: walk newest-first, kick off the most recent
   // un-imaged regular turn. System briefings don't auto-image (no manual button there either).
@@ -631,18 +573,10 @@ function App() {
       });
       return;
     }
-    // Ensure TTS engine is ready — this IS a user gesture context
-    if (narrationOn && ttsRef.current?.status.kind !== "ready") {
-      ttsRef.current?.load().catch(() => {});
-    }
-
     // Optimistically render the input echo + pending indicator before the
     // server's interpreter call completes. Server's turn-start becomes a no-op
     // when this ref is set; move-blocked removes the optimistic turn.
     const tid = nextIdRef.current++;
-    if (narrationOnRef.current) {
-      serverAudioPendingTurnIdRef.current = tid;
-    }
     addTurn({ id: tid, input: trimmed, pending: true });
     setPending(true);
     optimisticTurnIdRef.current = tid;
@@ -670,21 +604,15 @@ function App() {
 
   const startGame = useCallback((slug: string | null) => {
     playbackRef.current?.abortCurrent();
-    ttsRef.current?.cache.clear();
     wsRef.current?.send(JSON.stringify({ type: "start", presetSlug: slug }));
     setTurns([]);
     nextIdRef.current = 1;
     setAudioByTurn({});
-    setLastNarratedId(null);
-    serverAudioPendingTurnIdRef.current = null;
     Object.values(imageByTurn).forEach(URL.revokeObjectURL);
     setImageByTurn({});
     setHasStarted(true);
     setModal(null);
-    if (narrationOn && ttsRef.current?.status.kind !== "ready") {
-      ttsRef.current?.load().catch(() => {});
-    }
-  }, [narrationOn, imageByTurn]);
+  }, [imageByTurn]);
 
   const resumeGame = useCallback(() => {
     setHasStarted(true);
@@ -715,6 +643,7 @@ function App() {
 
   return (
     <>
+      <audio ref={audioElementRef} preload="auto" />
       <div className="page">
         <header className="masthead">
           <div className="app-header">World Engine</div>
@@ -754,13 +683,16 @@ function App() {
                   key={t.id}
                   turn={t}
                   audioUrl={audioByTurn[t.id]}
-                  autoPlay={t.id === lastNarratedId}
-                  volume={volume}
                   onPlay={() => {
                     const text = narratableText(t);
-                    if (text) { setLastNarratedId(t.id); renderTurn(t.id, text); }
+                    if (text) renderTurn(t.id, text);
                   }}
-                  onStopAudio={() => playbackRef.current?.abortCurrent()}
+                  onPlayCached={() => {
+                    if (audioByTurn[t.id]) {
+                      playbackRef.current?.play(t.id, audioByTurn[t.id]);
+                    }
+                  }}
+                  onAbort={() => playbackRef.current?.abortCurrent()}
                   isAudible={() => playbackRef.current?.isAudible() ?? false}
                 />
               ) : (
@@ -768,10 +700,17 @@ function App() {
                   key={t.id}
                   turn={t}
                   audioUrl={audioByTurn[t.id]}
-                  autoPlay={t.id === lastNarratedId}
-                  volume={volume}
-                  onPlay={() => { if (t.narrative) { setLastNarratedId(t.id); renderTurn(t.id, t.narrative); } }}
-                  onStopAudio={() => playbackRef.current?.abortCurrent()}
+                  onPlay={() => {
+                    if (t.narrative) {
+                      renderTurn(t.id, t.narrative);
+                    }
+                  }}
+                  onPlayCached={() => {
+                    if (audioByTurn[t.id]) {
+                      playbackRef.current?.play(t.id, audioByTurn[t.id]);
+                    }
+                  }}
+                  onAbort={() => playbackRef.current?.abortCurrent()}
                   isAudible={() => playbackRef.current?.isAudible() ?? false}
                   imageUrl={imageByTurn[t.id]}
                   imagePending={imagePending.has(t.id)}
@@ -832,26 +771,30 @@ function App() {
             <div className="split-button">
               <button
                 className={`action-button split-face ${narrationOn ? "critical" : ""}`}
-                onClick={() => { if (providers?.useGeminiNarration) toggleNarration(); }}
-                disabled={!connected || !providers?.useGeminiNarration}
-                aria-disabled={!providers?.useGeminiNarration}
+                onClick={() => { if (providers?.useNarration && providers?.narrationReady) toggleNarration(); }}
+                disabled={!connected || !(providers?.useNarration && providers?.narrationReady)}
+                aria-disabled={!(providers?.useNarration && providers?.narrationReady)}
                 title={
-                  !providers?.useGeminiNarration
-                    ? "USE_GEMINI_NARRATION=false in .env"
-                    : engineStatus.kind === "error" ? engineStatus.message : "toggle narration"
+                  !providers?.useNarration
+                    ? "USE_NARRATION=false in .env"
+                    : !providers?.narrationReady
+                      ? "Narration warming up..."
+                      : "toggle narration"
                 }
               >
                 voice {narrationOn ? "on" : "off"}
               </button>
               <button
                 className={`action-button split-arrow ${narrationOn ? "critical" : ""}`}
-                onClick={() => { if (providers?.useGeminiNarration) setModal("voice"); }}
-                disabled={!connected || !providers?.useGeminiNarration}
-                aria-disabled={!providers?.useGeminiNarration}
+                onClick={() => { if (providers?.useNarration && providers?.narrationReady) setModal("voice"); }}
+                disabled={!connected || !(providers?.useNarration && providers?.narrationReady)}
+                aria-disabled={!(providers?.useNarration && providers?.narrationReady)}
                 title={
-                  !providers?.useGeminiNarration
-                    ? "USE_GEMINI_NARRATION=false in .env"
-                    : "narration settings"
+                  !providers?.useNarration
+                    ? "USE_NARRATION=false in .env"
+                    : !providers?.narrationReady
+                      ? "Narration warming up..."
+                      : "narration settings"
                 }
                 aria-label="narration settings"
               >
@@ -1129,13 +1072,12 @@ function GalleryModal({ onClose, onZoom }: { onClose: () => void; onZoom?: (url:
   );
 }
 
-function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, isAudible, imageUrl, imagePending, onGenerateImage, onZoomImage }: {
+function TurnBlock({ turn, audioUrl, onPlay, onPlayCached, onAbort, isAudible, imageUrl, imagePending, onGenerateImage, onZoomImage }: {
   turn: Turn;
   audioUrl?: string;
-  autoPlay?: boolean;
-  volume?: number;
-  onPlay: () => void;
-  onStopAudio?: () => void;
+  onPlay: () => void;         // request server-side render (no cached URL yet)
+  onPlayCached?: () => void;  // play known URL via centralized element
+  onAbort?: () => void;       // stop everything
   isAudible?: () => boolean;
   imageUrl?: string;
   imagePending?: boolean;
@@ -1143,23 +1085,6 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
   onZoomImage?: (url: string) => void;
 }) {
   const num = String(turn.id).padStart(2, "0");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Apply volume changes live (no re-render needed).
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume, audioUrl]);
-
-  // Auto-play when the audio URL first becomes available and autoPlay is true,
-  // or when autoPlay flips true for an already-cached URL (manual speaker click).
-  useEffect(() => {
-    if (autoPlay && audioUrl && audioRef.current) {
-      onStopAudio?.();
-      audioRef.current.play().catch((err: unknown) => {
-        if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
-      });
-    }
-  }, [autoPlay, audioUrl]);
 
   return (
     <div className="turn-block">
@@ -1170,20 +1095,12 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
             type="button"
             className={`turn-speaker ${audioUrl ? "ready" : ""}`}
             onClick={() => {
-              // If audio is currently audible (live stream, tail, render, or this
-              // turn's cached <audio> element), the click is a pure STOP. Don't
-              // restart on the same click — the user wanted silence.
-              const elementPlaying = audioRef.current ? !audioRef.current.paused : false;
-              if (elementPlaying || isAudible?.()) {
-                onStopAudio?.();
-                if (audioRef.current) audioRef.current.pause();
+              if (isAudible?.()) {
+                onAbort?.();
                 return;
               }
-              if (audioUrl && audioRef.current) {
-                audioRef.current.currentTime = 0;
-                audioRef.current.play().catch((err: unknown) => {
-                  if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
-                });
+              if (audioUrl) {
+                onPlayCached?.();
               } else {
                 onPlay();
               }
@@ -1224,57 +1141,38 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
           <p className="turn-pending">the world is responding…</p>
         )}
         {turn.error && <p className="turn-error">{turn.error}</p>}
-        {audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" />}
       </div>
     </div>
   );
 }
 
-function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, isAudible }: {
+function SystemBlock({ turn, audioUrl, onPlay, onPlayCached, onAbort, isAudible }: {
   turn: SystemTurn;
   audioUrl?: string;
-  autoPlay?: boolean;
-  volume?: number;
-  onPlay?: () => void;
-  onStopAudio?: () => void;
+  onPlay?: () => void;         // request server-side render (no cached URL yet)
+  onPlayCached?: () => void;   // play known URL via centralized element
+  onAbort?: () => void;        // stop everything
   isAudible?: () => boolean;
 }) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume, audioUrl]);
-  useEffect(() => {
-    if (autoPlay && audioUrl && audioRef.current) {
-      onStopAudio?.();
-      audioRef.current.play().catch((err: unknown) => {
-        if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
-      });
-    }
-  }, [autoPlay, audioUrl]);
   const isBriefing = turn.variant === "briefing";
   return (
     <div className={`turn-block system ${turn.variant || ""}`}>
       <div className="turn-content">
         <div className={isBriefing ? "briefing-header-row" : ""}>
           <div className="turn-header">{turn.title}</div>
-          {isBriefing && onPlay && (
+          {isBriefing && (onPlay || onPlayCached) && (
             <button
               type="button"
               className={`turn-speaker ${audioUrl ? "ready" : ""}`}
               onClick={() => {
-                const elementPlaying = audioRef.current ? !audioRef.current.paused : false;
-                if (elementPlaying || isAudible?.()) {
-                  onStopAudio?.();
-                  if (audioRef.current) audioRef.current.pause();
+                if (isAudible?.()) {
+                  onAbort?.();
                   return;
                 }
-                if (audioUrl && audioRef.current) {
-                  audioRef.current.currentTime = 0;
-                  audioRef.current.play().catch((err: unknown) => {
-                    if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
-                  });
-                } else if (onPlay) {
-                  onPlay();
+                if (audioUrl) {
+                  onPlayCached?.();
+                } else {
+                  onPlay?.();
                 }
               }}
               aria-label={audioUrl ? "Play narration" : "Generate narration"}
@@ -1295,7 +1193,6 @@ function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio
             ))}
           </ul>
         )}
-        {isBriefing && audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" />}
       </div>
     </div>
   );
