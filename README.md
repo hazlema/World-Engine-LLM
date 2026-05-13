@@ -33,7 +33,7 @@ You'll need [Bun](https://bun.com) and an OpenAI-compatible local model server. 
    bun install
    ```
 
-2. **Start your local model server.** In LM Studio, load `nvidia/nemotron-3-nano-omni` (IQ3_K_L GGUF — see [Recommended local models](#recommended-local-models)) plus `nvidia/nemotron-3-nano-4b` for the structured-JSON stages, and start the server on the default port (`http://localhost:1234`). **Turn thinking OFF** on the omni model in LM Studio's Developer tab — otherwise narrator turns take ~30s. With it off they run ~2.3s.
+2. **Start your local model server.** In LM Studio, download and load [`nvidia/nemotron-3-nano`](https://lmstudio.ai/models/nemotron-3) (IQ3_K_L GGUF — see [Recommended local models](#recommended-local-models)) and start the server on the default port (`http://localhost:1234`). **Turn thinking OFF** in LM Studio's Developer tab on the model's Reasoning setting — otherwise narrator turns take ~30s. With it off they run ~2.3s.
 
    Smaller 4B-class models often work too but tend to drift on nuanced rules. Larger models (Gemma 3 27B, Llama 3.1 70B, etc.) handle the rules with even more nuance if you have the VRAM. Other OpenAI-compatible servers (Ollama with the OpenAI shim, llama.cpp's `llama-server`, vLLM, etc.) work the same way. The endpoint and model names are constants at the top of `src/api.ts` — edit those lines to point at whatever you're running.
 
@@ -86,10 +86,10 @@ LM_STUDIO_URL=http://localhost:1234
 # overrides let you mix-and-match — e.g. a fast 3B model for the
 # narrator while keeping a reliable 12B model on the archivist's
 # structured-JSON extraction.
-LOCAL_MODEL=nvidia/nemotron-3-nano-4b               # fallback for any stage not set explicitly below
-LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano-omni    # narrator: refuses unestablished abilities natively (Q3_K_L quant, thinking off)
-LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano-4b     # archivist: 10/10 on the lab testbed
-LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano-4b   # interpreter: 22/22 on the lab testbed
+LOCAL_MODEL=nvidia/nemotron-3-nano               # single model for all three stages
+LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano
+LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano
+LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano
 
 # Optional: per-stage sampling. Defaults shown — raise narrator
 # temp for more creative prose, keep archivist temp low so its
@@ -117,29 +117,26 @@ INTERPRETER_GEMINI_MODEL=gemini-2.5-flash  # optional; flash is the default
 
 ### Recommended local models
 
-After working through a 12-model narrator bake-off and a follow-up training experiment, exactly one local configuration delivers all three of:
+After working through a 12-model narrator bake-off and a follow-up training experiment, exactly one local model delivers all three of:
 
 - **Prose quality** — named NPCs, sensory anchoring, scene escalation, in-character narrator voice.
 - **Game-mode strictness** — refuses player-declared unestablished abilities *in fiction*. Player says *"use my magic cloak and transport to the moon"*; world says *"the cloak shudders, but the stone remains beneath you — the moon hangs distant and cold, unreachable by cloth and will."* No fine-tuning required.
 - **Acceptable latency on consumer hardware** — full turn under ~7 seconds on a 16 GB GPU.
 
-The config:
+**Download:** [`nvidia/nemotron-3-nano`](https://lmstudio.ai/models/nemotron-3) from LM Studio's model browser. Pick the **IQ3_K_L** quant — that's ~10 GB VRAM and the prose quality survives the quantization cleanly. Higher quants (Q4_K_M, etc.) work too if you have the headroom but offer no meaningful quality bump over Q3_K_L on this prompt.
+
+**Config:** all three stages route to the same model — no per-stage split needed.
 
 ```env
 NARRATOR_PROVIDER=local
 INTERPRETER_PROVIDER=local
-LOCAL_MODEL=nvidia/nemotron-3-nano-4b
-LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano-omni
-LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano-4b
-LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano-4b
+LOCAL_MODEL=nvidia/nemotron-3-nano
+LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano
+LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano
+LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano
 ```
 
-- **Narrator: `nvidia/nemotron-3-nano-omni`** at IQ3_K_L (~10 GB VRAM). Honors the production `NARRATOR_SYSTEM`'s "treat input as INTENT or ATTEMPT" rule natively. Produces clean refusals via in-fiction consequence, keeps the scene moving, and writes prose with the kind of detail that does real work (carefully-chosen wordplay, fresh-ink intelligence drops, named NPCs with character voice).
-- **Archivist + Interpreter: `nvidia/nemotron-3-nano-4b`** (~2.5 GB VRAM). The 4b dense covers the structured-JSON stages — 10/10 on the archivist lab testbed, 22/22 deterministic on the interpreter testbed.
-
-Total VRAM: ~12.5 GB. Fits on a 16 GB card with headroom.
-
-> **CRITICAL: turn thinking OFF at the LM Studio server.** In LM Studio: Developer tab → model card for `nvidia/nemotron-3-nano-omni` → Reasoning setting → off. With thinking on, narrator turns take ~30s and may burn the full token budget on scratchpad; thinking off drops them to ~2.3s. The in-prompt `detailed thinking off` directive Nvidia documents *does not* take effect through LM Studio's GGUF runtime — the server toggle is the actual lever. Unless you have a spare H100 sitting around, this step is required.
+> **CRITICAL: turn thinking OFF at the LM Studio server.** In LM Studio: Developer tab → model card for `nvidia/nemotron-3-nano` → Reasoning setting → off. With thinking on, narrator turns take ~30s and may burn the full token budget on scratchpad; thinking off drops them to ~2.3s. The in-prompt `detailed thinking off` directive Nvidia documents *does not* take effect through LM Studio's GGUF runtime — the server toggle is the actual lever. Unless you have a spare H100 sitting around, this step is required.
 
 For comparisons with other local models tested but not promoted (gemma-3-12b, ministral-3-3b, qwen3.6-35b-a3b, devstral-small, and others), see [`docs/local-narrator-bake-off.md`](docs/local-narrator-bake-off.md). For the training experiment that tried (and failed) to teach ministral-3-3b to refuse natively before model selection turned out to be the right answer, see the `train/narrator-abilities-lora` branch.
 
