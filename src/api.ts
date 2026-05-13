@@ -277,6 +277,63 @@ async function callInterpreterOpenRouter<T>(
   }
 }
 
+async function callArchivistOpenRouterOnce<T>(
+  systemPrompt: string,
+  input: string,
+  schemaName: string,
+  schema: object
+): Promise<T> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error("OPENROUTER_API_KEY not set (required for ARCHIVIST_PROVIDER=openrouter)");
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ARCHIVIST_TIMEOUT_MS);
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: openRouterHeaders(key),
+      body: JSON.stringify({
+        model: openRouterModel("ARCHIVIST"),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: input },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: schemaName, schema },
+        },
+        reasoning: { effort: openRouterThinking("ARCHIVIST") ? "medium" : "off" },
+        max_tokens: ARCHIVIST_MAX_TOKENS,
+        temperature: LOCAL_ARCHIVIST_TEMP,
+        ...(LOCAL_ARCHIVIST_TOP_P !== undefined ? { top_p: LOCAL_ARCHIVIST_TOP_P } : {}),
+      }),
+      signal: controller.signal,
+    });
+
+    const rawText = await res.text();
+    if (res.status === 429) {
+      throw new Error(`OpenRouter rate limit hit — wait a minute or add credits. (${rawText})`);
+    }
+    if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${rawText}`);
+
+    const outer = JSON.parse(rawText) as CompletionsResponse;
+    const msg = outer.choices?.[0]?.message;
+    const raw = (msg?.content || msg?.reasoning_content || "").trim();
+    if (!raw) throw new Error("No content in OpenRouter archivist response");
+
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      throw new Error(`Invalid JSON from OpenRouter archivist: ${raw}`);
+    }
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw new Error("OpenRouter timeout");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callInterpreterGemini<T>(
   systemPrompt: string,
   input: string,
@@ -488,9 +545,13 @@ export async function callModelStructured<T>(
   schemaName: string,
   schema: object
 ): Promise<T> {
+  const useOpenRouter = archivistProvider() === "openrouter";
   let lastErr: Error = new Error("No attempts made");
   for (let attempt = 1; attempt <= ARCHIVIST_RETRIES; attempt++) {
     try {
+      if (useOpenRouter) {
+        return await callArchivistOpenRouterOnce<T>(systemPrompt, input, schemaName, schema);
+      }
       return await callModelStructuredOnce<T>(systemPrompt, input, schemaName, schema);
     } catch (err) {
       lastErr = err as Error;

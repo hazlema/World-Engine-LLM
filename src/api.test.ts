@@ -304,3 +304,55 @@ test("openrouter interpreter: throws on invalid JSON in content", async () => {
     process.env = orig;
   }
 });
+
+test("openrouter archivist: posts to openrouter URL with json schema + retries on failure", async () => {
+  const orig = { ...process.env };
+  process.env.ARCHIVIST_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.OPENROUTER_ARCHIVIST_THINKING = "off";
+
+  // First call fails, second succeeds — verifies the retry wrapper still applies
+  fetchSpy
+    .mockImplementationOnce(async () => new Response("Server error", { status: 500 }))
+    .mockImplementationOnce(async () =>
+      new Response(JSON.stringify({
+        choices: [{ message: { content: '{"entries":["a","b"]}', reasoning_content: "" } }],
+      }))
+    );
+
+  try {
+    const result = await callModelStructured<{ entries: string[] }>(
+      "system", "input", "facts", { type: "object" }
+    );
+    expect(result.entries).toEqual(["a", "b"]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  } finally {
+    process.env = orig;
+  }
+});
+
+test("openrouter archivist: prefers content over reasoning_content", async () => {
+  const orig = { ...process.env };
+  process.env.ARCHIVIST_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+
+  fetchSpy.mockImplementationOnce(async () =>
+    new Response(JSON.stringify({
+      choices: [{
+        message: {
+          content: '{"entries":["from content"]}',
+          reasoning_content: '{"entries":["from reasoning"]}',
+        },
+      }],
+    }))
+  );
+
+  try {
+    const result = await callModelStructured<{ entries: string[] }>(
+      "system", "input", "facts", { type: "object" }
+    );
+    expect(result.entries).toEqual(["from content"]);
+  } finally {
+    process.env = orig;
+  }
+});
