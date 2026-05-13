@@ -22,19 +22,75 @@ export type ParseResult =
   | { ok: true; config: Config }
   | { ok: false; errors: string[] };
 
-// Stub implementation — Tasks 2-4 build out real parsing + validation.
-// Returns a hardcoded valid Config so the shape test passes.
-export function parseConfig(_env: Record<string, string | undefined>): ParseResult {
-  const stage: StageConfig = { provider: "local", model: "nvidia/nemotron-3-nano" };
+const VALID_PROVIDERS: Provider[] = ["local", "openrouter"];
+
+// Parses one of NARRATOR_PROVIDER / ARCHIVIST_PROVIDER / INTERPRETER_PROVIDER.
+// Returns the parsed StageConfig OR pushes an error message and returns null.
+function parseStageConfig(
+  name: string,
+  raw: string | undefined,
+  errors: string[],
+): StageConfig | null {
+  const formatHint =
+    `${name} missing/invalid. Format: provider,model (e.g. openrouter,nvidia/nemotron-3-nano)`;
+
+  if (raw === undefined || raw.trim() === "") {
+    errors.push(formatHint);
+    return null;
+  }
+
+  // Strip optional surrounding brackets: "[openrouter, model]" -> "openrouter, model"
+  let s = raw.trim();
+  if (s.startsWith("[") && s.endsWith("]")) {
+    s = s.slice(1, -1);
+  }
+
+  const commaIdx = s.indexOf(",");
+  if (commaIdx === -1) {
+    errors.push(formatHint);
+    return null;
+  }
+
+  const providerRaw = s.slice(0, commaIdx).trim();
+  const modelRaw = s.slice(commaIdx + 1).trim();
+
+  if (providerRaw === "" || modelRaw === "") {
+    errors.push(formatHint);
+    return null;
+  }
+
+  if (!VALID_PROVIDERS.includes(providerRaw as Provider)) {
+    errors.push(
+      `${name} provider "${providerRaw}" invalid. Must be one of: ${VALID_PROVIDERS.join(", ")}.`,
+    );
+    return null;
+  }
+
+  return { provider: providerRaw as Provider, model: modelRaw };
+}
+
+export function parseConfig(env: Record<string, string | undefined>): ParseResult {
+  const errors: string[] = [];
+
+  const narrator = parseStageConfig("NARRATOR_PROVIDER", env.NARRATOR_PROVIDER, errors);
+  const archivist = parseStageConfig("ARCHIVIST_PROVIDER", env.ARCHIVIST_PROVIDER, errors);
+  const interpreter = parseStageConfig("INTERPRETER_PROVIDER", env.INTERPRETER_PROVIDER, errors);
+
+  if (!narrator || !archivist || !interpreter) {
+    return { ok: false, errors };
+  }
+
+  const lmStudioUrl = (env.LM_STUDIO_URL ?? "http://localhost:1234").replace(/\/$/, "");
+
   return {
     ok: true,
     config: {
-      lmStudioUrl: "http://localhost:1234",
-      openRouterApiKey: null,
-      geminiApiKey: null,
-      narrator: stage,
-      archivist: stage,
-      interpreter: stage,
+      lmStudioUrl,
+      openRouterApiKey: env.OPENROUTER_API_KEY ?? null,
+      geminiApiKey: env.GEMINI_API_KEY ?? null,
+      narrator,
+      archivist,
+      interpreter,
       useGeminiImages: false,
       useGeminiNarration: false,
     },

@@ -46,3 +46,106 @@ describe("parseConfig — shape", () => {
     expect(result.config.useGeminiNarration).toBe(false);
   });
 });
+
+describe("parseConfig — stage parsing", () => {
+  test("parses simple comma form", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "openrouter,nvidia/nemotron-3-nano",
+      ARCHIVIST_PROVIDER: "local,nvidia/nemotron-3-nano",
+      INTERPRETER_PROVIDER: "local,nvidia/nemotron-3-nano",
+      OPENROUTER_API_KEY: "or-test-key",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.narrator).toEqual({
+      provider: "openrouter",
+      model: "nvidia/nemotron-3-nano",
+    });
+  });
+
+  test("strips surrounding brackets", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "[openrouter, nvidia/nemotron-3-nano]",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      OPENROUTER_API_KEY: "k",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.narrator).toEqual({
+      provider: "openrouter",
+      model: "nvidia/nemotron-3-nano",
+    });
+  });
+
+  test("trims whitespace around both halves", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "  openrouter  ,  some-model  ",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      OPENROUTER_API_KEY: "k",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.narrator).toEqual({ provider: "openrouter", model: "some-model" });
+  });
+
+  test("model with extra commas is preserved (only splits on first)", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "openrouter,vendor/model:tag,with,commas",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      OPENROUTER_API_KEY: "k",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.narrator.model).toBe("vendor/model:tag,with,commas");
+  });
+
+  test("missing NARRATOR_PROVIDER produces clear error", () => {
+    const r = parseConfig(makeEnv({
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors).toContain(
+      "NARRATOR_PROVIDER missing/invalid. Format: provider,model (e.g. openrouter,nvidia/nemotron-3-nano)"
+    );
+  });
+
+  test("malformed (no comma) produces clear error", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "openrouter",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors.some((e) => e.includes("NARRATOR_PROVIDER missing/invalid"))).toBe(true);
+  });
+
+  test("empty model half produces clear error", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "openrouter,",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors.some((e) => e.includes("NARRATOR_PROVIDER missing/invalid"))).toBe(true);
+  });
+
+  test("invalid provider lists the valid set", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "gemini,gemini-2.5-flash",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors.some((e) =>
+      e.includes("NARRATOR_PROVIDER provider \"gemini\" invalid. Must be one of: local, openrouter")
+    )).toBe(true);
+  });
+});
