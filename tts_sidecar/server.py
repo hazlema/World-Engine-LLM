@@ -19,9 +19,10 @@ from fastapi.responses import JSONResponse
 VOICES_DIR = Path(__file__).parent / "voices"
 SAMPLE_RATE = 24000
 
-# Module-level state. The real model is loaded into _model in Task 3.
+# Module-level state. The model loads asynchronously on startup.
 _model = None
 _ready = False
+_load_error: Optional[str] = None
 
 
 def list_voices() -> list[str]:
@@ -43,15 +44,24 @@ def make_silent_wav(seconds: float = 1.0) -> bytes:
 
 
 def generate_audio(text: str, voice: str) -> bytes:
-    """Mock implementation. Task 3 replaces this with real Chatterbox.
-
-    Returns raw WAV bytes (full file with RIFF header).
-    """
+    """Generate WAV bytes via Chatterbox Turbo using the named voice reference."""
     if _model is None:
-        # In the mock skeleton phase, every call returns silent WAV.
-        return make_silent_wav(1.0)
-    # Real implementation lands in Task 3.
-    raise RuntimeError("real generate not yet wired")
+        raise RuntimeError(
+            f"model not loaded yet "
+            f"(load_error={_load_error!r}, ready={_ready})"
+        )
+
+    voice_path = VOICES_DIR / f"{voice}.wav"
+    if not voice_path.exists():
+        raise RuntimeError(f"voice reference file missing: {voice_path}")
+
+    # Chatterbox returns a torch tensor; convert to a WAV byte buffer.
+    import torchaudio as ta
+
+    wav_tensor = _model.generate(text, audio_prompt_path=str(voice_path))
+    buf = io.BytesIO()
+    ta.save(buf, wav_tensor, _model.sr, format="wav")
+    return buf.getvalue()
 
 
 app = FastAPI(title="Chatterbox TTS sidecar")
@@ -59,13 +69,38 @@ app = FastAPI(title="Chatterbox TTS sidecar")
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    """Mark ready immediately in the skeleton phase.
+    """Load Chatterbox Turbo. Sets _ready=True on success, _load_error on failure.
 
-    Task 3 replaces this with real model load (which takes 5-15s).
+    Heavy: 5-15s on a consumer GPU. Bun polls /health to know when it's done.
     """
-    global _ready
-    _ready = True
-    print(f"[tts-sidecar] ready (mock mode); voices: {list_voices()}", flush=True)
+    global _model, _ready, _load_error
+
+    # Import lazily so the rest of the module can be imported without torch.
+    try:
+        import torch  # noqa: F401  (presence check)
+        from chatterbox.tts_turbo import ChatterboxTurboTTS
+    except ImportError as exc:
+        _load_error = f"missing dependency: {exc}"
+        print(f"[tts-sidecar] startup failed: {_load_error}", flush=True)
+        return
+
+    device = "cuda" if _cuda_available() else "cpu"
+    try:
+        print(f"[tts-sidecar] loading ChatterboxTurboTTS on {device}...", flush=True)
+        _model = ChatterboxTurboTTS.from_pretrained(device=device)
+        _ready = True
+        print(f"[tts-sidecar] ready; voices: {list_voices()}", flush=True)
+    except Exception as exc:
+        _load_error = f"model load failed: {exc}"
+        print(f"[tts-sidecar] startup failed: {_load_error}", flush=True)
+
+
+def _cuda_available() -> bool:
+    try:
+        import torch
+        return torch.cuda.is_available()
+    except Exception:
+        return False
 
 
 @app.get("/health")
@@ -75,19 +110,23 @@ async def health() -> JSONResponse:
 
 @app.post("/tts")
 async def tts(request: Request, voice: str = Query(...)) -> Response:
-    if voice not in list_voices() and voice != "mock":
-        # In mock-only mode we accept "mock" as a passthrough so the
-        # sidecar can be exercised before any real voices are generated.
-        # After Task 3 + user runs generate_voices.py, real voices show up here.
-        if not list_voices():
+    valid = list_voices()
+    if voice not in valid:
+        if voice == "mock" and not valid:
+            # Allow mock when no real voices are present (smoke test before
+            # the user runs generate_voices.py). Real model isn't required;
+            # generate_audio handles its own readiness check.
+            pass
+        elif not valid:
             raise HTTPException(
                 status_code=503,
                 detail=(
                     f"no voices configured. Run `python tts_sidecar/generate_voices.py` "
-                    f"to populate tts_sidecar/voices/, or pass voice=mock to test the API."
+                    f"to populate tts_sidecar/voices/."
                 ),
             )
-        raise HTTPException(status_code=404, detail=f"unknown voice: {voice}")
+        else:
+            raise HTTPException(status_code=404, detail=f"unknown voice: {voice}")
 
     body = await request.body()
     text = body.decode("utf-8").strip()
@@ -95,7 +134,10 @@ async def tts(request: Request, voice: str = Query(...)) -> Response:
         raise HTTPException(status_code=400, detail="text body is required")
 
     try:
-        wav_bytes = generate_audio(text, voice)
+        if voice == "mock" and _model is None:
+            wav_bytes = make_silent_wav(1.0)
+        else:
+            wav_bytes = generate_audio(text, voice)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"generate failed: {exc}")
 

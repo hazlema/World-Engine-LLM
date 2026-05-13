@@ -14,13 +14,14 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    # Point VOICES_DIR at an empty temp dir so each test starts clean.
     from tts_sidecar import server as srv
 
     voices_dir = tmp_path / "voices"
     voices_dir.mkdir()
     monkeypatch.setattr(srv, "VOICES_DIR", voices_dir)
     monkeypatch.setattr(srv, "_ready", True)
+    monkeypatch.setattr(srv, "_model", None)  # tests don't load real model
+    monkeypatch.setattr(srv, "_load_error", None)
 
     return TestClient(srv.app)
 
@@ -74,16 +75,16 @@ def test_tts_mock_voice_returns_silent_wav(client):
     assert len(res.content) == 44 + 24000 * 2
 
 
-def test_tts_real_voice_returns_silent_wav_in_mock_mode(client):
+def test_tts_real_voice_with_no_model_returns_500(client):
     from tts_sidecar import server as srv
 
     (srv.VOICES_DIR / "noir.wav").write_bytes(b"RIFF....")
 
+    # _model is None (fixture default); real voice falls through to generate_audio
+    # which raises RuntimeError → 500. The mock-silent fallback is only for voice=mock.
     res = client.post("/tts?voice=noir", content=b"hello world")
-    assert res.status_code == 200
-    assert res.headers["content-type"] == "audio/wav"
-    # Still silent in mock mode, even with real-named voice
-    assert len(res.content) == 44 + 24000 * 2
+    assert res.status_code == 500
+    assert "model not loaded" in res.json()["detail"]
 
 
 def test_tts_generate_exception_returns_500(client, monkeypatch):
@@ -92,6 +93,9 @@ def test_tts_generate_exception_returns_500(client, monkeypatch):
     def boom(text, voice):
         raise RuntimeError("model on fire")
 
+    # Patch _model to a non-None sentinel so voice=mock doesn't take the
+    # silent-WAV shortcut, and generate_audio is actually invoked.
+    monkeypatch.setattr(srv, "_model", object())
     monkeypatch.setattr(srv, "generate_audio", boom)
     res = client.post("/tts?voice=mock", content=b"hello")
     assert res.status_code == 500
