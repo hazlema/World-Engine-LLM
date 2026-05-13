@@ -1,96 +1,101 @@
-import type { TTSEngine, RenderResult } from "./tts";
+/**
+ * Coordinates the single audio element across turns.
+ *
+ * The frontend only ever has one HTMLAudioElement being commanded at a time;
+ * this class owns its lifecycle:
+ *   - play(turnId, url): pause whatever was playing, point the element at
+ *     the new URL, start playback.
+ *   - abortCurrent(): pause.
+ *   - setVoice(voice): voice change wipes the current playback (the audio
+ *     was for the old voice; future turns will get fresh URLs).
+ *   - setEnabled(on): when off, pause immediately.
+ *   - isAudible(): true if the element is currently playing.
+ *
+ * No Web Audio API. No AudioContext. No buffer sources. Volume is set
+ * directly on the audio element.
+ */
 
-export type ControllerState = "idle" | "streaming" | "rendering";
-
-// Minimal interface the controller needs from TTSEngine. Listed explicitly
-// so the controller is unit-testable against a shim.
-type TTSCore = Pick<
-  TTSEngine,
-  "stopAll" | "cancelStream" | "startStream" | "addChunk" | "endStream" | "render" | "cache" | "hasAudibleSources"
->;
+export type ControllerState = "idle" | "playing";
 
 export class PlaybackController {
   private _state: ControllerState = "idle";
   private _currentTurnId: number | null = null;
-  private _abort: AbortController | null = null;
-
-  constructor(private tts: TTSCore) {}
+  private _element: HTMLAudioElement | null = null;
+  private _enabled = true;
+  private _volume = 1.0;
 
   get state(): ControllerState { return this._state; }
   get currentTurnId(): number | null { return this._currentTurnId; }
 
-  // True when anything is currently making sound or scheduled to: an in-progress
-  // live stream, an HTTP render, or tail BufferSources from a previously-ended
-  // stream that are still queued in Web Audio.
-  isAudible(): boolean {
-    return this._state !== "idle" || this.tts.hasAudibleSources();
+  /**
+   * Attach the (single) audio element this controller commands.
+   * Called once after React renders <audio ref={...} />.
+   */
+  attachElement(el: HTMLAudioElement | null): void {
+    this._element = el;
+    if (el) {
+      el.volume = this._volume;
+      el.addEventListener("ended", () => this.onEnded());
+      el.addEventListener("error", () => this.onEnded());
+    }
   }
 
-  // WebSocket streaming path: server pushes audio-start, audio-chunk*, audio-end.
-  beginStream(turnId: number): void {
-    if (this._state !== "idle") this.abortCurrent();
-    this.tts.startStream(turnId);
-    this._state = "streaming";
-    this._currentTurnId = turnId;
-  }
-
-  addChunk(bytes: Uint8Array): void {
-    if (this._state !== "streaming" || this._currentTurnId === null) return;
-    this.tts.addChunk(bytes);
-  }
-
-  endStream(): { turnId: number; url: string } | null {
-    if (this._state !== "streaming") return null;
-    const result = this.tts.endStream();
+  private onEnded(): void {
     this._state = "idle";
     this._currentTurnId = null;
-    return result;
   }
 
-  // HTTP path: manual replay before audio is cached, or system briefings.
-  async renderManual(turnId: number, text: string, voice?: string): Promise<RenderResult> {
-    if (this._state !== "idle") this.abortCurrent();
-    const ac = new AbortController();
-    this._abort = ac;
-    this._state = "rendering";
+  /** Play a URL for a turn. Pauses any prior playback first. */
+  async play(turnId: number, url: string): Promise<void> {
+    if (!this._enabled) return;
+    const el = this._element;
+    if (!el) return;
+    try {
+      el.pause();
+    } catch { /* ignore */ }
+    el.src = url;
+    el.currentTime = 0;
+    this._state = "playing";
     this._currentTurnId = turnId;
     try {
-      const result = await this.tts.render(turnId, text, voice, ac.signal);
-      if (this._abort === ac) {
-        this._state = "idle";
-        this._currentTurnId = null;
-        this._abort = null;
-      }
-      return result;
+      await el.play();
     } catch (err) {
-      if (this._abort === ac) {
-        this._state = "idle";
-        this._currentTurnId = null;
-        this._abort = null;
+      // Autoplay restrictions or src errors — fall back to idle.
+      this._state = "idle";
+      this._currentTurnId = null;
+      if ((err as Error)?.name !== "NotAllowedError") {
+        console.warn("[narration] play failed", err);
       }
-      throw err;
     }
   }
 
-  // Stop everything in flight: HTTP fetch, Web Audio, <audio> elements.
   abortCurrent(): void {
-    if (this._abort) {
-      this._abort.abort();
-      this._abort = null;
+    const el = this._element;
+    if (el) {
+      try { el.pause(); } catch { /* ignore */ }
     }
-    this.tts.cancelStream();
-    this.tts.stopAll();
     this._state = "idle";
     this._currentTurnId = null;
   }
 
-  // Config-change entry points.
   setVoice(_voice: string): void {
+    // Voice change → cached audio is for the wrong voice; stop now,
+    // future turns will get fresh URLs from the server.
     this.abortCurrent();
-    this.tts.cache.clear();
   }
 
   setEnabled(on: boolean): void {
+    this._enabled = on;
     if (!on) this.abortCurrent();
+  }
+
+  setVolume(v: number): void {
+    this._volume = v;
+    if (this._element) this._element.volume = v;
+  }
+
+  isAudible(): boolean {
+    if (!this._element) return false;
+    return !this._element.paused;
   }
 }
