@@ -131,6 +131,71 @@ interface CompletionsResponse {
   }>;
 }
 
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+function openRouterModel(stage: "NARRATOR" | "INTERPRETER" | "ARCHIVIST"): string {
+  const perStage = process.env[`OPENROUTER_${stage}_MODEL`];
+  if (perStage) return perStage;
+  return process.env.OPENROUTER_MODEL ?? "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
+}
+
+function openRouterThinking(stage: "NARRATOR" | "INTERPRETER" | "ARCHIVIST"): boolean {
+  const raw = (process.env[`OPENROUTER_${stage}_THINKING`] ?? "on").toLowerCase();
+  return raw !== "off";
+}
+
+function openRouterHeaders(apiKey: string): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${apiKey}`,
+    "HTTP-Referer": "https://github.com/hazlema/World-Engine-LLM",
+    "X-Title": "World Engine LLM",
+  };
+}
+
+async function callNarratorOpenRouter(systemPrompt: string, input: string): Promise<string> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error("OPENROUTER_API_KEY not set (required for NARRATOR_PROVIDER=openrouter)");
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: openRouterHeaders(key),
+      body: JSON.stringify({
+        model: openRouterModel("NARRATOR"),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: input },
+        ],
+        reasoning: { effort: openRouterThinking("NARRATOR") ? "medium" : "off" },
+        max_tokens: MAX_TOKENS,
+        temperature: LOCAL_NARRATOR_TEMP,
+        ...(LOCAL_NARRATOR_TOP_P !== undefined ? { top_p: LOCAL_NARRATOR_TOP_P } : {}),
+      }),
+      signal: controller.signal,
+    });
+
+    const rawText = await res.text();
+    if (res.status === 429) {
+      throw new Error(`OpenRouter rate limit hit — wait a minute or add credits. (${rawText})`);
+    }
+    if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${rawText}`);
+
+    const data = JSON.parse(rawText) as CompletionsResponse;
+    const msg = data.choices?.[0]?.message;
+    const content = (msg?.content || msg?.reasoning_content || "").trim();
+    if (!content) throw new Error("Empty response from OpenRouter narrator");
+    return content;
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw new Error("OpenRouter timeout");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callNarratorGemini(systemPrompt: string, input: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set (required for NARRATOR_PROVIDER=gemini)");
@@ -252,6 +317,7 @@ export async function callInterpreterStructured<T>(
 
 export async function callModel(systemPrompt: string, input: string): Promise<string> {
   if (narratorProvider() === "gemini") return callNarratorGemini(systemPrompt, input);
+  if (narratorProvider() === "openrouter") return callNarratorOpenRouter(systemPrompt, input);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

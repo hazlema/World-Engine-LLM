@@ -163,3 +163,95 @@ test("validateApiConfig: exits when any stage is openrouter but OPENROUTER_API_K
     process.env = orig;
   }
 });
+
+test("openrouter narrator: posts to openrouter URL with bearer + thinking on by default", async () => {
+  const orig = { ...process.env };
+  process.env.NARRATOR_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.OPENROUTER_MODEL = "test/model:free";
+  delete process.env.OPENROUTER_NARRATOR_THINKING;
+
+  let capturedUrl = "";
+  let capturedInit: RequestInit | undefined;
+  fetchSpy.mockImplementationOnce(async (url, init) => {
+    capturedUrl = String(url);
+    capturedInit = init;
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: "remote prose", reasoning_content: "" } }],
+    }));
+  });
+
+  try {
+    const result = await callModel("system", "input");
+    expect(result).toBe("remote prose");
+    expect(capturedUrl).toBe("https://openrouter.ai/api/v1/chat/completions");
+    const headers = capturedInit!.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe("Bearer test-key");
+    const body = JSON.parse(capturedInit!.body as string);
+    expect(body.model).toBe("test/model:free");
+    expect(body.reasoning).toEqual({ effort: "medium" });
+  } finally {
+    process.env = orig;
+  }
+});
+
+test("openrouter narrator: per-stage thinking=off disables reasoning", async () => {
+  const orig = { ...process.env };
+  process.env.NARRATOR_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.OPENROUTER_NARRATOR_THINKING = "off";
+
+  let capturedBody: { reasoning: { effort: string } } | undefined;
+  fetchSpy.mockImplementationOnce(async (_url, init) => {
+    capturedBody = JSON.parse((init as RequestInit).body as string);
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: "fast prose", reasoning_content: "" } }],
+    }));
+  });
+
+  try {
+    await callModel("system", "input");
+    expect(capturedBody!.reasoning).toEqual({ effort: "off" });
+  } finally {
+    process.env = orig;
+  }
+});
+
+test("openrouter narrator: uses OPENROUTER_NARRATOR_MODEL override when set", async () => {
+  const orig = { ...process.env };
+  process.env.NARRATOR_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.OPENROUTER_MODEL = "default/model:free";
+  process.env.OPENROUTER_NARRATOR_MODEL = "specific/narrator:free";
+
+  let capturedBody: { model: string } | undefined;
+  fetchSpy.mockImplementationOnce(async (_url, init) => {
+    capturedBody = JSON.parse((init as RequestInit).body as string);
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: "x", reasoning_content: "" } }],
+    }));
+  });
+
+  try {
+    await callModel("system", "input");
+    expect(capturedBody!.model).toBe("specific/narrator:free");
+  } finally {
+    process.env = orig;
+  }
+});
+
+test("openrouter narrator: surfaces 429 rate-limit message", async () => {
+  const orig = { ...process.env };
+  process.env.NARRATOR_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+
+  fetchSpy.mockImplementationOnce(async () =>
+    new Response(JSON.stringify({ error: { message: "Rate limit exceeded" } }), { status: 429 })
+  );
+
+  try {
+    await expect(callModel("system", "input")).rejects.toThrow(/OpenRouter rate limit/);
+  } finally {
+    process.env = orig;
+  }
+});
