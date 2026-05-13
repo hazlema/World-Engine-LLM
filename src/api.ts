@@ -57,26 +57,29 @@ const LOCAL_ARCHIVIST_TOP_P   = envFloatOpt("LOCAL_ARCHIVIST_TOP_P");
 const LOCAL_INTERPRETER_TOP_P = envFloatOpt("LOCAL_INTERPRETER_TOP_P");
 
 function logStage(job: string, provider: string, model: string, temp?: number, topP?: number): void {
-  const where = provider === "gemini" ? "remote" : "local";
-  const tempPart = where === "local" && temp !== undefined ? ` [temp=${temp}]` : "";
-  const topPart = where === "local" && topP !== undefined ? ` [top_p=${topP}]` : "";
+  const where = provider === "gemini" ? "remote"
+              : provider === "openrouter" ? "openrouter"
+              : "local";
+  const showSampling = where === "local";
+  const tempPart = showSampling && temp !== undefined ? ` [temp=${temp}]` : "";
+  const topPart = showSampling && topP !== undefined ? ` [top_p=${topP}]` : "";
   console.log(`[api] [${job}] [${where}] [${model}]${tempPart}${topPart}`);
 }
-logStage(
-  "narrator",
-  narratorProvider(),
-  narratorProvider() === "gemini" ? NARRATOR_GEMINI_MODEL : NARRATOR_MODEL,
-  LOCAL_NARRATOR_TEMP,
-  LOCAL_NARRATOR_TOP_P,
-);
-logStage("archivist", "local", ARCHIVIST_MODEL, LOCAL_ARCHIVIST_TEMP, LOCAL_ARCHIVIST_TOP_P);
-logStage(
-  "interpreter",
-  interpreterProvider(),
-  interpreterProvider() === "gemini" ? INTERPRETER_GEMINI_MODEL : INTERPRETER_MODEL,
-  LOCAL_INTERPRETER_TEMP,
-  LOCAL_INTERPRETER_TOP_P,
-);
+
+function stageModel(stage: "NARRATOR" | "INTERPRETER" | "ARCHIVIST", provider: string, localModel: string): string {
+  if (provider === "gemini") {
+    return stage === "NARRATOR" ? NARRATOR_GEMINI_MODEL : INTERPRETER_GEMINI_MODEL;
+  }
+  if (provider === "openrouter") return openRouterModel(stage);
+  return localModel;
+}
+
+logStage("narrator", narratorProvider(), stageModel("NARRATOR", narratorProvider(), NARRATOR_MODEL),
+  LOCAL_NARRATOR_TEMP, LOCAL_NARRATOR_TOP_P);
+logStage("archivist", archivistProvider(), stageModel("ARCHIVIST", archivistProvider(), ARCHIVIST_MODEL),
+  LOCAL_ARCHIVIST_TEMP, LOCAL_ARCHIVIST_TOP_P);
+logStage("interpreter", interpreterProvider(), stageModel("INTERPRETER", interpreterProvider(), INTERPRETER_MODEL),
+  LOCAL_INTERPRETER_TEMP, LOCAL_INTERPRETER_TOP_P);
 
 // Validation is exported (rather than run at module load) so tests can
 // import this module without process.exit firing on a real-but-test-broken
