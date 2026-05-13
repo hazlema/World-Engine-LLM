@@ -33,7 +33,7 @@ You'll need [Bun](https://bun.com) and an OpenAI-compatible local model server. 
    bun install
    ```
 
-2. **Start your local model server.** In LM Studio, load a capable instruction-tuned model and start the server on the default port (`http://localhost:1234`). The defaults in `src/api.ts` point both narrator and archivist at `google/gemma-3-12b` — a 12B-class model that handles the locality and objective rules well on modest hardware.
+2. **Start your local model server.** In LM Studio, load `nvidia/nemotron-3-nano-omni` (IQ3_K_L GGUF — see [Recommended local models](#recommended-local-models)) plus `nvidia/nemotron-3-nano-4b` for the structured-JSON stages, and start the server on the default port (`http://localhost:1234`). **Turn thinking OFF** on the omni model in LM Studio's Developer tab — otherwise narrator turns take ~30s. With it off they run ~2.3s.
 
    Smaller 4B-class models often work too but tend to drift on nuanced rules. Larger models (Gemma 3 27B, Llama 3.1 70B, etc.) handle the rules with even more nuance if you have the VRAM. Other OpenAI-compatible servers (Ollama with the OpenAI shim, llama.cpp's `llama-server`, vLLM, etc.) work the same way. The endpoint and model names are constants at the top of `src/api.ts` — edit those lines to point at whatever you're running.
 
@@ -86,10 +86,10 @@ LM_STUDIO_URL=http://localhost:1234
 # overrides let you mix-and-match — e.g. a fast 3B model for the
 # narrator while keeping a reliable 12B model on the archivist's
 # structured-JSON extraction.
-LOCAL_MODEL=google/gemma-3-12b
-LOCAL_NARRATOR_MODEL=mistralai/ministral-3-3b      # optional override
-LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano-4b    # optional override; validated 10/10 on the lab testbed
-LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano-4b  # optional override; validated 22/22 on the lab testbed
+LOCAL_MODEL=nvidia/nemotron-3-nano-4b               # fallback for any stage not set explicitly below
+LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano-omni    # narrator: refuses unestablished abilities natively (Q3_K_L quant, thinking off)
+LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano-4b     # archivist: 10/10 on the lab testbed
+LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano-4b   # interpreter: 22/22 on the lab testbed
 
 # Optional: per-stage sampling. Defaults shown — raise narrator
 # temp for more creative prose, keep archivist temp low so its
@@ -115,45 +115,33 @@ INTERPRETER_GEMINI_MODEL=gemini-2.5-flash  # optional; flash is the default
 
 > **Turning the Gemini narrator on upgrades both features at once.** Gemini writes noticeably tighter, more sensory prose than a 12B local model. And because the image generator's prompt _is_ the narrator's output, a sharper narrative also produces a sharper image downstream — better text feeds better pictures. Cost is one extra Gemini call per turn (~$0.0002 on Flash); the archivist still runs locally, and the interpreter can be routed independently via `INTERPRETER_PROVIDER` (see above).
 
-### Recommended local narrator models
+### Recommended local models
 
-When `NARRATOR_PROVIDER=local` (the default), the narrator hits whatever OpenAI-compatible endpoint is at `http://localhost:1234` — typically [LM Studio](https://lmstudio.ai/). Quality varies wildly across local models. Picks after a 12-model bake-off ([full results](docs/local-narrator-bake-off.md)):
+After working through a 12-model narrator bake-off and a follow-up training experiment, exactly one local configuration delivers all three of:
 
-- **🥇 `google/gemma-3-12b`** — ~3s/turn, ~125 words. Introduces named NPCs and unfolding mysteries on richer turns; in-character narrator voice. Best overall storyteller and the current baseline.
-- **🥈 `mistralai/devstral-small-2-2512`** — ~5s/turn. World-stack-conservative: names established canonical items by their nouns rather than inventing parallel facts. Use when you want the established world to drive reveals.
-- **🥉 `qwen/qwen3.6-35b-a3b`** with **thinking off** — ~3s/turn, vivid cinematic detail. Fastest of the viable picks that works as the whole pipeline.
-- **⚡ `mistralai/ministral-3-3b`** — ~0.8s/turn, ~95 words. Speed pick. With the current `NARRATOR_SYSTEM` it produces vivid concrete prose, names canonical world-stack items, and follows the ending rule. **Caveat:** only viable as the narrator slot — the same model on the archivist breaks LOCATE objectives. Pair with a 12B archivist via the recipe below.
+- **Prose quality** — named NPCs, sensory anchoring, scene escalation, in-character narrator voice.
+- **Game-mode strictness** — refuses player-declared unestablished abilities *in fiction*. Player says *"use my magic cloak and transport to the moon"*; world says *"the cloak shudders, but the stone remains beneath you — the moon hangs distant and cold, unreachable by cloth and will."* No fine-tuning required.
+- **Acceptable latency on consumer hardware** — full turn under ~7 seconds on a 16 GB GPU.
 
-> **Thinking models are mostly unusable** for an interactive narrator with this prompt. With thinking on, most run 30–50s per turn and many burn their full token budget on reasoning, producing empty narrative content. The one disciplined exception is `nvidia/nemotron-3-nano-omni` (also recommended with thinking off).
->
-> Avoid: `microsoft/phi-4-reasoning-plus` (3rd-person narration, RPG-style asides), `mystral-uncensored-rp-7b` (leaks prompt structure into prose).
-
-### Recommended local archivist models
-
-The archivist's job — extracting world entries, threads, location descriptions, and `achievedObjectiveIndices` as structured JSON — is the small-model-hostile workload in the pipeline. Multi-rule prompts plus grammar-constrained output exceed what 3-4B models reliably handle. Verdict so far:
-
-- **🥇 `google/gemma-3-12b`** — the only model validated end-to-end for this role. Reliably fires LOCATE objectives when the player arrives and the narrative names the canonical target, supersedes entries on item state changes, holds the archivist's 30+ rules under prompt pressure. Validated 2026-05-11 with per-stage routing.
-
-Other 12B-class candidates from the bake-off (`mistralai/devstral-small-2-2512`, `supergemma4-26b-uncensored-v2`) probably work too but haven't been verified for the archivist role yet. **Don't drop below 12B for this slot** — observed failure modes include `achievedObjectiveIndices: []` even when the narrative clearly names the target, dropped canonical item names from entries, and supersession bugs (old + new state both kept).
-
-#### Fast fully-local recipe — narrator on 3B, archivist + interpreter on 4B
-
-All three stages routed to small fast models, each validated on the `lab/local-models` testbed (2026-05-12):
-
-- **Narrator** writes prose. `mistralai/ministral-3-3b` follows the narrator prompt well — names canonical items, holds the ending rule, sub-second turns. Hit 10/10 on the testbed including the only LOCATE-active snapshot in the fixture.
-- **Archivist** does structured-JSON extraction (objective completion, entry updates). `nvidia/nemotron-3-nano-4b` hit 10/10 baseline on the testbed — produces valid JSON, sane entry counts, no prompt-label leakage. ~3× faster than `google/gemma-3-12b` which also passes if you prefer larger-context state-carry.
-- **Interpreter** classifies the player's input into one of six action enums. `nvidia/nemotron-3-nano-4b` hit 22/22 deterministic on the testbed (v3-movement-verbs prompt, now in `INTERPRETER_SYSTEM`).
+The config:
 
 ```env
 NARRATOR_PROVIDER=local
 INTERPRETER_PROVIDER=local
-LOCAL_MODEL=google/gemma-3-12b
-LOCAL_NARRATOR_MODEL=mistralai/ministral-3-3b
+LOCAL_MODEL=nvidia/nemotron-3-nano-4b
+LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano-omni
 LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano-4b
 LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano-4b
 ```
 
-Sub-second turns across the whole pipeline, deterministic interpreter classification, LOCATE objectives still fire correctly. Narrator on ministral validated 2026-05-11 (Lunar Rescue end-to-end), 2026-05-12 (testbed). Archivist + interpreter promoted on the same testbed run. If you'd rather keep the archivist on a 12B model for richer state-carry, swap `LOCAL_ARCHIVIST_MODEL=google/gemma-3-12b` — both pass at 10/10 on baseline-turn coverage.
+- **Narrator: `nvidia/nemotron-3-nano-omni`** at IQ3_K_L (~10 GB VRAM). Honors the production `NARRATOR_SYSTEM`'s "treat input as INTENT or ATTEMPT" rule natively. Produces clean refusals via in-fiction consequence, keeps the scene moving, and writes prose with the kind of detail that does real work (carefully-chosen wordplay, fresh-ink intelligence drops, named NPCs with character voice).
+- **Archivist + Interpreter: `nvidia/nemotron-3-nano-4b`** (~2.5 GB VRAM). The 4b dense covers the structured-JSON stages — 10/10 on the archivist lab testbed, 22/22 deterministic on the interpreter testbed.
+
+Total VRAM: ~12.5 GB. Fits on a 16 GB card with headroom.
+
+> **CRITICAL: turn thinking OFF at the LM Studio server.** In LM Studio: Developer tab → model card for `nvidia/nemotron-3-nano-omni` → Reasoning setting → off. With thinking on, narrator turns take ~30s and may burn the full token budget on scratchpad; thinking off drops them to ~2.3s. The in-prompt `detailed thinking off` directive Nvidia documents *does not* take effect through LM Studio's GGUF runtime — the server toggle is the actual lever. Unless you have a spare H100 sitting around, this step is required.
+
+For comparisons with other local models tested but not promoted (gemma-3-12b, ministral-3-3b, qwen3.6-35b-a3b, devstral-small, and others), see [`docs/local-narrator-bake-off.md`](docs/local-narrator-bake-off.md). For the training experiment that tried (and failed) to teach ministral-3-3b to refuse natively before model selection turned out to be the right answer, see the `train/narrator-abilities-lora` branch.
 
 ## How it works
 
