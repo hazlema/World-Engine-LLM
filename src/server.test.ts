@@ -1,6 +1,5 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
-import * as ttsModule from "./gemini-tts";
 import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, resetServerConfigForTesting, type ServerMessage } from "./server";
 import { resetConfigForTesting } from "./api";
 import type { WorldStack } from "./stack";
@@ -39,7 +38,7 @@ afterEach(() => {
   delete process.env.ARCHIVIST_PROVIDER;
   delete process.env.INTERPRETER_PROVIDER;
   delete process.env.GEMINI_API_KEY;
-  delete process.env.USE_GEMINI_NARRATION;
+  delete process.env.USE_NARRATION;
   delete process.env.USE_GEMINI_IMAGES;
   resetConfigForTesting();
   resetServerConfigForTesting();
@@ -512,52 +511,65 @@ test("snapshotMessage: includes providers info", () => {
   expect(typeof msg.providers.tts.voice).toBe("string");
   expect(typeof msg.providers.image.style).toBe("string");
   expect(msg.providers.useGeminiImages).toBe(false);
-  expect(msg.providers.useGeminiNarration).toBe(false);
+  expect(msg.providers.useNarration).toBe(true);
 });
 
-test("processInput: TTS audio messages go through sendAudio (unicast), not send (broadcast)", async () => {
-  // Enable Gemini narration so the WS-side gate doesn't short-circuit TTS.
-  process.env.GEMINI_API_KEY = "test-key";
-  process.env.USE_GEMINI_NARRATION = "true";
-  resetConfigForTesting();
-  resetServerConfigForTesting();
+test("processInput: TTS audio-ready message goes through sendAudio (unicast), not send (broadcast)", async () => {
+  // Need a working sidecar + isNarrationReady for the gate.
+  process.env.USE_NARRATION = "true";
+  process.env.NARRATOR_PROVIDER = "local,test-model";
+  process.env.ARCHIVIST_PROVIDER = "local,test-model";
+  process.env.INTERPRETER_PROVIDER = "local,test-model";
 
-  interpreterSpy.mockResolvedValue({ action: "stay" } as any);
-  narratorSpy.mockResolvedValue("Narration.");
-  archivistSpy.mockResolvedValue({
-    entries: [], threads: [], turn: 1, moved: false,
-    locationDescription: "", achievedObjectiveIndices: [],
-  } as any);
+  const { resetConfigForTesting: resetCfg } = await import("./api");
+  const { resetServerConfigForTesting: resetSrvCfg } = await import("./server");
+  const { resetSidecarStateForTesting, markSidecarReady } = await import("./sidecar");
+  resetCfg();
+  resetSrvCfg();
+  resetSidecarStateForTesting();
+  markSidecarReady(true);
 
-  // Provide a one-chunk fake stream so the TTS branch actually fires.
-  const ttsSpy = spyOn(ttsModule, "synthesizeStream").mockReturnValue(
-    new ReadableStream<Uint8Array>({
-      start(c) { c.enqueue(new Uint8Array([1, 2, 3])); c.close(); },
-    })
-  );
+  // Mock synthesizeToFile using spyOn so the export can be intercepted.
+  const ttsModule = await import("./tts");
+  const ttsSpy = spyOn(ttsModule, "synthesizeToFile").mockResolvedValue("/media/audio/abc123.wav");
 
-  const broadcasts: any[] = [];
-  const unicasts: any[] = [];
-  const baseStack: any = {
-    entries: [], threads: [], turn: 0, position: [0, 0],
-    places: {}, objectives: [], presetSlug: null,
-  };
+  try {
+    const { processInput } = await import("./server");
+    const engineModule = await import("./engine");
 
-  await processInput(
-    baseStack,
-    "look",
-    (m) => broadcasts.push(m),
-    undefined,
-    "Kore",
-    (m) => unicasts.push(m),
-  );
+    spyOn(engineModule, "interpreterTurn").mockResolvedValue({ action: "stay" } as any);
+    spyOn(engineModule, "narratorTurn").mockResolvedValue("Narration.");
+    spyOn(engineModule, "archivistTurn").mockResolvedValue({
+      entries: [], threads: [], turn: 1, moved: false,
+      locationDescription: "", achievedObjectiveIndices: [],
+    } as any);
 
-  ttsSpy.mockRestore();
+    const broadcasts: any[] = [];
+    const unicasts: any[] = [];
+    const baseStack: any = {
+      entries: [], threads: [], turn: 0, position: [0, 0],
+      places: {}, objectives: [], presetSlug: null,
+    };
 
-  const audioOnBroadcast = broadcasts.filter((m) => m.type?.startsWith("audio-"));
-  const audioOnUnicast = unicasts.filter((m) => m.type?.startsWith("audio-"));
-  expect(audioOnBroadcast).toEqual([]);
-  expect(audioOnUnicast.length).toBeGreaterThan(0);
-  expect(audioOnUnicast[0].type).toBe("audio-start");
-  expect(audioOnUnicast.at(-1)!.type).toBe("audio-end");
+    await processInput(
+      baseStack,
+      "look",
+      (m) => broadcasts.push(m),
+      undefined,
+      "noir",
+      (m) => unicasts.push(m),
+    );
+
+    const audioOnBroadcast = broadcasts.filter((m) => m.type === "audio-ready");
+    const audioOnUnicast = unicasts.filter((m) => m.type === "audio-ready");
+    expect(audioOnBroadcast).toEqual([]);
+    expect(audioOnUnicast.length).toBe(1);
+    expect(audioOnUnicast[0]).toEqual({
+      type: "audio-ready",
+      turnId: 1,
+      url: "/media/audio/abc123.wav",
+    });
+  } finally {
+    ttsSpy.mockRestore();
+  }
 });

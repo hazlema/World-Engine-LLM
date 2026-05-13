@@ -13,10 +13,17 @@ import {
   type Objective,
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
-import { synthesizeStream, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
+import { synthesizeToFile } from "./tts";
+import { spawnSidecar, waitForSidecarReady, isNarrationReady, listSidecarVoices } from "./sidecar";
 import { generateImage, IMAGE_STYLES, DEFAULT_IMAGE_STYLE, type ImageStyle } from "./gemini-image";
 import { warmupOpenRouter, logStartupRouting } from "./api";
 import { loadConfig, type Config } from "./config";
+
+// Default voice slug — must exist in tts_sidecar/voices/ after the user runs
+// generate_voices.py. The runtime voice list is fetched from the sidecar.
+const DEFAULT_VOICE = "noir";
+
+let _voiceList: string[] = [];
 
 let presets: Map<string, Preset> = new Map();
 
@@ -67,7 +74,9 @@ export interface ProviderInfo {
   tts: { provider: string; voice: string };
   image: { provider: string; style: string };
   useGeminiImages: boolean;
-  useGeminiNarration: boolean;
+  useNarration: boolean;
+  narrationReady: boolean;
+  voices: string[];
 }
 
 let serverConfig: Config | undefined;
@@ -88,10 +97,12 @@ function providerInfo(): ProviderInfo {
     narrator: { provider: c.narrator.provider, model: c.narrator.model },
     archivist: { model: c.archivist.model },
     interpreter: { provider: c.interpreter.provider, model: c.interpreter.model },
-    tts: { provider: "gemini", voice: DEFAULT_VOICE },
+    tts: { provider: "chatterbox", voice: _voiceList[0] ?? DEFAULT_VOICE },
     image: { provider: "gemini", style: DEFAULT_IMAGE_STYLE },
     useGeminiImages: c.useGeminiImages,
-    useGeminiNarration: c.useGeminiNarration,
+    useNarration: c.useNarration,
+    narrationReady: isNarrationReady(),
+    voices: _voiceList,
   };
 }
 
@@ -139,9 +150,8 @@ export type ServerMessage =
       position: [number, number];
     }
   | { type: "win" }
-  | { type: "audio-start" }
-  | { type: "audio-chunk"; data: string }
-  | { type: "audio-end" }
+  | { type: "audio-ready"; turnId: number; url: string }
+  | { type: "audio-error"; turnId: number; message: string }
   | { type: "move-blocked"; input: string }
   | { type: "error"; source: "narrator" | "archivist" | "interpreter"; message: string }
   | { type: "debug-trace"; trace: LastTurnTrace };
@@ -239,33 +249,23 @@ export async function processInput(
     return stack;
   }
 
-  // Start TTS streaming immediately after narrative; runs in parallel with archivist.
-  // Pushes audio-start / audio-chunk* / audio-end to the requesting client only.
-  const ttsPromise: Promise<void> = voice && sendAudio && getServerConfig().useGeminiNarration
+  // Generate (or cache-hit) the WAV file, then notify the originating client.
+  // Runs in parallel with the archivist call below.
+  const ttsPromise: Promise<void> = voice && sendAudio && getServerConfig().useNarration && isNarrationReady()
     ? (async () => {
-        let chunkCount = 0;
-        let totalBytes = 0;
         try {
-          sendAudio({ type: "audio-start" });
-          const stream = synthesizeStream(narrative, voice);
-          const reader = stream.getReader();
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value && value.length > 0) {
-              chunkCount++;
-              totalBytes += value.length;
-              sendAudio({ type: "audio-chunk", data: Buffer.from(value).toString("base64") });
-            }
-          }
-          // Bytes ÷ 2 (16-bit) ÷ 24000 (sample rate) = seconds of audio delivered.
-          // Compare against expected ~14 chars/sec for spoken English to spot truncation.
-          const seconds = (totalBytes / 2 / 24000).toFixed(1);
-          console.log(`[tts] complete: ${chunkCount} chunks, ${totalBytes} bytes, ${seconds}s of audio for ${narrative.length} chars`);
+          const url = await synthesizeToFile(narrative, voice);
+          // turnId is the archivist's resulting turn number, which we don't know
+          // yet here. The narrator/archivist sequence is per-turn, so stack.turn + 1
+          // matches what the archivist will land on.
+          sendAudio({ type: "audio-ready", turnId: stack.turn + 1, url });
         } catch (err) {
-          console.error(`[tts] stream errored after ${chunkCount} chunks / ${totalBytes} bytes:`, err);
-        } finally {
-          sendAudio({ type: "audio-end" });
+          console.error("[tts]", err);
+          sendAudio({
+            type: "audio-error",
+            turnId: stack.turn + 1,
+            message: err instanceof Error ? err.message : String(err),
+          });
         }
       })()
     : Promise.resolve();
@@ -445,7 +445,7 @@ async function handleClientMessage(
   }
 
   if (msg.type === "input") {
-    const voice = typeof msg.voice === "string" && GEMINI_VOICES.includes(msg.voice)
+    const voice = typeof msg.voice === "string" && msg.voice.length > 0
       ? msg.voice
       : undefined;
     const briefing = currentStack.presetSlug
@@ -470,6 +470,24 @@ async function handleClientMessage(
 async function main() {
   serverConfig = loadConfig();
   logStartupRouting();
+
+  if (serverConfig.useNarration) {
+    console.log("[tts] spawning sidecar...");
+    spawnSidecar();
+    // Fire-and-forget — the server starts listening immediately; narration
+    // becomes available once the sidecar reports ready.
+    waitForSidecarReady().then(async (ready) => {
+      if (ready) {
+        _voiceList = await listSidecarVoices();
+        console.log(`[tts] sidecar ready, voices: ${_voiceList.join(", ") || "(none — run generate_voices.py)"}`);
+      } else {
+        console.warn("[tts] sidecar did not become ready within timeout — narration disabled");
+      }
+    });
+  } else {
+    console.log("[tts] USE_NARRATION=false — sidecar not started, narration disabled");
+  }
+
   presets = await loadAllPresets();
   currentStack = await loadStack();
 
@@ -488,34 +506,13 @@ async function main() {
         return new Response("Upgrade required", { status: 426 });
       }
       if (url.pathname === "/api/voices" && req.method === "GET") {
-        if (!getServerConfig().useGeminiNarration) {
-          return new Response("USE_GEMINI_NARRATION=false", { status: 503 });
+        if (!getServerConfig().useNarration) {
+          return new Response("USE_NARRATION=false", { status: 503 });
         }
-        return Response.json({ voices: GEMINI_VOICES, default: DEFAULT_VOICE });
-      }
-      if (url.pathname === "/api/speak" && req.method === "POST") {
-        try {
-          if (!getServerConfig().useGeminiNarration) {
-            return new Response("USE_GEMINI_NARRATION=false", { status: 503 });
-          }
-          const body = await req.json() as { text?: unknown; voice?: unknown };
-          const text = typeof body.text === "string" ? body.text.trim() : "";
-          if (!text) return new Response("text required", { status: 400 });
-          if (text.length > 4000) return new Response("text too long", { status: 413 });
-          const voice = typeof body.voice === "string" && GEMINI_VOICES.includes(body.voice)
-            ? body.voice
-            : DEFAULT_VOICE;
-          const stream = synthesizeStream(text, voice);
-          return new Response(stream, {
-            headers: {
-              "Content-Type": "audio/pcm",
-              "Cache-Control": "no-store",
-            },
-          });
-        } catch (err) {
-          console.error("[/api/speak]", err);
-          return new Response("speak failed", { status: 500 });
+        if (!isNarrationReady()) {
+          return new Response("sidecar warming up", { status: 503 });
         }
+        return Response.json({ voices: _voiceList, default: _voiceList[0] ?? DEFAULT_VOICE });
       }
       if (url.pathname === "/api/voice-config" && req.method === "GET") {
         return Response.json({});
