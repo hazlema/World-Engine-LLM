@@ -149,3 +149,115 @@ describe("parseConfig — stage parsing", () => {
     )).toBe(true);
   });
 });
+
+describe("parseConfig — booleans", () => {
+  test("USE_GEMINI_IMAGES=\"true\" is true", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      USE_GEMINI_IMAGES: "true",
+      GEMINI_API_KEY: "k",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.useGeminiImages).toBe(true);
+  });
+
+  test("USE_GEMINI_IMAGES is case-insensitive on true", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      USE_GEMINI_IMAGES: "TRUE",
+      GEMINI_API_KEY: "k",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.useGeminiImages).toBe(true);
+  });
+
+  test("USE_GEMINI_NARRATION=\"1\" is FALSE (strict)", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      USE_GEMINI_NARRATION: "1",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.useGeminiNarration).toBe(false);
+  });
+
+  test("USE_GEMINI_* unset is false", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.useGeminiImages).toBe(false);
+    expect(r.config.useGeminiNarration).toBe(false);
+  });
+});
+
+describe("parseConfig — hidden tuning overrides", () => {
+  test("LOCAL_NARRATOR_TEMP parses to a number", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      LOCAL_NARRATOR_TEMP: "0.85",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.narrator.temperature).toBe(0.85);
+  });
+
+  test("LOCAL_NARRATOR_TOP_P parses to a number", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      LOCAL_NARRATOR_TOP_P: "0.9",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.narrator.topP).toBe(0.9);
+  });
+
+  test("unparseable tuning value is silently undefined (not an error)", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      LOCAL_NARRATOR_TEMP: "not-a-number",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.narrator.temperature).toBeUndefined();
+  });
+
+  test("tuning overrides apply to the correct stage", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      LOCAL_NARRATOR_TEMP: "0.95",
+      LOCAL_ARCHIVIST_TEMP: "0.5",
+      LOCAL_INTERPRETER_TEMP: "0",
+      LOCAL_NARRATOR_TOP_P: "0.95",
+      LOCAL_ARCHIVIST_TOP_P: "0.9",
+      LOCAL_INTERPRETER_TOP_P: "1",
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.narrator.temperature).toBe(0.95);
+    expect(r.config.archivist.temperature).toBe(0.5);
+    expect(r.config.interpreter.temperature).toBe(0);
+    expect(r.config.narrator.topP).toBe(0.95);
+    expect(r.config.archivist.topP).toBe(0.9);
+    expect(r.config.interpreter.topP).toBe(1);
+  });
+});

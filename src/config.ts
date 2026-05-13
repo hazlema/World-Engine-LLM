@@ -24,6 +24,34 @@ export type ParseResult =
 
 const VALID_PROVIDERS: Provider[] = ["local", "openrouter"];
 
+function parseBool(raw: string | undefined): boolean {
+  return raw !== undefined && raw.trim().toLowerCase() === "true";
+}
+
+function parseFloatOpt(raw: string | undefined): number | undefined {
+  if (raw === undefined || raw.trim() === "") return undefined;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+const TUNING_KEYS = {
+  narrator: { temp: "LOCAL_NARRATOR_TEMP", topP: "LOCAL_NARRATOR_TOP_P" },
+  archivist: { temp: "LOCAL_ARCHIVIST_TEMP", topP: "LOCAL_ARCHIVIST_TOP_P" },
+  interpreter: { temp: "LOCAL_INTERPRETER_TEMP", topP: "LOCAL_INTERPRETER_TOP_P" },
+} as const;
+
+function applyTuning(
+  stage: StageConfig,
+  env: Record<string, string | undefined>,
+  keys: { temp: string; topP: string },
+): StageConfig {
+  return {
+    ...stage,
+    temperature: parseFloatOpt(env[keys.temp]),
+    topP: parseFloatOpt(env[keys.topP]),
+  };
+}
+
 // Parses one of NARRATOR_PROVIDER / ARCHIVIST_PROVIDER / INTERPRETER_PROVIDER.
 // Returns the parsed StageConfig OR pushes an error message and returns null.
 function parseStageConfig(
@@ -88,11 +116,11 @@ export function parseConfig(env: Record<string, string | undefined>): ParseResul
       lmStudioUrl,
       openRouterApiKey: env.OPENROUTER_API_KEY ?? null,
       geminiApiKey: env.GEMINI_API_KEY ?? null,
-      narrator,
-      archivist,
-      interpreter,
-      useGeminiImages: false,
-      useGeminiNarration: false,
+      narrator: applyTuning(narrator, env, TUNING_KEYS.narrator),
+      archivist: applyTuning(archivist, env, TUNING_KEYS.archivist),
+      interpreter: applyTuning(interpreter, env, TUNING_KEYS.interpreter),
+      useGeminiImages: parseBool(env.USE_GEMINI_IMAGES),
+      useGeminiNarration: parseBool(env.USE_GEMINI_NARRATION),
     },
   };
 }
