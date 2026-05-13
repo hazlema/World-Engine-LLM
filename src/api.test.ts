@@ -1,5 +1,5 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
-import { callModel, callModelStructured, validateApiConfig } from "./api";
+import { callModel, callModelStructured, callInterpreterStructured, validateApiConfig } from "./api";
 
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 
@@ -251,6 +251,55 @@ test("openrouter narrator: surfaces 429 rate-limit message", async () => {
 
   try {
     await expect(callModel("system", "input")).rejects.toThrow(/OpenRouter rate limit/);
+  } finally {
+    process.env = orig;
+  }
+});
+
+test("openrouter interpreter: posts to openrouter URL with json schema + parses content", async () => {
+  const orig = { ...process.env };
+  process.env.INTERPRETER_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.OPENROUTER_INTERPRETER_THINKING = "off";
+
+  let capturedUrl = "";
+  let capturedBody: { response_format: { type: string }; reasoning: { effort: string } } | undefined;
+  fetchSpy.mockImplementationOnce(async (url, init) => {
+    capturedUrl = String(url);
+    capturedBody = JSON.parse((init as RequestInit).body as string);
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: '{"direction":"north"}', reasoning_content: "" } }],
+    }));
+  });
+
+  try {
+    const result = await callInterpreterStructured<{ direction: string }>(
+      "system", "go forth", "move", { type: "object" }
+    );
+    expect(result.direction).toBe("north");
+    expect(capturedUrl).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(capturedBody!.response_format.type).toBe("json_schema");
+    expect(capturedBody!.reasoning.effort).toBe("off");
+  } finally {
+    process.env = orig;
+  }
+});
+
+test("openrouter interpreter: throws on invalid JSON in content", async () => {
+  const orig = { ...process.env };
+  process.env.INTERPRETER_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+
+  fetchSpy.mockImplementationOnce(async () =>
+    new Response(JSON.stringify({
+      choices: [{ message: { content: "not json", reasoning_content: "" } }],
+    }))
+  );
+
+  try {
+    await expect(
+      callInterpreterStructured("system", "input", "test", {})
+    ).rejects.toThrow(/Invalid JSON/);
   } finally {
     process.env = orig;
   }
