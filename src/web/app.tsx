@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { TTSEngine, type EngineStatus } from "./tts";
+import { PlaybackController } from "./playback-controller";
 import { createRoot } from "react-dom/client";
 import { diffNewItems } from "./utils";
 import { parseSlashCommand } from "./slash";
@@ -167,6 +168,8 @@ function App() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const ttsRef = useRef<TTSEngine | null>(null);
   if (!ttsRef.current) ttsRef.current = new TTSEngine(setEngineStatus);
+  const playbackRef = useRef<PlaybackController | null>(null);
+  if (!playbackRef.current) playbackRef.current = new PlaybackController(ttsRef.current);
 
   const [entriesCollapsed, toggleEntries] = useCollapsed("rail.entriesCollapsed", true);
   const [threadsCollapsed, toggleThreads] = useCollapsed("rail.threadsCollapsed", true);
@@ -476,16 +479,16 @@ function App() {
       }
       if (msg.type === "audio-start") {
         const tid = serverAudioPendingTurnIdRef.current;
-        if (tid !== null) ttsRef.current?.startStream(tid);
+        if (tid !== null) playbackRef.current?.beginStream(tid);
         return;
       }
       if (msg.type === "audio-chunk") {
         const bytes = Uint8Array.from(atob(msg.data), (c) => c.charCodeAt(0));
-        ttsRef.current?.addChunk(bytes);
+        playbackRef.current?.addChunk(bytes);
         return;
       }
       if (msg.type === "audio-end") {
-        const result = ttsRef.current?.endStream();
+        const result = playbackRef.current?.endStream();
         if (result) {
           setAudioByTurn((prev) => ({ ...prev, [result.turnId]: result.url }));
           // Web Audio already played it — don't trigger <audio> autoplay
