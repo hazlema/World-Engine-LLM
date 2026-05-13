@@ -1,5 +1,6 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
-import { callModel, callModelStructured, callInterpreterStructured, validateApiConfig, resetConfigForTesting } from "./api";
+import { callModel, callModelStructured, callInterpreterStructured, resetConfigForTesting } from "./api";
+import { loadConfig as validateApiConfig } from "./config";
 
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 

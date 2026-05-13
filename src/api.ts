@@ -282,6 +282,3 @@ export async function callModelStructured<T>(
   throw lastErr;
 }
 
-// Re-export for callers that still import validateApiConfig (legacy alias).
-// Tasks that update server.ts can drop this and call loadConfig() directly.
-export { loadConfig as validateApiConfig } from "./config";
