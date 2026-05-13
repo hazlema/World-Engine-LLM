@@ -11,7 +11,7 @@ const ENV_KEYS = [
   "ARCHIVIST_PROVIDER",
   "INTERPRETER_PROVIDER",
   "USE_GEMINI_IMAGES",
-  "USE_GEMINI_NARRATION",
+  "USE_NARRATION",
   "LOCAL_NARRATOR_TEMP",
   "LOCAL_ARCHIVIST_TEMP",
   "LOCAL_INTERPRETER_TEMP",
@@ -43,7 +43,7 @@ describe("parseConfig — shape", () => {
     expect(result.config.narrator.model).toBe("nvidia/nemotron-3-nano");
     expect(result.config.lmStudioUrl).toBe("http://localhost:1234");
     expect(result.config.useGeminiImages).toBe(false);
-    expect(result.config.useGeminiNarration).toBe(false);
+    expect(result.config.useNarration).toBe(true);
   });
 });
 
@@ -177,28 +177,40 @@ describe("parseConfig — booleans", () => {
     expect(r.config.useGeminiImages).toBe(true);
   });
 
-  test("USE_GEMINI_NARRATION=\"1\" is FALSE (strict)", () => {
+  test("USE_NARRATION defaults to true when unset", () => {
     const r = parseConfig(makeEnv({
       NARRATOR_PROVIDER: "local,m",
       ARCHIVIST_PROVIDER: "local,m",
       INTERPRETER_PROVIDER: "local,m",
-      USE_GEMINI_NARRATION: "1",
     }));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.config.useGeminiNarration).toBe(false);
+    expect(r.config.useNarration).toBe(true);
   });
 
-  test("USE_GEMINI_* unset is false", () => {
+  test("USE_NARRATION=\"false\" disables narration", () => {
     const r = parseConfig(makeEnv({
       NARRATOR_PROVIDER: "local,m",
       ARCHIVIST_PROVIDER: "local,m",
       INTERPRETER_PROVIDER: "local,m",
+      USE_NARRATION: "false",
     }));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.config.useGeminiImages).toBe(false);
-    expect(r.config.useGeminiNarration).toBe(false);
+    expect(r.config.useNarration).toBe(false);
+  });
+
+  test("USE_NARRATION non-true values are treated as true (only false disables)", () => {
+    // USE_NARRATION defaults to ON. Anything not literally "false" leaves it on.
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      USE_NARRATION: "yes",  // not "false", so still true
+    }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.config.useNarration).toBe(true);
   });
 });
 
@@ -303,27 +315,12 @@ describe("parseConfig — cross-validation", () => {
     );
   });
 
-  test("USE_GEMINI_NARRATION=true requires GEMINI_API_KEY", () => {
-    const r = parseConfig(makeEnv({
-      NARRATOR_PROVIDER: "local,m",
-      ARCHIVIST_PROVIDER: "local,m",
-      INTERPRETER_PROVIDER: "local,m",
-      USE_GEMINI_NARRATION: "true",
-    }));
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.errors).toContain(
-      "USE_GEMINI_NARRATION=true but GEMINI_API_KEY is empty. Get a key at https://aistudio.google.com/app/api-keys.",
-    );
-  });
-
   test("multiple validation errors are all returned, not just the first", () => {
     const r = parseConfig(makeEnv({
       NARRATOR_PROVIDER: "openrouter,m",
       ARCHIVIST_PROVIDER: "local,m",
       INTERPRETER_PROVIDER: "local,m",
       USE_GEMINI_IMAGES: "true",
-      USE_GEMINI_NARRATION: "true",
     }));
     expect(r.ok).toBe(false);
     if (r.ok) return;

@@ -15,7 +15,7 @@ export type Config = {
   archivist: StageConfig;
   interpreter: StageConfig;
   useGeminiImages: boolean;
-  useGeminiNarration: boolean;
+  useNarration: boolean;
 };
 
 export type ParseResult =
@@ -105,7 +105,11 @@ export function parseConfig(env: Record<string, string | undefined>): ParseResul
   const interpreterRaw = parseStageConfig("INTERPRETER_PROVIDER", env.INTERPRETER_PROVIDER, errors);
 
   const useGeminiImages = parseBool(env.USE_GEMINI_IMAGES);
-  const useGeminiNarration = parseBool(env.USE_GEMINI_NARRATION);
+  // USE_NARRATION defaults to true (narration enabled when sidecar can run).
+  // Set USE_NARRATION=false to skip spawning the Python sidecar entirely.
+  const useNarration = env.USE_NARRATION === undefined
+    ? true
+    : env.USE_NARRATION.trim().toLowerCase() !== "false";
 
   // Cross-validation: providers need their API keys.
   const usesOpenRouter =
@@ -128,12 +132,6 @@ export function parseConfig(env: Record<string, string | undefined>): ParseResul
       "USE_GEMINI_IMAGES=true but GEMINI_API_KEY is empty. Get a key at https://aistudio.google.com/app/api-keys.",
     );
   }
-  if (useGeminiNarration && (env.GEMINI_API_KEY ?? "") === "") {
-    errors.push(
-      "USE_GEMINI_NARRATION=true but GEMINI_API_KEY is empty. Get a key at https://aistudio.google.com/app/api-keys.",
-    );
-  }
-
   if (errors.length > 0 || !narratorRaw || !archivistRaw || !interpreterRaw) {
     return { ok: false, errors };
   }
@@ -150,7 +148,7 @@ export function parseConfig(env: Record<string, string | undefined>): ParseResul
       archivist: applyTuning(archivistRaw, env, TUNING_KEYS.archivist),
       interpreter: applyTuning(interpreterRaw, env, TUNING_KEYS.interpreter),
       useGeminiImages,
-      useGeminiNarration,
+      useNarration,
     },
   };
 }
