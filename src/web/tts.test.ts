@@ -179,3 +179,99 @@ describe("TTSEngine.cancelStream", () => {
     }
   });
 });
+
+describe("TTSEngine.addChunk frame alignment", () => {
+  test("preserves bytes across odd-boundary chunk splits (no crackle)", async () => {
+    const samplesWritten: Float32Array[] = [];
+    const origAudioContext = (globalThis as any).AudioContext;
+    (globalThis as any).AudioContext = class {
+      sampleRate = 24000; currentTime = 0; state = "running"; destination = {};
+      async resume() {}
+      createGain() { return { gain: { value: 1 }, connect() {} }; }
+      createBuffer(_channels: number, length: number) {
+        return {
+          length,
+          duration: length / 24000,
+          copyToChannel(data: Float32Array) { samplesWritten.push(data.slice()); },
+        };
+      }
+      createBufferSource() {
+        return { buffer: null, connect() {}, start() {}, stop() {} };
+      }
+    };
+
+    try {
+      const { TTSEngine } = require("./tts");
+      const eng = new TTSEngine(() => {});
+      await eng.load();
+      eng.startStream(1);
+
+      // Chunk 1: 3 bytes [0x01, 0x02, 0x03]
+      //   Sample 1 LSB=0x01 MSB=0x02 → Int16 LE = 0x0201 = 513
+      //   Byte 0x03 is the LSB of a half-sample, must be buffered.
+      eng.addChunk(new Uint8Array([0x01, 0x02, 0x03]));
+
+      // Chunk 2: 3 bytes [0x04, 0x05, 0x06]
+      //   Combined with leftover [0x03] → [0x03, 0x04, 0x05, 0x06] (4 bytes)
+      //   Sample 2 = Int16 LE of [0x03, 0x04] = 0x0403 = 1027
+      //   Sample 3 = Int16 LE of [0x05, 0x06] = 0x0605 = 1541
+      eng.addChunk(new Uint8Array([0x04, 0x05, 0x06]));
+
+      // Total samples produced: 3.
+      const totalSamples = samplesWritten.reduce((n, s) => n + s.length, 0);
+      expect(totalSamples).toBe(3);
+
+      // First call wrote 1 sample (513), second wrote 2 samples (1027, 1541).
+      expect(samplesWritten[0].length).toBe(1);
+      expect(samplesWritten[1].length).toBe(2);
+      expect(samplesWritten[0][0]).toBeCloseTo(513 / 32768, 4);
+      expect(samplesWritten[1][0]).toBeCloseTo(1027 / 32768, 4);
+      expect(samplesWritten[1][1]).toBeCloseTo(1541 / 32768, 4);
+    } finally {
+      (globalThis as any).AudioContext = origAudioContext;
+    }
+  });
+
+  test("clears odd-byte leftover when startStream is called for a new turn", async () => {
+    const samplesWritten: Float32Array[] = [];
+    const origAudioContext = (globalThis as any).AudioContext;
+    (globalThis as any).AudioContext = class {
+      sampleRate = 24000; currentTime = 0; state = "running"; destination = {};
+      async resume() {}
+      createGain() { return { gain: { value: 1 }, connect() {} }; }
+      createBuffer(_channels: number, length: number) {
+        return {
+          length,
+          duration: length / 24000,
+          copyToChannel(data: Float32Array) { samplesWritten.push(data.slice()); },
+        };
+      }
+      createBufferSource() {
+        return { buffer: null, connect() {}, start() {}, stop() {} };
+      }
+    };
+
+    try {
+      const { TTSEngine } = require("./tts");
+      const eng = new TTSEngine(() => {});
+      await eng.load();
+
+      // Stream 1: end with odd-byte leftover (orphan).
+      eng.startStream(1);
+      eng.addChunk(new Uint8Array([0xFF])); // 1 byte, becomes leftover.
+      // Don't call endStream — simulate the stream being abandoned.
+
+      // Stream 2: fresh stream. The 0xFF leftover must NOT leak in.
+      eng.startStream(2);
+      eng.addChunk(new Uint8Array([0x10, 0x20])); // 1 clean sample.
+
+      // Only the second stream's sample should appear.
+      const totalSamples = samplesWritten.reduce((n, s) => n + s.length, 0);
+      expect(totalSamples).toBe(1);
+      const expected = 0x2010 / 32768; // little-endian: 0x10 is LSB, 0x20 is MSB
+      expect(samplesWritten[0][0]).toBeCloseTo(expected, 4);
+    } finally {
+      (globalThis as any).AudioContext = origAudioContext;
+    }
+  });
+});

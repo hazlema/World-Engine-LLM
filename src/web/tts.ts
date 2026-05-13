@@ -77,6 +77,7 @@ export class TTSEngine {
   private streamingTurnId: number | null = null;
   private streamingChunks: Uint8Array[] = [];
   private nextStartTime = 0;
+  private oddByteLeftover: Uint8Array | null = null;
 
   constructor(private onStatus: (s: EngineStatus) => void) {}
 
@@ -130,17 +131,40 @@ export class TTSEngine {
     this.streamingTurnId = turnId;
     this.streamingChunks = [];
     this.nextStartTime = ctx.currentTime + 0.05;
+    this.oddByteLeftover = null;
   }
 
   addChunk(pcm: Uint8Array) {
     const ctx = this.audioCtx;
     if (!ctx || this.streamingTurnId === null || pcm.byteLength === 0) return;
+
+    // Preserve the ORIGINAL chunk for blob caching. The blob path concatenates
+    // chunks contiguously so cross-chunk byte alignment is fine there.
     this.streamingChunks.push(pcm);
 
-    const sampleCount = pcm.byteLength >> 1;
+    // For LIVE playback each chunk becomes its own AudioBuffer interpreted
+    // independently. A chunk ending mid-sample (odd byte count) would split
+    // a 16-bit sample across two buffers — every subsequent sample shifts
+    // by one byte and the audio crackles. Buffer the orphan byte and prepend
+    // it to the next chunk so the per-buffer samples stay aligned.
+    let bytes: Uint8Array;
+    if (this.oddByteLeftover) {
+      bytes = new Uint8Array(this.oddByteLeftover.length + pcm.length);
+      bytes.set(this.oddByteLeftover, 0);
+      bytes.set(pcm, this.oddByteLeftover.length);
+      this.oddByteLeftover = null;
+    } else {
+      bytes = pcm;
+    }
+    if (bytes.length & 1) {
+      this.oddByteLeftover = bytes.slice(bytes.length - 1);
+      bytes = bytes.subarray(0, bytes.length - 1);
+    }
+
+    const sampleCount = bytes.byteLength >> 1;
     if (sampleCount === 0) return;
 
-    const dv = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const floats = new Float32Array(sampleCount);
     for (let i = 0; i < sampleCount; i++) {
       floats[i] = dv.getInt16(i * 2, true) / 32768;
@@ -167,6 +191,7 @@ export class TTSEngine {
     this.streamingTurnId = null;
     this.streamingChunks = [];
     this.nextStartTime = 0;
+    this.oddByteLeftover = null;
   }
 
   endStream(): StreamEndResult | null {
