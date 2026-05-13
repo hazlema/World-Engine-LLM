@@ -6,7 +6,7 @@ export type ControllerState = "idle" | "streaming" | "rendering";
 // so the controller is unit-testable against a shim.
 type TTSCore = Pick<
   TTSEngine,
-  "stopAll" | "cancelStream" | "startStream" | "addChunk" | "endStream" | "render" | "cache"
+  "stopAll" | "cancelStream" | "startStream" | "addChunk" | "endStream" | "render" | "cache" | "hasAudibleSources"
 >;
 
 export class PlaybackController {
@@ -18,6 +18,13 @@ export class PlaybackController {
 
   get state(): ControllerState { return this._state; }
   get currentTurnId(): number | null { return this._currentTurnId; }
+
+  // True when anything is currently making sound or scheduled to: an in-progress
+  // live stream, an HTTP render, or tail BufferSources from a previously-ended
+  // stream that are still queued in Web Audio.
+  isAudible(): boolean {
+    return this._state !== "idle" || this.tts.hasAudibleSources();
+  }
 
   // WebSocket streaming path: server pushes audio-start, audio-chunk*, audio-end.
   beginStream(turnId: number): void {

@@ -98,6 +98,11 @@ export class TTSEngine {
     this.onStatus(s);
   }
 
+  // True when any Web Audio source is currently playing or scheduled to play.
+  hasAudibleSources(): boolean {
+    return this.activeSources.length > 0 || this.tailSources.length > 0;
+  }
+
   private stopActiveSources() {
     for (const src of this.activeSources) {
       try { src.stop(0); } catch { /* already stopped */ }

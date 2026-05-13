@@ -759,6 +759,7 @@ function App() {
                     if (text) { setLastNarratedId(t.id); renderTurn(t.id, text); }
                   }}
                   onStopAudio={() => playbackRef.current?.abortCurrent()}
+                  isAudible={() => playbackRef.current?.isAudible() ?? false}
                 />
               ) : (
                 <TurnBlock
@@ -769,6 +770,7 @@ function App() {
                   volume={volume}
                   onPlay={() => { if (t.narrative) { setLastNarratedId(t.id); renderTurn(t.id, t.narrative); } }}
                   onStopAudio={() => playbackRef.current?.abortCurrent()}
+                  isAudible={() => playbackRef.current?.isAudible() ?? false}
                   imageUrl={imageByTurn[t.id]}
                   imagePending={imagePending.has(t.id)}
                   onGenerateImage={t.narrative ? () => renderImage(t.id, t.narrative!) : undefined}
@@ -1105,13 +1107,14 @@ function GalleryModal({ onClose, onZoom }: { onClose: () => void; onZoom?: (url:
   );
 }
 
-function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, imageUrl, imagePending, onGenerateImage, onZoomImage }: {
+function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, isAudible, imageUrl, imagePending, onGenerateImage, onZoomImage }: {
   turn: Turn;
   audioUrl?: string;
   autoPlay?: boolean;
   volume?: number;
   onPlay: () => void;
   onStopAudio?: () => void;
+  isAudible?: () => boolean;
   imageUrl?: string;
   imagePending?: boolean;
   onGenerateImage?: () => void;
@@ -1145,8 +1148,16 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
             type="button"
             className={`turn-speaker ${audioUrl ? "ready" : ""}`}
             onClick={() => {
-              if (audioUrl && audioRef.current) {
+              // If audio is currently audible (live stream, tail, render, or this
+              // turn's cached <audio> element), the click is a pure STOP. Don't
+              // restart on the same click — the user wanted silence.
+              const elementPlaying = audioRef.current ? !audioRef.current.paused : false;
+              if (elementPlaying || isAudible?.()) {
                 onStopAudio?.();
+                if (audioRef.current) audioRef.current.pause();
+                return;
+              }
+              if (audioUrl && audioRef.current) {
                 audioRef.current.currentTime = 0;
                 audioRef.current.play().catch((err: unknown) => {
                   if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
@@ -1197,13 +1208,14 @@ function TurnBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, 
   );
 }
 
-function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio }: {
+function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio, isAudible }: {
   turn: SystemTurn;
   audioUrl?: string;
   autoPlay?: boolean;
   volume?: number;
   onPlay?: () => void;
   onStopAudio?: () => void;
+  isAudible?: () => boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
@@ -1228,13 +1240,18 @@ function SystemBlock({ turn, audioUrl, autoPlay, volume = 1, onPlay, onStopAudio
               type="button"
               className={`turn-speaker ${audioUrl ? "ready" : ""}`}
               onClick={() => {
-                if (audioUrl && audioRef.current) {
+                const elementPlaying = audioRef.current ? !audioRef.current.paused : false;
+                if (elementPlaying || isAudible?.()) {
                   onStopAudio?.();
+                  if (audioRef.current) audioRef.current.pause();
+                  return;
+                }
+                if (audioUrl && audioRef.current) {
                   audioRef.current.currentTime = 0;
                   audioRef.current.play().catch((err: unknown) => {
                     if ((err as Error)?.name !== "NotAllowedError") console.warn("[narration] play failed", err);
                   });
-                } else {
+                } else if (onPlay) {
                   onPlay();
                 }
               }}
