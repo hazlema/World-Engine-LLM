@@ -133,13 +133,18 @@ NARRATOR_PROVIDER=openrouter,nvidia/nemotron-3-nano
 ARCHIVIST_PROVIDER=local,nvidia/nemotron-3-nano
 INTERPRETER_PROVIDER=local,nvidia/nemotron-3-nano
 
-## Optional Gemini features (each requires GEMINI_API_KEY)
+## Optional features
+USE_NARRATION=true
 GEMINI_API_KEY=
 USE_GEMINI_IMAGES=false
-USE_GEMINI_NARRATION=false
 ```
 
 The server validates this at startup. If anything is missing or malformed, it prints every problem to stderr and exits before opening the port.
+
+**Narration is a separate setup.** Narration uses a self-hosted Python sidecar
+(ResembleAI Chatterbox Turbo). It's free but requires Python 3.11+ and ideally
+an NVIDIA GPU. See `tts_sidecar/README.md` for installation. If you skip it,
+set `USE_NARRATION=false` — the game runs fine without narration.
 
 **Lowest-effort path:** an OpenRouter key with all three stages set to `openrouter,nvidia/nemotron-3-nano`. No local model required, no Gemini key required. The free Nemotron tier is rate-limited but workable for solo play.
 

@@ -45,3 +45,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .claude/worktrees/env-reorg/
 .claude/worktrees/chatterbox-tts/
 .openrouter-key
+
+# Generated audio files (re-created on demand from the disk cache)
+media/audio/
+
+# Python sidecar virtualenv (if user creates one in-tree)
+tts_sidecar/.venv/
+tts_sidecar/__pycache__/
+tts_sidecar/.pytest_cache/
