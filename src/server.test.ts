@@ -1,7 +1,8 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
 import * as ttsModule from "./gemini-tts";
-import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, type ServerMessage } from "./server";
+import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, resetServerConfigForTesting, type ServerMessage } from "./server";
+import { resetConfigForTesting } from "./api";
 import type { WorldStack } from "./stack";
 import type { Preset } from "./presets";
 
@@ -20,6 +21,11 @@ const emptyStack: WorldStack = {
 };
 
 beforeEach(() => {
+  process.env.NARRATOR_PROVIDER = "local,test-model";
+  process.env.ARCHIVIST_PROVIDER = "local,test-model";
+  process.env.INTERPRETER_PROVIDER = "local,test-model";
+  resetConfigForTesting();
+  resetServerConfigForTesting();
   interpreterSpy = spyOn(engine, "interpreterTurn");
   narratorSpy = spyOn(engine, "narratorTurn");
   archivistSpy = spyOn(engine, "archivistTurn");
@@ -29,6 +35,14 @@ afterEach(() => {
   interpreterSpy.mockRestore();
   narratorSpy.mockRestore();
   archivistSpy.mockRestore();
+  delete process.env.NARRATOR_PROVIDER;
+  delete process.env.ARCHIVIST_PROVIDER;
+  delete process.env.INTERPRETER_PROVIDER;
+  delete process.env.GEMINI_API_KEY;
+  delete process.env.USE_GEMINI_NARRATION;
+  delete process.env.USE_GEMINI_IMAGES;
+  resetConfigForTesting();
+  resetServerConfigForTesting();
 });
 
 test("processInput: stay action does not change position", async () => {
@@ -493,13 +507,21 @@ test("snapshotMessage: includes providers info", () => {
   expect(msg.type).toBe("snapshot");
   if (msg.type !== "snapshot") throw new Error("type guard");
   expect(msg.providers).toBeDefined();
-  expect(msg.providers.interpreter.provider).toMatch(/^(local|gemini)$/);
+  expect(msg.providers.interpreter.provider).toMatch(/^(local|openrouter)$/);
   expect(typeof msg.providers.narrator.model).toBe("string");
   expect(typeof msg.providers.tts.voice).toBe("string");
   expect(typeof msg.providers.image.style).toBe("string");
+  expect(msg.providers.useGeminiImages).toBe(false);
+  expect(msg.providers.useGeminiNarration).toBe(false);
 });
 
 test("processInput: TTS audio messages go through sendAudio (unicast), not send (broadcast)", async () => {
+  // Enable Gemini narration so the WS-side gate doesn't short-circuit TTS.
+  process.env.GEMINI_API_KEY = "test-key";
+  process.env.USE_GEMINI_NARRATION = "true";
+  resetConfigForTesting();
+  resetServerConfigForTesting();
+
   interpreterSpy.mockResolvedValue({ action: "stay" } as any);
   narratorSpy.mockResolvedValue("Narration.");
   archivistSpy.mockResolvedValue({

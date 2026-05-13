@@ -15,7 +15,8 @@ import {
 import { loadAllPresets, type Preset } from "./presets";
 import { synthesizeStream, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
 import { generateImage, IMAGE_STYLES, DEFAULT_IMAGE_STYLE, type ImageStyle } from "./gemini-image";
-import { validateApiConfig, warmupOpenRouter } from "./api";
+import { warmupOpenRouter, logStartupRouting } from "./api";
+import { loadConfig, type Config } from "./config";
 
 let presets: Map<string, Preset> = new Map();
 
@@ -39,7 +40,7 @@ export interface PresetSummary {
 
 export interface InterpreterTrace {
   action: InterpretedAction["action"];
-  provider: "local" | "gemini";
+  provider: "local" | "openrouter";
 }
 
 export interface ArchivistTrace {
@@ -62,44 +63,41 @@ export interface LastTurnTrace {
 export interface ProviderInfo {
   narrator: { provider: string; model: string };
   archivist: { model: string };
-  interpreter: { provider: "local" | "gemini"; model: string };
+  interpreter: { provider: "local" | "openrouter"; model: string };
   tts: { provider: string; voice: string };
   image: { provider: string; style: string };
+  useGeminiImages: boolean;
+  useGeminiNarration: boolean;
 }
 
-function buildProviderInfo(): ProviderInfo {
-  const localModel = process.env.LOCAL_MODEL || "google/gemma-3-12b";
-  const narratorLocalModel = process.env.LOCAL_NARRATOR_MODEL || localModel;
-  const archivistLocalModel = process.env.LOCAL_ARCHIVIST_MODEL || localModel;
-  const interpreterLocalModel = process.env.LOCAL_INTERPRETER_MODEL || localModel;
-  const narratorProvider = process.env.NARRATOR_PROVIDER || "local";
-  const narratorGeminiModel = process.env.NARRATOR_GEMINI_MODEL || "gemini-2.5-flash";
-  const interpreterGeminiModel = process.env.INTERPRETER_GEMINI_MODEL || "gemini-2.5-flash";
-  const intProv = interpreterProvider();
+let serverConfig: Config | undefined;
+
+/** For tests only — call before each test that exercises snapshotMessage or processInput. */
+export function resetServerConfigForTesting(): void {
+  serverConfig = undefined;
+}
+
+function getServerConfig(): Config {
+  if (!serverConfig) serverConfig = loadConfig();
+  return serverConfig;
+}
+
+function providerInfo(): ProviderInfo {
+  const c = getServerConfig();
   return {
-    narrator: {
-      provider: narratorProvider,
-      model: narratorProvider === "gemini" ? narratorGeminiModel : narratorLocalModel,
-    },
-    archivist: { model: archivistLocalModel },
-    interpreter: {
-      provider: intProv,
-      model: intProv === "gemini" ? interpreterGeminiModel : interpreterLocalModel,
-    },
+    narrator: { provider: c.narrator.provider, model: c.narrator.model },
+    archivist: { model: c.archivist.model },
+    interpreter: { provider: c.interpreter.provider, model: c.interpreter.model },
     tts: { provider: "gemini", voice: DEFAULT_VOICE },
     image: { provider: "gemini", style: DEFAULT_IMAGE_STYLE },
+    useGeminiImages: c.useGeminiImages,
+    useGeminiNarration: c.useGeminiNarration,
   };
 }
-
-const PROVIDER_INFO: ProviderInfo = buildProviderInfo();
 
 let lastTurnTrace: LastTurnTrace | null = null;
 export function getLastTurnTrace(): LastTurnTrace | null {
   return lastTurnTrace;
-}
-
-function interpreterProvider(): "local" | "gemini" {
-  return process.env.INTERPRETER_PROVIDER === "gemini" ? "gemini" : "local";
 }
 
 function buildLastTurnTrace(args: {
@@ -113,7 +111,7 @@ function buildLastTurnTrace(args: {
     ts: new Date().toISOString(),
     turn: args.turn,
     input: args.input,
-    interpreter: { action: args.action.action, provider: interpreterProvider() },
+    interpreter: { action: args.action.action, provider: getServerConfig().interpreter.provider },
     archivist: args.archivist,
     ...(args.error ? { error: args.error } : {}),
   };
@@ -243,7 +241,7 @@ export async function processInput(
 
   // Start TTS streaming immediately after narrative; runs in parallel with archivist.
   // Pushes audio-start / audio-chunk* / audio-end to the requesting client only.
-  const ttsPromise: Promise<void> = voice && sendAudio
+  const ttsPromise: Promise<void> = voice && sendAudio && getServerConfig().useGeminiNarration
     ? (async () => {
         let chunkCount = 0;
         let totalBytes = 0;
@@ -384,7 +382,7 @@ export function snapshotMessage(stack: WorldStack): ServerMessage {
     position: stack.position,
     presetSlug: stack.presetSlug,
     presets: presetSummaries(),
-    providers: PROVIDER_INFO,
+    providers: providerInfo(),
   };
 }
 
@@ -470,7 +468,8 @@ async function handleClientMessage(
 }
 
 async function main() {
-  validateApiConfig();
+  serverConfig = loadConfig();
+  logStartupRouting();
   presets = await loadAllPresets();
   currentStack = await loadStack();
 
@@ -489,10 +488,16 @@ async function main() {
         return new Response("Upgrade required", { status: 426 });
       }
       if (url.pathname === "/api/voices" && req.method === "GET") {
+        if (!getServerConfig().useGeminiNarration) {
+          return new Response("USE_GEMINI_NARRATION=false", { status: 503 });
+        }
         return Response.json({ voices: GEMINI_VOICES, default: DEFAULT_VOICE });
       }
       if (url.pathname === "/api/speak" && req.method === "POST") {
         try {
+          if (!getServerConfig().useGeminiNarration) {
+            return new Response("USE_GEMINI_NARRATION=false", { status: 503 });
+          }
           const body = await req.json() as { text?: unknown; voice?: unknown };
           const text = typeof body.text === "string" ? body.text.trim() : "";
           if (!text) return new Response("text required", { status: 400 });
@@ -517,6 +522,9 @@ async function main() {
       }
       if (url.pathname === "/api/image" && req.method === "POST") {
         try {
+          if (!getServerConfig().useGeminiImages) {
+            return new Response("USE_GEMINI_IMAGES=false", { status: 503 });
+          }
           const body = await req.json() as { text?: unknown; style?: unknown };
           const text = typeof body.text === "string" ? body.text.trim() : "";
           if (!text) return new Response("text required", { status: 400 });

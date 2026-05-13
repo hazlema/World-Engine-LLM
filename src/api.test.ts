@@ -1,20 +1,34 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
-import { callModel, callModelStructured, callInterpreterStructured, validateApiConfig } from "./api";
+import { callModel, callModelStructured, callInterpreterStructured, resetConfigForTesting } from "./api";
+import { loadConfig as validateApiConfig } from "./config";
 
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 
+const ENV_KEYS = [
+  "LM_STUDIO_URL",
+  "OPENROUTER_API_KEY",
+  "GEMINI_API_KEY",
+  "NARRATOR_PROVIDER",
+  "ARCHIVIST_PROVIDER",
+  "INTERPRETER_PROVIDER",
+  "USE_GEMINI_IMAGES",
+  "USE_GEMINI_NARRATION",
+  "LOCAL_NARRATOR_TEMP",
+  "LOCAL_ARCHIVIST_TEMP",
+  "LOCAL_INTERPRETER_TEMP",
+  "LOCAL_NARRATOR_TOP_P",
+  "LOCAL_ARCHIVIST_TOP_P",
+  "LOCAL_INTERPRETER_TOP_P",
+];
+
 beforeEach(() => {
-  delete process.env.NARRATOR_PROVIDER;
-  delete process.env.INTERPRETER_PROVIDER;
-  delete process.env.ARCHIVIST_PROVIDER;
-  delete process.env.OPENROUTER_API_KEY;
-  delete process.env.OPENROUTER_MODEL;
-  delete process.env.OPENROUTER_NARRATOR_MODEL;
-  delete process.env.OPENROUTER_INTERPRETER_MODEL;
-  delete process.env.OPENROUTER_ARCHIVIST_MODEL;
-  delete process.env.OPENROUTER_NARRATOR_THINKING;
-  delete process.env.OPENROUTER_INTERPRETER_THINKING;
-  delete process.env.OPENROUTER_ARCHIVIST_THINKING;
+  for (const k of ENV_KEYS) delete process.env[k];
+  // Default to all-local with the test model so any test that doesn't
+  // override the provider gets a valid config.
+  process.env.NARRATOR_PROVIDER = "local,test-model";
+  process.env.ARCHIVIST_PROVIDER = "local,test-model";
+  process.env.INTERPRETER_PROVIDER = "local,test-model";
+  resetConfigForTesting();
   fetchSpy = spyOn(globalThis, "fetch");
 });
 
@@ -39,7 +53,7 @@ test("callModel: throws on empty content and reasoning", async () => {
       choices: [{ message: { content: "", reasoning_content: "" } }],
     }))
   );
-  await expect(callModel("system", "input")).rejects.toThrow("No message in response");
+  await expect(callModel("system", "input")).rejects.toThrow("No content in response");
 });
 
 test("callModel: throws on non-ok response", async () => {
@@ -100,9 +114,19 @@ test("callModelStructured: throws on empty content and reasoning_content", async
       choices: [{ message: { content: "", reasoning_content: "" } }],
     }))
   );
+  fetchSpy.mockImplementationOnce(async () =>
+    new Response(JSON.stringify({
+      choices: [{ message: { content: "", reasoning_content: "" } }],
+    }))
+  );
+  fetchSpy.mockImplementationOnce(async () =>
+    new Response(JSON.stringify({
+      choices: [{ message: { content: "", reasoning_content: "" } }],
+    }))
+  );
   await expect(
     callModelStructured("system", "input", "test", {})
-  ).rejects.toThrow("No content in structured response");
+  ).rejects.toThrow("No content in response");
 });
 
 test("callModel: translates AbortError to API timeout", async () => {
@@ -116,6 +140,12 @@ test("callModelStructured: throws on non-ok response", async () => {
   fetchSpy.mockImplementationOnce(async () =>
     new Response("Server error", { status: 500 })
   );
+  fetchSpy.mockImplementationOnce(async () =>
+    new Response("Server error", { status: 500 })
+  );
+  fetchSpy.mockImplementationOnce(async () =>
+    new Response("Server error", { status: 500 })
+  );
   await expect(callModelStructured("system", "input", "test", {})).rejects.toThrow("API 500");
 });
 
@@ -123,13 +153,14 @@ test("callModel: throws on invalid JSON response body", async () => {
   fetchSpy.mockImplementationOnce(async () =>
     new Response("not valid json")
   );
-  await expect(callModel("system", "input")).rejects.toThrow("Invalid JSON from narrator API");
+  await expect(callModel("system", "input")).rejects.toThrow("Invalid JSON from local API");
 });
 
 test("validateApiConfig: accepts NARRATOR_PROVIDER=openrouter with key set", () => {
   const orig = { ...process.env };
-  process.env.NARRATOR_PROVIDER = "openrouter";
+  process.env.NARRATOR_PROVIDER = "openrouter,test/model:free";
   process.env.OPENROUTER_API_KEY = "test-key";
+  resetConfigForTesting();
   const exitSpy = spyOn(process, "exit").mockImplementation(() => { throw new Error("exit called"); });
   try {
     expect(() => validateApiConfig()).not.toThrow();
@@ -139,35 +170,29 @@ test("validateApiConfig: accepts NARRATOR_PROVIDER=openrouter with key set", () 
   }
 });
 
-test("validateApiConfig: rejects ARCHIVIST_PROVIDER=gemini", () => {
-  const orig = { ...process.env };
-  process.env.ARCHIVIST_PROVIDER = "gemini";
-  const errSpy = spyOn(console, "error").mockImplementation(() => {});
-  const exitSpy = spyOn(process, "exit").mockImplementation((() => { throw new Error("exit"); }) as never);
+test("validateApiConfig: rejects gemini as a stage provider", () => {
+  process.env.ARCHIVIST_PROVIDER = "gemini,gemini-2.5-flash";
+  resetConfigForTesting();
+  const exitSpy = spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
   try {
-    expect(() => validateApiConfig()).toThrow("exit");
-    const calls = errSpy.mock.calls.map(c => String(c[0])).join("\n");
-    expect(calls).toContain("ARCHIVIST_PROVIDER");
-    expect(calls).toContain("local");
-    expect(calls).toContain("openrouter");
+    expect(() => validateApiConfig()).toThrow();
   } finally {
-    errSpy.mockRestore();
     exitSpy.mockRestore();
-    process.env = orig;
   }
 });
 
 test("validateApiConfig: exits when any stage is openrouter but OPENROUTER_API_KEY missing", () => {
   const orig = { ...process.env };
-  process.env.NARRATOR_PROVIDER = "openrouter";
+  process.env.NARRATOR_PROVIDER = "openrouter,test/model:free";
   delete process.env.OPENROUTER_API_KEY;
+  resetConfigForTesting();
   const errSpy = spyOn(console, "error").mockImplementation(() => {});
   const exitSpy = spyOn(process, "exit").mockImplementation((() => { throw new Error("exit"); }) as never);
   try {
     expect(() => validateApiConfig()).toThrow("exit");
     const calls = errSpy.mock.calls.map(c => String(c[0])).join("\n");
     expect(calls).toContain("OPENROUTER_API_KEY");
-    expect(calls).toContain("NARRATOR_PROVIDER=openrouter");
+    expect(calls).toContain("NARRATOR_PROVIDER");
   } finally {
     errSpy.mockRestore();
     exitSpy.mockRestore();
@@ -175,12 +200,10 @@ test("validateApiConfig: exits when any stage is openrouter but OPENROUTER_API_K
   }
 });
 
-test("openrouter narrator: posts to openrouter URL with bearer + thinking on by default", async () => {
-  const orig = { ...process.env };
-  process.env.NARRATOR_PROVIDER = "openrouter";
+test("openrouter narrator: posts to openrouter URL with bearer and configured model", async () => {
+  process.env.NARRATOR_PROVIDER = "openrouter,test/model:free";
   process.env.OPENROUTER_API_KEY = "test-key";
-  process.env.OPENROUTER_MODEL = "test/model:free";
-  delete process.env.OPENROUTER_NARRATOR_THINKING;
+  resetConfigForTesting();
 
   let capturedUrl = "";
   let capturedInit: RequestInit | undefined;
@@ -192,48 +215,19 @@ test("openrouter narrator: posts to openrouter URL with bearer + thinking on by 
     }));
   });
 
-  try {
-    const result = await callModel("system", "input");
-    expect(result).toBe("remote prose");
-    expect(capturedUrl).toBe("https://openrouter.ai/api/v1/chat/completions");
-    const headers = capturedInit!.headers as Record<string, string>;
-    expect(headers["Authorization"]).toBe("Bearer test-key");
-    const body = JSON.parse(capturedInit!.body as string);
-    expect(body.model).toBe("test/model:free");
-    expect(body.reasoning).toEqual({ effort: "medium" });
-  } finally {
-    process.env = orig;
-  }
+  const result = await callModel("system", "input");
+  expect(result).toBe("remote prose");
+  expect(capturedUrl).toBe("https://openrouter.ai/api/v1/chat/completions");
+  const headers = capturedInit!.headers as Record<string, string>;
+  expect(headers["Authorization"]).toBe("Bearer test-key");
+  const body = JSON.parse(capturedInit!.body as string);
+  expect(body.model).toBe("test/model:free");
 });
 
-test("openrouter narrator: per-stage thinking=off disables reasoning", async () => {
-  const orig = { ...process.env };
-  process.env.NARRATOR_PROVIDER = "openrouter";
+test("openrouter narrator: uses model from NARRATOR_PROVIDER tuple", async () => {
+  process.env.NARRATOR_PROVIDER = "openrouter,custom-model";
   process.env.OPENROUTER_API_KEY = "test-key";
-  process.env.OPENROUTER_NARRATOR_THINKING = "off";
-
-  let capturedBody: { reasoning: { effort: string } } | undefined;
-  fetchSpy.mockImplementationOnce(async (_url, init) => {
-    capturedBody = JSON.parse((init as RequestInit).body as string);
-    return new Response(JSON.stringify({
-      choices: [{ message: { content: "fast prose", reasoning_content: "" } }],
-    }));
-  });
-
-  try {
-    await callModel("system", "input");
-    expect(capturedBody!.reasoning).toEqual({ effort: "none" });
-  } finally {
-    process.env = orig;
-  }
-});
-
-test("openrouter narrator: uses OPENROUTER_NARRATOR_MODEL override when set", async () => {
-  const orig = { ...process.env };
-  process.env.NARRATOR_PROVIDER = "openrouter";
-  process.env.OPENROUTER_API_KEY = "test-key";
-  process.env.OPENROUTER_MODEL = "default/model:free";
-  process.env.OPENROUTER_NARRATOR_MODEL = "specific/narrator:free";
+  resetConfigForTesting();
 
   let capturedBody: { model: string } | undefined;
   fetchSpy.mockImplementationOnce(async (_url, init) => {
@@ -243,38 +237,29 @@ test("openrouter narrator: uses OPENROUTER_NARRATOR_MODEL override when set", as
     }));
   });
 
-  try {
-    await callModel("system", "input");
-    expect(capturedBody!.model).toBe("specific/narrator:free");
-  } finally {
-    process.env = orig;
-  }
+  await callModel("system", "input");
+  expect(capturedBody!.model).toBe("custom-model");
 });
 
 test("openrouter narrator: surfaces 429 rate-limit message", async () => {
-  const orig = { ...process.env };
-  process.env.NARRATOR_PROVIDER = "openrouter";
+  process.env.NARRATOR_PROVIDER = "openrouter,test/model:free";
   process.env.OPENROUTER_API_KEY = "test-key";
+  resetConfigForTesting();
 
   fetchSpy.mockImplementationOnce(async () =>
     new Response(JSON.stringify({ error: { message: "Rate limit exceeded" } }), { status: 429 })
   );
 
-  try {
-    await expect(callModel("system", "input")).rejects.toThrow(/OpenRouter rate limit/);
-  } finally {
-    process.env = orig;
-  }
+  await expect(callModel("system", "input")).rejects.toThrow(/OpenRouter rate limit/);
 });
 
 test("openrouter interpreter: posts to openrouter URL with json schema + parses content", async () => {
-  const orig = { ...process.env };
-  process.env.INTERPRETER_PROVIDER = "openrouter";
+  process.env.INTERPRETER_PROVIDER = "openrouter,test/model:free";
   process.env.OPENROUTER_API_KEY = "test-key";
-  process.env.OPENROUTER_INTERPRETER_THINKING = "off";
+  resetConfigForTesting();
 
   let capturedUrl = "";
-  let capturedBody: { response_format: { type: string }; reasoning: { effort: string } } | undefined;
+  let capturedBody: { response_format: { type: string } } | undefined;
   fetchSpy.mockImplementationOnce(async (url, init) => {
     capturedUrl = String(url);
     capturedBody = JSON.parse((init as RequestInit).body as string);
@@ -283,23 +268,18 @@ test("openrouter interpreter: posts to openrouter URL with json schema + parses 
     }));
   });
 
-  try {
-    const result = await callInterpreterStructured<{ direction: string }>(
-      "system", "go forth", "move", { type: "object" }
-    );
-    expect(result.direction).toBe("north");
-    expect(capturedUrl).toBe("https://openrouter.ai/api/v1/chat/completions");
-    expect(capturedBody!.response_format.type).toBe("json_schema");
-    expect(capturedBody!.reasoning.effort).toBe("none");
-  } finally {
-    process.env = orig;
-  }
+  const result = await callInterpreterStructured<{ direction: string }>(
+    "system", "go forth", "move", { type: "object" }
+  );
+  expect(result.direction).toBe("north");
+  expect(capturedUrl).toBe("https://openrouter.ai/api/v1/chat/completions");
+  expect(capturedBody!.response_format.type).toBe("json_schema");
 });
 
 test("openrouter interpreter: throws on invalid JSON in content", async () => {
-  const orig = { ...process.env };
-  process.env.INTERPRETER_PROVIDER = "openrouter";
+  process.env.INTERPRETER_PROVIDER = "openrouter,test/model:free";
   process.env.OPENROUTER_API_KEY = "test-key";
+  resetConfigForTesting();
 
   fetchSpy.mockImplementationOnce(async () =>
     new Response(JSON.stringify({
@@ -307,20 +287,15 @@ test("openrouter interpreter: throws on invalid JSON in content", async () => {
     }))
   );
 
-  try {
-    await expect(
-      callInterpreterStructured("system", "input", "test", {})
-    ).rejects.toThrow(/Invalid JSON/);
-  } finally {
-    process.env = orig;
-  }
+  await expect(
+    callInterpreterStructured("system", "input", "test", {})
+  ).rejects.toThrow(/Invalid JSON/);
 });
 
 test("openrouter archivist: posts to openrouter URL with json schema + retries on failure", async () => {
-  const orig = { ...process.env };
-  process.env.ARCHIVIST_PROVIDER = "openrouter";
+  process.env.ARCHIVIST_PROVIDER = "openrouter,test/model:free";
   process.env.OPENROUTER_API_KEY = "test-key";
-  process.env.OPENROUTER_ARCHIVIST_THINKING = "off";
+  resetConfigForTesting();
 
   // First call fails, second succeeds — verifies the retry wrapper still applies
   fetchSpy
@@ -331,21 +306,17 @@ test("openrouter archivist: posts to openrouter URL with json schema + retries o
       }))
     );
 
-  try {
-    const result = await callModelStructured<{ entries: string[] }>(
-      "system", "input", "facts", { type: "object" }
-    );
-    expect(result.entries).toEqual(["a", "b"]);
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-  } finally {
-    process.env = orig;
-  }
+  const result = await callModelStructured<{ entries: string[] }>(
+    "system", "input", "facts", { type: "object" }
+  );
+  expect(result.entries).toEqual(["a", "b"]);
+  expect(fetchSpy).toHaveBeenCalledTimes(2);
 });
 
 test("openrouter archivist: prefers content over reasoning_content", async () => {
-  const orig = { ...process.env };
-  process.env.ARCHIVIST_PROVIDER = "openrouter";
+  process.env.ARCHIVIST_PROVIDER = "openrouter,test/model:free";
   process.env.OPENROUTER_API_KEY = "test-key";
+  resetConfigForTesting();
 
   fetchSpy.mockImplementationOnce(async () =>
     new Response(JSON.stringify({
@@ -358,12 +329,8 @@ test("openrouter archivist: prefers content over reasoning_content", async () =>
     }))
   );
 
-  try {
-    const result = await callModelStructured<{ entries: string[] }>(
-      "system", "input", "facts", { type: "object" }
-    );
-    expect(result.entries).toEqual(["from content"]);
-  } finally {
-    process.env = orig;
-  }
+  const result = await callModelStructured<{ entries: string[] }>(
+    "system", "input", "facts", { type: "object" }
+  );
+  expect(result.entries).toEqual(["from content"]);
 });

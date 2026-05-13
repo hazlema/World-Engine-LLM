@@ -65,9 +65,11 @@ type LastTurnTrace = {
 type ProviderInfo = {
   narrator: { provider: string; model: string };
   archivist: { model: string };
-  interpreter: { provider: "local" | "gemini"; model: string };
+  interpreter: { provider: "local" | "openrouter"; model: string };
   tts: { provider: string; voice: string };
   image: { provider: string; style: string };
+  useGeminiImages: boolean;
+  useGeminiNarration: boolean;
 };
 
 type ServerMessage =
@@ -830,17 +832,27 @@ function App() {
             <div className="split-button">
               <button
                 className={`action-button split-face ${narrationOn ? "critical" : ""}`}
-                onClick={toggleNarration}
-                disabled={!connected}
-                title={engineStatus.kind === "error" ? engineStatus.message : "toggle narration"}
+                onClick={() => { if (providers?.useGeminiNarration) toggleNarration(); }}
+                disabled={!connected || !providers?.useGeminiNarration}
+                aria-disabled={!providers?.useGeminiNarration}
+                title={
+                  !providers?.useGeminiNarration
+                    ? "USE_GEMINI_NARRATION=false in .env"
+                    : engineStatus.kind === "error" ? engineStatus.message : "toggle narration"
+                }
               >
                 voice {narrationOn ? "on" : "off"}
               </button>
               <button
                 className={`action-button split-arrow ${narrationOn ? "critical" : ""}`}
-                onClick={() => setModal("voice")}
-                disabled={!connected}
-                title="narration settings"
+                onClick={() => { if (providers?.useGeminiNarration) setModal("voice"); }}
+                disabled={!connected || !providers?.useGeminiNarration}
+                aria-disabled={!providers?.useGeminiNarration}
+                title={
+                  !providers?.useGeminiNarration
+                    ? "USE_GEMINI_NARRATION=false in .env"
+                    : "narration settings"
+                }
                 aria-label="narration settings"
               >
                 ▾
@@ -849,17 +861,27 @@ function App() {
             <div className="split-button">
               <button
                 className={`action-button split-face ${imagesOn ? "critical" : ""}`}
-                onClick={toggleImages}
-                disabled={!connected}
-                title="auto-generate an image for each new turn"
+                onClick={() => { if (providers?.useGeminiImages) toggleImages(); }}
+                disabled={!connected || !providers?.useGeminiImages}
+                aria-disabled={!providers?.useGeminiImages}
+                title={
+                  !providers?.useGeminiImages
+                    ? "USE_GEMINI_IMAGES=false in .env"
+                    : "auto-generate an image for each new turn"
+                }
               >
                 images {imagesOn ? "on" : "off"}
               </button>
               <button
                 className={`action-button split-arrow ${imagesOn ? "critical" : ""}`}
-                onClick={() => setModal("image")}
-                disabled={!connected}
-                title="image settings"
+                onClick={() => { if (providers?.useGeminiImages) setModal("image"); }}
+                disabled={!connected || !providers?.useGeminiImages}
+                aria-disabled={!providers?.useGeminiImages}
+                title={
+                  !providers?.useGeminiImages
+                    ? "USE_GEMINI_IMAGES=false in .env"
+                    : "image settings"
+                }
                 aria-label="image settings"
               >
                 ▾
