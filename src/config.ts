@@ -100,11 +100,41 @@ function parseStageConfig(
 export function parseConfig(env: Record<string, string | undefined>): ParseResult {
   const errors: string[] = [];
 
-  const narrator = parseStageConfig("NARRATOR_PROVIDER", env.NARRATOR_PROVIDER, errors);
-  const archivist = parseStageConfig("ARCHIVIST_PROVIDER", env.ARCHIVIST_PROVIDER, errors);
-  const interpreter = parseStageConfig("INTERPRETER_PROVIDER", env.INTERPRETER_PROVIDER, errors);
+  const narratorRaw = parseStageConfig("NARRATOR_PROVIDER", env.NARRATOR_PROVIDER, errors);
+  const archivistRaw = parseStageConfig("ARCHIVIST_PROVIDER", env.ARCHIVIST_PROVIDER, errors);
+  const interpreterRaw = parseStageConfig("INTERPRETER_PROVIDER", env.INTERPRETER_PROVIDER, errors);
 
-  if (!narrator || !archivist || !interpreter) {
+  const useGeminiImages = parseBool(env.USE_GEMINI_IMAGES);
+  const useGeminiNarration = parseBool(env.USE_GEMINI_NARRATION);
+
+  // Cross-validation: providers need their API keys.
+  const usesOpenRouter =
+    narratorRaw?.provider === "openrouter" ||
+    archivistRaw?.provider === "openrouter" ||
+    interpreterRaw?.provider === "openrouter";
+  if (usesOpenRouter && (env.OPENROUTER_API_KEY ?? "") === "") {
+    // Cite the first stage that uses openrouter for the error label.
+    const firstName =
+      narratorRaw?.provider === "openrouter" ? "NARRATOR_PROVIDER" :
+      archivistRaw?.provider === "openrouter" ? "ARCHIVIST_PROVIDER" :
+      "INTERPRETER_PROVIDER";
+    errors.push(
+      `${firstName}=openrouter but OPENROUTER_API_KEY is empty. Get a key at https://openrouter.ai/keys.`,
+    );
+  }
+
+  if (useGeminiImages && (env.GEMINI_API_KEY ?? "") === "") {
+    errors.push(
+      "USE_GEMINI_IMAGES=true but GEMINI_API_KEY is empty. Get a key at https://aistudio.google.com/app/api-keys.",
+    );
+  }
+  if (useGeminiNarration && (env.GEMINI_API_KEY ?? "") === "") {
+    errors.push(
+      "USE_GEMINI_NARRATION=true but GEMINI_API_KEY is empty. Get a key at https://aistudio.google.com/app/api-keys.",
+    );
+  }
+
+  if (errors.length > 0 || !narratorRaw || !archivistRaw || !interpreterRaw) {
     return { ok: false, errors };
   }
 
@@ -116,11 +146,27 @@ export function parseConfig(env: Record<string, string | undefined>): ParseResul
       lmStudioUrl,
       openRouterApiKey: env.OPENROUTER_API_KEY ?? null,
       geminiApiKey: env.GEMINI_API_KEY ?? null,
-      narrator: applyTuning(narrator, env, TUNING_KEYS.narrator),
-      archivist: applyTuning(archivist, env, TUNING_KEYS.archivist),
-      interpreter: applyTuning(interpreter, env, TUNING_KEYS.interpreter),
-      useGeminiImages: parseBool(env.USE_GEMINI_IMAGES),
-      useGeminiNarration: parseBool(env.USE_GEMINI_NARRATION),
+      narrator: applyTuning(narratorRaw, env, TUNING_KEYS.narrator),
+      archivist: applyTuning(archivistRaw, env, TUNING_KEYS.archivist),
+      interpreter: applyTuning(interpreterRaw, env, TUNING_KEYS.interpreter),
+      useGeminiImages,
+      useGeminiNarration,
     },
   };
+}
+
+/**
+ * Production entry point: parse process.env, print every error to stderr,
+ * exit(1) on failure. Server startup uses this. Tests use parseConfig directly
+ * so they don't terminate the test process.
+ */
+export function loadConfig(): Config {
+  const result = parseConfig(process.env);
+  if (!result.ok) {
+    for (const err of result.errors) {
+      console.error(`[config] ${err}`);
+    }
+    process.exit(1);
+  }
+  return result.config;
 }

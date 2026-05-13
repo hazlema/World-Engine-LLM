@@ -261,3 +261,74 @@ describe("parseConfig — hidden tuning overrides", () => {
     expect(r.config.interpreter.topP).toBe(1);
   });
 });
+
+describe("parseConfig — cross-validation", () => {
+  test("openrouter stage requires OPENROUTER_API_KEY", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "openrouter,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors).toContain(
+      "NARRATOR_PROVIDER=openrouter but OPENROUTER_API_KEY is empty. Get a key at https://openrouter.ai/keys.",
+    );
+  });
+
+  test("openrouter requirement only fires once when multiple stages use it", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "openrouter,m",
+      ARCHIVIST_PROVIDER: "openrouter,m",
+      INTERPRETER_PROVIDER: "openrouter,m",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    // One representative error is enough — listing each stage separately is noise.
+    const orErrors = r.errors.filter((e) => e.includes("OPENROUTER_API_KEY is empty"));
+    expect(orErrors.length).toBe(1);
+  });
+
+  test("USE_GEMINI_IMAGES=true requires GEMINI_API_KEY", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      USE_GEMINI_IMAGES: "true",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors).toContain(
+      "USE_GEMINI_IMAGES=true but GEMINI_API_KEY is empty. Get a key at https://aistudio.google.com/app/api-keys.",
+    );
+  });
+
+  test("USE_GEMINI_NARRATION=true requires GEMINI_API_KEY", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "local,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      USE_GEMINI_NARRATION: "true",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors).toContain(
+      "USE_GEMINI_NARRATION=true but GEMINI_API_KEY is empty. Get a key at https://aistudio.google.com/app/api-keys.",
+    );
+  });
+
+  test("multiple validation errors are all returned, not just the first", () => {
+    const r = parseConfig(makeEnv({
+      NARRATOR_PROVIDER: "openrouter,m",
+      ARCHIVIST_PROVIDER: "local,m",
+      INTERPRETER_PROVIDER: "local,m",
+      USE_GEMINI_IMAGES: "true",
+      USE_GEMINI_NARRATION: "true",
+    }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors.length).toBeGreaterThanOrEqual(2);
+    expect(r.errors.some((e) => e.includes("OPENROUTER_API_KEY is empty"))).toBe(true);
+    expect(r.errors.some((e) => e.includes("USE_GEMINI_IMAGES=true but GEMINI_API_KEY"))).toBe(true);
+  });
+});
