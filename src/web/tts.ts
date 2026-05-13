@@ -79,6 +79,11 @@ export class TTSEngine {
   // A NEW startStream must NOT kill these — otherwise we cut off the tail
   // of the previous narration (missing-last-sentence bug).
   private tailSources: AudioBufferSourceNode[] = [];
+  // Latest scheduled "end time" of any released-but-still-playing source.
+  // A new stream queues at max(ctx.currentTime + cushion, tailEndTime) so it
+  // plays AFTER the tail rather than overlapping with it (overlap causes the
+  // perceived octave drop + rasp from two voices summing).
+  private tailEndTime = 0;
 
   // Streaming state for server-pushed PCM chunks.
   private streamingTurnId: number | null = null;
@@ -105,6 +110,7 @@ export class TTSEngine {
       try { src.stop(0); } catch { /* already stopped */ }
     }
     this.tailSources = [];
+    this.tailEndTime = 0;
   }
 
   // Stop EVERY tracked Web Audio source plus any <audio> element playback.
@@ -151,7 +157,11 @@ export class TTSEngine {
     this.stopActiveSources();
     this.streamingTurnId = turnId;
     this.streamingChunks = [];
-    this.nextStartTime = ctx.currentTime + 0.05;
+    // Queue this stream AFTER any in-flight tail so the two narrations play
+    // sequentially instead of overlapping. Overlap sums waveforms which
+    // sounds like an octave drop + rasp. If the tail has already finished
+    // (tailEndTime < now), fall back to the normal cushion.
+    this.nextStartTime = Math.max(ctx.currentTime + 0.05, this.tailEndTime);
     this.oddByteLeftover = null;
   }
 
@@ -225,12 +235,16 @@ export class TTSEngine {
     this.streamingChunks = [];
 
     // Release current-stream sources to the tail bucket so they play out
-    // naturally even if a new stream starts. Wire onended so finished
-    // sources drop out of the tail array on their own.
+    // naturally even if a new stream starts. Capture when the last scheduled
+    // tail source will finish — the next stream queues after that.
+    if (this.activeSources.length > 0) {
+      this.tailEndTime = this.nextStartTime;
+    }
     for (const src of this.activeSources) {
       src.onended = () => {
         const idx = this.tailSources.indexOf(src);
         if (idx >= 0) this.tailSources.splice(idx, 1);
+        if (this.tailSources.length === 0) this.tailEndTime = 0;
       };
       this.tailSources.push(src);
     }
