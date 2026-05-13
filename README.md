@@ -59,37 +59,36 @@ Each turn has a `▦` button stacked under the speaker icon in the margin. Click
 
 When a turn produces an image you want to keep, click the ★ button next to the `▦` — it saves the image to the server's `media/` directory. To browse everything you've saved, type `/gallery` in the chat window. A wide modal opens with the selected image on top, prev/next arrows on either side, and a horizontally-scrolling thumbnail strip below. Click any thumbnail to jump to it, click the big image to lightbox it, ← / → keys to navigate, ESC to close.
 
-### Configuration
+## Configuration
 
-All settings live in `.env`. 
+All settings live in `.env`. Copy `.env-sample` to get started.
 
 ```bash
-## Path to lm-studio's endpoint (include user:pass@) if configured.
+## Required for any stage with provider=local
 LM_STUDIO_URL=http://localhost:1234
 
-## Which local model serves what function
-LOCAL_MODEL=nvidia/nemotron-3-nano
-LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano
-LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano
-LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano
+## Required for any stage with provider=openrouter
+OPENROUTER_API_KEY=
 
-## Only required for narration and per-turn images.
-GEMINI_API_KEY=your_key_here
+## One line per pipeline stage: provider,model
+## provider must be one of: local, openrouter
+NARRATOR_PROVIDER=openrouter,nvidia/nemotron-3-nano
+ARCHIVIST_PROVIDER=local,nvidia/nemotron-3-nano
+INTERPRETER_PROVIDER=local,nvidia/nemotron-3-nano
 
-## You don't have to touch these, for development purposes
-LOCAL_NARRATOR_TEMP=0.95
-LOCAL_ARCHIVIST_TEMP=0.5
-LOCAL_INTERPRETER_TEMP=0
-LOCAL_NARRATOR_TOP_P=0.95
-LOCAL_ARCHIVIST_TOP_P=0.9
-LOCAL_INTERPRETER_TOP_P=1.0
-
-## Optional: route the narrator through Gemini.
-## NARRATOR_PROVIDER=gemini
-## NARRATOR_GEMINI_MODEL=gemini-2.5-flash
-## INTERPRETER_PROVIDER=gemini
-## INTERPRETER_GEMINI_MODEL=gemini-2.5-flash
+## Optional Gemini features (each requires GEMINI_API_KEY)
+GEMINI_API_KEY=
+USE_GEMINI_IMAGES=false
+USE_GEMINI_NARRATION=false
 ```
+
+The server validates this at startup. If anything is missing or malformed, it prints every problem to stderr and exits before opening the port.
+
+**Lowest-effort path:** an OpenRouter key with all three stages set to `openrouter,nvidia/nemotron-3-nano`. No local model required, no Gemini key required. The free Nemotron tier is rate-limited but workable for solo play.
+
+**Fully local path:** LM Studio running on `localhost:1234` with the Nemotron-3-Nano model loaded, all three stages set to `local,nvidia/nemotron-3-nano`, no OpenRouter key needed.
+
+**Hidden tuning overrides** for debugging: `LOCAL_NARRATOR_TEMP`, `LOCAL_ARCHIVIST_TEMP`, `LOCAL_INTERPRETER_TEMP` and the matching `_TOP_P` variants. If set, they're sent to LM Studio with each call. If unset (the default), the call omits these parameters and the model's own defaults apply.
 
 ### Recommended local models
 
