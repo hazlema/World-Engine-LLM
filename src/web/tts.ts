@@ -159,6 +159,16 @@ export class TTSEngine {
     this.activeSources.push(src);
   }
 
+  // Abort an in-flight WS streaming session without producing a blob.
+  // Used by the playback controller when a newer audio source arrives
+  // mid-stream (e.g. voice change, sound toggle off, next turn).
+  cancelStream(): void {
+    this.stopActiveSources();
+    this.streamingTurnId = null;
+    this.streamingChunks = [];
+    this.nextStartTime = 0;
+  }
+
   endStream(): StreamEndResult | null {
     const turnId = this.streamingTurnId;
     if (turnId === null) return null;
@@ -179,8 +189,9 @@ export class TTSEngine {
 
   // --- HTTP-streaming path (system briefings, manual replay before audio is cached) ---
 
-  render(turnId: number, text: string, voice?: string): Promise<RenderResult> {
+  render(turnId: number, text: string, voice?: string, signal?: AbortSignal): Promise<RenderResult> {
     return this.queue.enqueue(async () => {
+      if (signal?.aborted) throw new DOMException("aborted", "AbortError");
       const cached = this.cache.get(turnId);
       if (cached) return { url: cached, durationMs: 0 };
 
@@ -192,6 +203,7 @@ export class TTSEngine {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, voice }),
+        signal,
       });
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
@@ -203,6 +215,10 @@ export class TTSEngine {
       this.startStream(turnId);
       const reader = res.body!.getReader();
       while (true) {
+        if (signal?.aborted) {
+          try { await reader.cancel(); } catch { /* ignore */ }
+          throw new DOMException("aborted", "AbortError");
+        }
         const { done, value } = await reader.read();
         if (done) break;
         // If a newer stream took ownership (e.g. WS audio-start for a new turn),

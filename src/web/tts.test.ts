@@ -96,3 +96,86 @@ describe("TTSEngine.stopAll", () => {
     }
   });
 });
+
+describe("TTSEngine.render abort", () => {
+  test("render(text, voice, signal) rejects with AbortError when signal aborts mid-stream", async () => {
+    const origFetch = globalThis.fetch;
+    const origAudioContext = (globalThis as any).AudioContext;
+
+    // Fake an AudioContext that "loads" successfully.
+    (globalThis as any).AudioContext = class {
+      sampleRate = 24000;
+      currentTime = 0;
+      state = "running";
+      destination = {};
+      async resume() {}
+      createGain() { return { gain: { value: 1 }, connect() {} }; }
+      createBuffer() { return { copyToChannel() {}, duration: 0.1 }; }
+      createBufferSource() {
+        return { buffer: null, connect() {}, start() {}, stop() {} };
+      }
+    };
+
+    // Fetch returns a stream that never completes until aborted.
+    let cancelled = false;
+    (globalThis as any).fetch = (_url: string, init?: RequestInit) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          // Emit one chunk immediately, then hang.
+          controller.enqueue(new Uint8Array([0, 0]));
+          if (signal) {
+            signal.addEventListener("abort", () => {
+              cancelled = true;
+              controller.error(new DOMException("aborted", "AbortError"));
+            });
+          }
+        },
+      });
+      return Promise.resolve(new Response(stream, { status: 200 }));
+    };
+
+    try {
+      const { TTSEngine } = require("./tts");
+      const eng = new TTSEngine(() => {});
+      const ac = new AbortController();
+      const p = eng.render(1, "hello", undefined, ac.signal);
+      // Let the stream get going, then abort.
+      await new Promise((r) => setTimeout(r, 10));
+      ac.abort();
+      await expect(p).rejects.toThrow();
+      expect(cancelled).toBe(true);
+    } finally {
+      globalThis.fetch = origFetch;
+      (globalThis as any).AudioContext = origAudioContext;
+    }
+  });
+});
+
+describe("TTSEngine.cancelStream", () => {
+  test("clears streaming state without producing a cached blob", () => {
+    const origAudioContext = (globalThis as any).AudioContext;
+    (globalThis as any).AudioContext = class {
+      sampleRate = 24000; currentTime = 0; state = "running"; destination = {};
+      async resume() {}
+      createGain() { return { gain: { value: 1 }, connect() {} }; }
+      createBuffer() { return { copyToChannel() {}, duration: 0.1 }; }
+      createBufferSource() { return { buffer: null, connect() {}, start() {}, stop() {} }; }
+    };
+    try {
+      const { TTSEngine } = require("./tts");
+      const eng = new TTSEngine(() => {});
+      return (async () => {
+        await eng.load();
+        eng.startStream(42);
+        eng.addChunk(new Uint8Array([1, 2, 3, 4]));
+        eng.cancelStream();
+        // endStream should now report null since cancelStream wiped state.
+        expect(eng.endStream()).toBeNull();
+        expect(eng.cache.get(42)).toBeNull();
+      })();
+    } finally {
+      (globalThis as any).AudioContext = origAudioContext;
+    }
+  });
+});
