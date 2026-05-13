@@ -33,7 +33,7 @@ You'll need [Bun](https://bun.com) and an OpenAI-compatible local model server. 
    bun install
    ```
 
-2. **Start your local model server.** In LM Studio, download and load [`nvidia/nemotron-3-nano`](https://lmstudio.ai/models/nemotron-3) (IQ3_K_L GGUF — see [Recommended local models](#recommended-local-models)) and start the server on the default port (`http://localhost:1234`). **Turn thinking OFF** in LM Studio's Developer tab on the model's Reasoning setting — otherwise narrator turns take ~30s. With it off they run ~2.3s.
+2. **Start your local model server.** In LM Studio, download and load the IQ3_K_L GGUF from [lmstudio-community/NVIDIA-Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/lmstudio-community/NVIDIA-Nemotron-3-Nano-30B-A3B-GGUF) (see [Recommended local models](#recommended-local-models)) and start the server on the default port (`http://localhost:1234`). **Turn thinking OFF** in LM Studio's Developer tab on the model's Reasoning setting — otherwise narrator turns take ~30s. With it off they run ~2.3s.
 
    Smaller 4B-class models often work too but tend to drift on nuanced rules. Larger models (Gemma 3 27B, Llama 3.1 70B, etc.) handle the rules with even more nuance if you have the VRAM. Other OpenAI-compatible servers (Ollama with the OpenAI shim, llama.cpp's `llama-server`, vLLM, etc.) work the same way. The endpoint and model names are constants at the top of `src/api.ts` — edit those lines to point at whatever you're running.
 
@@ -123,7 +123,7 @@ After working through a 12-model narrator bake-off and a follow-up training expe
 - **Game-mode strictness** — refuses player-declared unestablished abilities *in fiction*. Player says *"use my magic cloak and transport to the moon"*; world says *"the cloak shudders, but the stone remains beneath you — the moon hangs distant and cold, unreachable by cloth and will."* No fine-tuning required.
 - **Acceptable latency on consumer hardware** — full turn under ~7 seconds on a 16 GB GPU.
 
-**Download:** [`nvidia/nemotron-3-nano`](https://lmstudio.ai/models/nemotron-3) from LM Studio's model browser. Pick the **IQ3_K_L** quant — that's ~10 GB VRAM and the prose quality survives the quantization cleanly. Higher quants (Q4_K_M, etc.) work too if you have the headroom but offer no meaningful quality bump over Q3_K_L on this prompt.
+**Download:** [lmstudio-community/NVIDIA-Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/lmstudio-community/NVIDIA-Nemotron-3-Nano-30B-A3B-GGUF) — pick the **IQ3_K_L** quant file. The model is Nvidia's Nemotron-3-Nano 30B-A3B (mixture-of-experts: 30B total params, ~3B active per token). At Q3_K_L it's ~10 GB VRAM and the prose quality survives the quantization cleanly. Higher quants (Q4_K_M, etc.) work too if you have the headroom but offer no meaningful quality bump over Q3_K_L on this prompt. LM Studio serves it under the id `nvidia/nemotron-3-nano`.
 
 **Config:** all three stages route to the same model — no per-stage split needed.
 
