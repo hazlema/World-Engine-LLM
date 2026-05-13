@@ -19,12 +19,21 @@ const ARCHIVIST_RETRIES = 3;
 
 // Narrator can be routed to Gemini for richer prose. Archivist + interpreter
 // always use the local model (structured-extraction tasks where Gemma is fine).
-const NARRATOR_PROVIDER = (process.env.NARRATOR_PROVIDER ?? "local").toLowerCase();
 const NARRATOR_GEMINI_MODEL = process.env.NARRATOR_GEMINI_MODEL ?? "gemini-2.5-flash";
 
 const INTERPRETER_MODEL = process.env.LOCAL_INTERPRETER_MODEL ?? LOCAL_MODEL;
-const INTERPRETER_PROVIDER = (process.env.INTERPRETER_PROVIDER ?? "local").toLowerCase();
 const INTERPRETER_GEMINI_MODEL = process.env.INTERPRETER_GEMINI_MODEL ?? "gemini-2.5-flash";
+
+// Per-call helpers so tests can flip env vars without re-importing the module.
+function narratorProvider(): string {
+  return (process.env.NARRATOR_PROVIDER ?? "local").toLowerCase();
+}
+function interpreterProvider(): string {
+  return (process.env.INTERPRETER_PROVIDER ?? "local").toLowerCase();
+}
+function archivistProvider(): string {
+  return (process.env.ARCHIVIST_PROVIDER ?? "local").toLowerCase();
+}
 
 // Per-stage sampling for LOCAL calls. Temperature defaults preserve previous
 // behavior; top_p is undefined unless explicitly set (LM Studio default kicks in).
@@ -55,16 +64,16 @@ function logStage(job: string, provider: string, model: string, temp?: number, t
 }
 logStage(
   "narrator",
-  NARRATOR_PROVIDER,
-  NARRATOR_PROVIDER === "gemini" ? NARRATOR_GEMINI_MODEL : NARRATOR_MODEL,
+  narratorProvider(),
+  narratorProvider() === "gemini" ? NARRATOR_GEMINI_MODEL : NARRATOR_MODEL,
   LOCAL_NARRATOR_TEMP,
   LOCAL_NARRATOR_TOP_P,
 );
 logStage("archivist", "local", ARCHIVIST_MODEL, LOCAL_ARCHIVIST_TEMP, LOCAL_ARCHIVIST_TOP_P);
 logStage(
   "interpreter",
-  INTERPRETER_PROVIDER,
-  INTERPRETER_PROVIDER === "gemini" ? INTERPRETER_GEMINI_MODEL : INTERPRETER_MODEL,
+  interpreterProvider(),
+  interpreterProvider() === "gemini" ? INTERPRETER_GEMINI_MODEL : INTERPRETER_MODEL,
   LOCAL_INTERPRETER_TEMP,
   LOCAL_INTERPRETER_TOP_P,
 );
@@ -73,26 +82,45 @@ logStage(
 // import this module without process.exit firing on a real-but-test-broken
 // .env. Call from the actual server entry point (src/server.ts main()).
 export function validateApiConfig(): void {
-  const VALID_PROVIDERS = ["local", "gemini"];
-  for (const [name, value] of [
-    ["NARRATOR_PROVIDER", NARRATOR_PROVIDER],
-    ["INTERPRETER_PROVIDER", INTERPRETER_PROVIDER],
-  ] as const) {
-    if (!VALID_PROVIDERS.includes(value)) {
-      console.error(`[api] ${name}="${value}" is invalid. Must be "local" or "gemini".`);
+  const VALID = ["local", "gemini", "openrouter"];
+  const VALID_ARCHIVIST = ["local", "openrouter"];
+
+  const checks: Array<[string, string, string[]]> = [
+    ["NARRATOR_PROVIDER", narratorProvider(), VALID],
+    ["INTERPRETER_PROVIDER", interpreterProvider(), VALID],
+    ["ARCHIVIST_PROVIDER", archivistProvider(), VALID_ARCHIVIST],
+  ];
+  for (const [name, value, valid] of checks) {
+    if (!valid.includes(value)) {
+      console.error(`[api] ${name}="${value}" is invalid. Must be one of: ${valid.join(", ")}.`);
       console.error(`[api] (If you meant to pick a local model id, use LOCAL_MODEL or LOCAL_${name.replace("_PROVIDER", "_MODEL")} instead.)`);
       process.exit(1);
     }
   }
 
-  const geminiNeeded = NARRATOR_PROVIDER === "gemini" || INTERPRETER_PROVIDER === "gemini";
+  const geminiNeeded = narratorProvider() === "gemini" || interpreterProvider() === "gemini";
   if (geminiNeeded && !process.env.GEMINI_API_KEY) {
     const stages = [
-      NARRATOR_PROVIDER === "gemini" ? "NARRATOR_PROVIDER=gemini" : null,
-      INTERPRETER_PROVIDER === "gemini" ? "INTERPRETER_PROVIDER=gemini" : null,
+      narratorProvider() === "gemini" ? "NARRATOR_PROVIDER=gemini" : null,
+      interpreterProvider() === "gemini" ? "INTERPRETER_PROVIDER=gemini" : null,
     ].filter(Boolean).join(" and ");
     console.error(`[api] ${stages} but GEMINI_API_KEY is not set.`);
     console.error(`[api] Either set GEMINI_API_KEY in .env, or switch to local (the default).`);
+    process.exit(1);
+  }
+
+  const orNeeded =
+    narratorProvider() === "openrouter" ||
+    interpreterProvider() === "openrouter" ||
+    archivistProvider() === "openrouter";
+  if (orNeeded && !process.env.OPENROUTER_API_KEY) {
+    const stages = [
+      narratorProvider() === "openrouter" ? "NARRATOR_PROVIDER=openrouter" : null,
+      interpreterProvider() === "openrouter" ? "INTERPRETER_PROVIDER=openrouter" : null,
+      archivistProvider() === "openrouter" ? "ARCHIVIST_PROVIDER=openrouter" : null,
+    ].filter(Boolean).join(" and ");
+    console.error(`[api] ${stages} but OPENROUTER_API_KEY is not set.`);
+    console.error(`[api] Either set OPENROUTER_API_KEY in .env (https://openrouter.ai/keys), or switch to local.`);
     process.exit(1);
   }
 }
@@ -165,7 +193,7 @@ export async function callInterpreterStructured<T>(
   schemaName: string,
   schema: object
 ): Promise<T> {
-  if (INTERPRETER_PROVIDER === "gemini") {
+  if (interpreterProvider() === "gemini") {
     return callInterpreterGemini<T>(systemPrompt, input, schema);
   }
 
@@ -223,7 +251,7 @@ export async function callInterpreterStructured<T>(
 }
 
 export async function callModel(systemPrompt: string, input: string): Promise<string> {
-  if (NARRATOR_PROVIDER === "gemini") return callNarratorGemini(systemPrompt, input);
+  if (narratorProvider() === "gemini") return callNarratorGemini(systemPrompt, input);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

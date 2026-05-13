@@ -1,5 +1,5 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
-import { callModel, callModelStructured } from "./api";
+import { callModel, callModelStructured, validateApiConfig } from "./api";
 
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 
@@ -113,4 +113,53 @@ test("callModel: throws on invalid JSON response body", async () => {
     new Response("not valid json")
   );
   await expect(callModel("system", "input")).rejects.toThrow("Invalid JSON from narrator API");
+});
+
+test("validateApiConfig: accepts NARRATOR_PROVIDER=openrouter with key set", () => {
+  const orig = { ...process.env };
+  process.env.NARRATOR_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "test-key";
+  const exitSpy = spyOn(process, "exit").mockImplementation(() => { throw new Error("exit called"); });
+  try {
+    expect(() => validateApiConfig()).not.toThrow();
+  } finally {
+    exitSpy.mockRestore();
+    process.env = orig;
+  }
+});
+
+test("validateApiConfig: rejects ARCHIVIST_PROVIDER=gemini", () => {
+  const orig = { ...process.env };
+  process.env.ARCHIVIST_PROVIDER = "gemini";
+  const errSpy = spyOn(console, "error").mockImplementation(() => {});
+  const exitSpy = spyOn(process, "exit").mockImplementation((() => { throw new Error("exit"); }) as never);
+  try {
+    expect(() => validateApiConfig()).toThrow("exit");
+    const calls = errSpy.mock.calls.map(c => String(c[0])).join("\n");
+    expect(calls).toContain("ARCHIVIST_PROVIDER");
+    expect(calls).toContain("local");
+    expect(calls).toContain("openrouter");
+  } finally {
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
+    process.env = orig;
+  }
+});
+
+test("validateApiConfig: exits when any stage is openrouter but OPENROUTER_API_KEY missing", () => {
+  const orig = { ...process.env };
+  process.env.NARRATOR_PROVIDER = "openrouter";
+  delete process.env.OPENROUTER_API_KEY;
+  const errSpy = spyOn(console, "error").mockImplementation(() => {});
+  const exitSpy = spyOn(process, "exit").mockImplementation((() => { throw new Error("exit"); }) as never);
+  try {
+    expect(() => validateApiConfig()).toThrow("exit");
+    const calls = errSpy.mock.calls.map(c => String(c[0])).join("\n");
+    expect(calls).toContain("OPENROUTER_API_KEY");
+    expect(calls).toContain("NARRATOR_PROVIDER=openrouter");
+  } finally {
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
+    process.env = orig;
+  }
 });
