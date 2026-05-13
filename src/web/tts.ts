@@ -71,7 +71,14 @@ export class TTSEngine {
   status: EngineStatus = { kind: "idle" };
   private audioCtx: AudioContext | null = null;
   private gainNode: GainNode | null = null;
+  // Sources for the CURRENT in-progress stream. Killed by the next stream
+  // pre-empting this one (startStream), or by an explicit abort.
   private activeSources: AudioBufferSourceNode[] = [];
+  // Sources from streams that ended naturally (audio-end fired) but still
+  // have scheduled BufferSources playing out over the next few seconds.
+  // A NEW startStream must NOT kill these — otherwise we cut off the tail
+  // of the previous narration (missing-last-sentence bug).
+  private tailSources: AudioBufferSourceNode[] = [];
 
   // Streaming state for server-pushed PCM chunks.
   private streamingTurnId: number | null = null;
@@ -93,10 +100,19 @@ export class TTSEngine {
     this.activeSources = [];
   }
 
-  // Stop both Web Audio streaming sources AND any <audio> element playback.
-  // Call before starting any new audio so streams and replays never overlap.
+  private stopTailSources() {
+    for (const src of this.tailSources) {
+      try { src.stop(0); } catch { /* already stopped */ }
+    }
+    this.tailSources = [];
+  }
+
+  // Stop EVERY tracked Web Audio source plus any <audio> element playback.
+  // Used by user-initiated aborts (speaker click, voice change, sound toggle,
+  // new game). NOT called by startStream — see startStream's comment for why.
   stopAll() {
     this.stopActiveSources();
+    this.stopTailSources();
     if (typeof document !== "undefined") {
       document.querySelectorAll("audio").forEach((a) => (a as HTMLAudioElement).pause());
     }
@@ -127,7 +143,12 @@ export class TTSEngine {
   startStream(turnId: number) {
     const ctx = this.audioCtx;
     if (!ctx) return;
-    this.stopAll();
+    // Kill any IN-PROGRESS stream this one is pre-empting. Do NOT touch the
+    // tail — sources from previously-completed streams (endStream already
+    // released them) must be allowed to finish playing, otherwise the last
+    // few seconds of the prior narration get cut off when the next turn
+    // arrives.
+    this.stopActiveSources();
     this.streamingTurnId = turnId;
     this.streamingChunks = [];
     this.nextStartTime = ctx.currentTime + 0.05;
@@ -202,6 +223,19 @@ export class TTSEngine {
     this.streamingTurnId = null;
     const chunks = this.streamingChunks;
     this.streamingChunks = [];
+
+    // Release current-stream sources to the tail bucket so they play out
+    // naturally even if a new stream starts. Wire onended so finished
+    // sources drop out of the tail array on their own.
+    for (const src of this.activeSources) {
+      src.onended = () => {
+        const idx = this.tailSources.indexOf(src);
+        if (idx >= 0) this.tailSources.splice(idx, 1);
+      };
+      this.tailSources.push(src);
+    }
+    this.activeSources = [];
+
     if (totalLen === 0) return null;
 
     const pcm = new Uint8Array(totalLen);
