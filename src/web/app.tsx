@@ -265,15 +265,18 @@ function App() {
   }, []);
 
   const renderTurn = useCallback((turnId: number, text: string) => {
-    const tts = ttsRef.current;
-    if (!tts) return;
-    tts.render(turnId, text, selectedVoice || undefined)
+    const pc = playbackRef.current;
+    if (!pc) return;
+    pc.renderManual(turnId, text, selectedVoice || undefined)
       .then(({ url }) => {
         setAudioByTurn((prev) => ({ ...prev, [turnId]: url }));
         // Web Audio already played it — suppress <audio> autoplay
         setLastNarratedId(null);
       })
-      .catch(() => { /* surfaced via engineStatus */ });
+      .catch((err: unknown) => {
+        if ((err as Error)?.name === "AbortError") return;
+        console.warn("[narration] render failed", err);
+      });
   }, [selectedVoice]);
 
   const toggleNarration = useCallback(async () => {
@@ -282,6 +285,9 @@ function App() {
     try { localStorage.setItem("narrationOn", next ? "1" : "0"); } catch {}
     if (next) {
       try { await ttsRef.current?.load(); } catch {}
+    } else {
+      playbackRef.current?.setEnabled(false);
+      serverAudioPendingTurnIdRef.current = null;
     }
   }, [narrationOn]);
 
@@ -292,10 +298,13 @@ function App() {
   }, []);
 
   const changeVoice = useCallback((voice: string) => {
+    playbackRef.current?.setVoice(voice);
     setSelectedVoice(voice);
     try { localStorage.setItem("narrationVoice", voice); } catch {}
-    invalidateAudioCache();
-  }, [invalidateAudioCache]);
+    setAudioByTurn({});
+    setLastNarratedId(null);
+    serverAudioPendingTurnIdRef.current = null;
+  }, []);
 
   // If the TTS engine reports a key-missing error, lock down Gemini features.
   useEffect(() => {
@@ -664,13 +673,14 @@ function App() {
   const hasWorldState = stack.entries.length > 0 || stack.threads.length > 0;
 
   const startGame = useCallback((slug: string | null) => {
+    playbackRef.current?.abortCurrent();
+    ttsRef.current?.cache.clear();
     wsRef.current?.send(JSON.stringify({ type: "start", presetSlug: slug }));
     setTurns([]);
     nextIdRef.current = 1;
     setAudioByTurn({});
     setLastNarratedId(null);
     serverAudioPendingTurnIdRef.current = null;
-    ttsRef.current?.cache.clear();
     Object.values(imageByTurn).forEach(URL.revokeObjectURL);
     setImageByTurn({});
     setHasStarted(true);
@@ -754,7 +764,7 @@ function App() {
                     const text = narratableText(t);
                     if (text) { setLastNarratedId(t.id); renderTurn(t.id, text); }
                   }}
-                  onStopAudio={() => ttsRef.current?.stopAll()}
+                  onStopAudio={() => playbackRef.current?.abortCurrent()}
                 />
               ) : (
                 <TurnBlock
@@ -764,7 +774,7 @@ function App() {
                   autoPlay={t.id === lastNarratedId}
                   volume={volume}
                   onPlay={() => { if (t.narrative) { setLastNarratedId(t.id); renderTurn(t.id, t.narrative); } }}
-                  onStopAudio={() => ttsRef.current?.stopAll()}
+                  onStopAudio={() => playbackRef.current?.abortCurrent()}
                   imageUrl={imageByTurn[t.id]}
                   imagePending={imagePending.has(t.id)}
                   onGenerateImage={t.narrative ? () => renderImage(t.id, t.narrative!) : undefined}
