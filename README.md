@@ -33,7 +33,7 @@ You'll need [Bun](https://bun.com) and an OpenAI-compatible local model server. 
    bun install
    ```
 
-2. **Start your local model server.** In LM Studio, download and load the IQ3_K_L GGUF from [lmstudio-community/NVIDIA-Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/lmstudio-community/NVIDIA-Nemotron-3-Nano-30B-A3B-GGUF) (see [Recommended local models](#recommended-local-models)) and start the server on the default port (`http://localhost:1234`). **Turn thinking OFF** in LM Studio's Developer tab on the model's Reasoning setting — otherwise narrator turns take ~30s. With it off they run ~2.3s.
+2. **Start your local model server.** In LM Studio, download and load the [lmstudio-community/NVIDIA-Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/lmstudio-community/NVIDIA-Nemotron-3-Nano-30B-A3B-GGUF) (see [Recommended local models](#recommended-local-models)) and start the server on the default port (`http://localhost:1234`). **Turn thinking OFF** in LM Studio's Developer tab on the model's Reasoning setting — otherwise narrator turns take ~30s. With it off they run ~2.3s.
 
    Smaller 4B-class models often work too but tend to drift on nuanced rules. Larger models (Gemma 3 27B, Llama 3.1 70B, etc.) handle the rules with even more nuance if you have the VRAM. Other OpenAI-compatible servers (Ollama with the OpenAI shim, llama.cpp's `llama-server`, vLLM, etc.) work the same way. The endpoint and model names are constants at the top of `src/api.ts` — edit those lines to point at whatever you're running.
 
@@ -45,75 +45,51 @@ You'll need [Bun](https://bun.com) and an OpenAI-compatible local model server. 
 
    First load shows the title screen. Pick a story and start typing what you do.
 
-### Narration (optional)
+### Narration (optional, not free)
 
 The web app can read each turn aloud using Google's Gemini TTS. Audio streams chunk-by-chunk over a WebSocket so playback starts within ~1 second of the narrative appearing.
 
-> **Note:** this replaces the previous local-Piper narration. I tried hard to keep narration free and local, but no local TTS I tested sounded good enough to listen to for hours of play. Gemini TTS needs a Google API key (Google AI Studio has a free tier that covers light play) — set `GEMINI_API_KEY` in `.env`. A proper in-app configuration screen for swapping providers, voices, and pasting in a key is planned; for now it's `.env` only.
-
 Toggle narration in-app via the **voice off / voice on** button in the action bar. Audio is cached per turn; replays are instant. Disable any time — settings persist via `localStorage`.
 
-### Images (optional)
+### Images (optional, not free)
 
 Each turn has a `▦` button stacked under the speaker icon in the margin. Click it and the turn's narrative is sent to Google's `gemini-2.5-flash-image` (Nano Banana). The result drops in above the text as an establishing shot for the scene you just read. The model generates 1:1; the timeline crops it to a cinematic strip — **click any image to open the full square in a fullscreen lightbox** (ESC or click outside to close). Cached per turn; the button greys out once an image exists.
-
-> **Note:** like narration, this is **never automatic** — images only generate when you click `▦`. Uses the same `GEMINI_API_KEY` you already set for narration. Cost is per-image and falls under Google AI Studio's free tier for light play. The same future in-app configuration screen will cover image settings.
 
 ### Gallery
 
 When a turn produces an image you want to keep, click the ★ button next to the `▦` — it saves the image to the server's `media/` directory. To browse everything you've saved, type `/gallery` in the chat window. A wide modal opens with the selected image on top, prev/next arrows on either side, and a horizontally-scrolling thumbnail strip below. Click any thumbnail to jump to it, click the big image to lightbox it, ← / → keys to navigate, ESC to close.
 
-> Galleries are local to your machine right now — every player on this server shares the same `media/` folder. With the planned multi-user setup, each player will have their own scoped gallery.
-
 ### Configuration
 
-All settings live in `.env`. Bun loads it automatically — no `dotenv` needed.
+All settings live in `.env`. 
 
 ```bash
-# Required for narration and per-turn images.
-GEMINI_API_KEY=your_key_here
-
-# Optional: where to find your local OpenAI-compatible endpoint
-# (LM Studio by default). Override if your server runs on a different
-# port, a different host, or behind basic auth (include user:pass@).
+## Path to lm-studio's endpoint (include user:pass@) if configured.
 LM_STUDIO_URL=http://localhost:1234
 
-# Optional: which local model id LM Studio should serve for each
-# pipeline stage. Each id must match what LM Studio reports at
-# /v1/models. See docs/local-narrator-bake-off.md for picks.
-#
-# LOCAL_MODEL is the default for all three local stages; the per-stage
-# overrides let you mix-and-match — e.g. a fast 3B model for the
-# narrator while keeping a reliable 12B model on the archivist's
-# structured-JSON extraction.
-LOCAL_MODEL=nvidia/nemotron-3-nano               # single model for all three stages
+## Which local model serves what function
+LOCAL_MODEL=nvidia/nemotron-3-nano
 LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano
 LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano
 LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano
 
-# Optional: per-stage sampling. Defaults shown — raise narrator
-# temp for more creative prose, keep archivist temp low so its
-# structured-JSON stays reliable, interpreter temp at 0 for
-# deterministic classification. top_p left unset = LM Studio default.
+## Only required for narration and per-turn images.
+GEMINI_API_KEY=your_key_here
+
+## You don't have to touch these, for development purposes
 LOCAL_NARRATOR_TEMP=0.95
 LOCAL_ARCHIVIST_TEMP=0.5
 LOCAL_INTERPRETER_TEMP=0
-# LOCAL_NARRATOR_TOP_P=0.95
-# LOCAL_ARCHIVIST_TOP_P=0.9
-# LOCAL_INTERPRETER_TOP_P=1.0
+LOCAL_NARRATOR_TOP_P=0.95
+LOCAL_ARCHIVIST_TOP_P=0.9
+LOCAL_INTERPRETER_TOP_P=1.0
 
-# Optional: route the narrator through Gemini for richer prose.
-# Defaults to the local OpenAI-compatible endpoint.
-NARRATOR_PROVIDER=gemini                # gemini | local
-NARRATOR_GEMINI_MODEL=gemini-2.5-flash  # optional; flash is the default
-
-# Optional: route the interpreter through Gemini for robust intent parsing.
-# Defaults to the local OpenAI-compatible endpoint.
-INTERPRETER_PROVIDER=gemini                # gemini | local
-INTERPRETER_GEMINI_MODEL=gemini-2.5-flash  # optional; flash is the default
+## Optional: route the narrator through Gemini.
+## NARRATOR_PROVIDER=gemini
+## NARRATOR_GEMINI_MODEL=gemini-2.5-flash
+## INTERPRETER_PROVIDER=gemini
+## INTERPRETER_GEMINI_MODEL=gemini-2.5-flash
 ```
-
-> **Turning the Gemini narrator on upgrades both features at once.** Gemini writes noticeably tighter, more sensory prose than a 12B local model. And because the image generator's prompt _is_ the narrator's output, a sharper narrative also produces a sharper image downstream — better text feeds better pictures. Cost is one extra Gemini call per turn (~$0.0002 on Flash); the archivist still runs locally, and the interpreter can be routed independently via `INTERPRETER_PROVIDER` (see above).
 
 ### Recommended local models
 
@@ -127,18 +103,7 @@ After working through a 12-model narrator bake-off and a follow-up training expe
 
 **Config:** all three stages route to the same model — no per-stage split needed.
 
-```env
-NARRATOR_PROVIDER=local
-INTERPRETER_PROVIDER=local
-LOCAL_MODEL=nvidia/nemotron-3-nano
-LOCAL_NARRATOR_MODEL=nvidia/nemotron-3-nano
-LOCAL_ARCHIVIST_MODEL=nvidia/nemotron-3-nano
-LOCAL_INTERPRETER_MODEL=nvidia/nemotron-3-nano
-```
-
 > **CRITICAL: turn thinking OFF at the LM Studio server.** In LM Studio: Developer tab → model card for `nvidia/nemotron-3-nano` → Reasoning setting → off. With thinking on, narrator turns take ~30s and may burn the full token budget on scratchpad; thinking off drops them to ~2.3s. The in-prompt `detailed thinking off` directive Nvidia documents *does not* take effect through LM Studio's GGUF runtime — the server toggle is the actual lever. Unless you have a spare H100 sitting around, this step is required.
-
-For comparisons with other local models tested but not promoted (gemma-3-12b, ministral-3-3b, qwen3.6-35b-a3b, devstral-small, and others), see [`docs/local-narrator-bake-off.md`](docs/local-narrator-bake-off.md). For the training experiment that tried (and failed) to teach ministral-3-3b to refuse natively before model selection turned out to be the right answer, see the `train/narrator-abilities-lora` branch.
 
 ## How it works
 
@@ -169,18 +134,13 @@ The world state lives in `world-stack.json` — an append-mostly list of establi
 - **Archivist hardening.** Three classes of objective-completion misfires fixed: atmospheric clues no longer mark "find out X" objectives complete; static state-description ("the chest gapes open") no longer marks "open X" objectives complete; cumulative-stack inference is blocked. Completion now requires the narrative to depict the moment of change or discovery this turn. Stack supersession also tightened: when you take, place, break, or change an item — or a count drops (3 candles → 2) — the entries list updates instead of accumulating outdated facts. Established entries that aren't mentioned in a given turn's narrative are preserved unchanged — absence is not invalidation.
 - **Anti-retcon rule.** The narrator can't invent offscreen backstory or false memories ("you remember leaving the key upstairs in the alchemist's study") to delete an established item. Items leave the world only through depicted on-screen action this turn — the player taking, breaking, or using them, or an NPC depicted on-screen doing the same.
 - **Blocked-move feedback.** When your input looks like movement but doesn't name a cardinal direction (`go to the train`, `walk to the lander`, `follow the path`), the world now tells you instead of silently improvising. A toast appears with the cardinal directions to try, your input stays in the box for editing, and no turn is consumed. Pure non-movement actions (`examine`, `wait`, `talk`) are unaffected.
-- **Optional Gemini narrator.** Set `NARRATOR_PROVIDER=gemini` to route the narrator pass through Gemini Flash instead of the local model. Prose comes out tighter and more specific; images downstream of that prose come out sharper for free, since the image generator's prompt is the narrator's output. Interpreter can also be routed via `INTERPRETER_PROVIDER` (see Configuration); archivist stays local. Defaults to local so nothing breaks for users without an API key.
-- **Per-turn image generation.** Click `▦` next to a turn and the narrative becomes a 21:9 cinematic still via Google's `gemini-2.5-flash-image`. Optional and on-demand — same `GEMINI_API_KEY` already used for narration. The image lands as an establishing shot above the text.
-- **Streaming Gemini TTS narration.** Replaced the local Piper integration. Audio now streams chunk-by-chunk over a WebSocket and starts playing about a second after the narrative appears. Trade-off: narration is no longer free or local — it needs a `GEMINI_API_KEY`. A proper in-app configuration screen for swapping providers/voices is planned.
-- **Smarter objective handling.** The world now recognises when you've actually accomplished something even if the narrator phrases it differently. "The lid yields" counts as opening a chest; "you reach for the lock but it holds firm" doesn't.
-- **Spatial objectives.** Goals can be tied to a specific tile on the map. To complete one, you actually have to be there — no more solving the whole story from your starting room.
-- **Locality enforcement.** The world refuses to let you reach across the map. If the journal is in a deeper alcove and you're in the cellar, you'll need to walk over before you can read it. You can still see, hear, or call toward distant features.
-- **Sector distribution.** The bundled stories Cellar of Glass and Lunar Rescue now scatter their goals across multiple tiles. Exploration matters again. The Last Train remains a single-room scene by design.
 
 ## Known Issues
 
 - **Mild narrative drift on long runs.** The structural drift classes (item retcon, count drift, oscillating entries) are closed. What can still happen on long sessions: the narrator occasionally recycles phrasings or skips an item the player hasn't touched in a while. Less severe than before, but worth flagging.
-- **Wrong-noun world-update toasts.** Occasionally the toast surfaces an entry about a different object than the one your action targeted — extraction latches onto the most recently mentioned noun rather than the action's subject.
+- **Wrong-noun world-update toasts.** Occasionally the toast surfaces an entry about a different object than the one your action targeted — extraction latches onto the most recently mentioned noun rather than the action's subject. (Observed primarily on the previous local narrator/archivist combo; the current `nvidia/nemotron-3-nano` config may improve this, not yet verified across a long run.)
+- **LOCATE objectives complete on tile entry.** When you walk onto a tile that contains a "find / locate / reach the X" target, the deterministic safety net in `stack.ts` marks the objective complete the moment you arrive — before you've looked at or examined the thing. Should require an explicit `look`, `inspect`, or `examine` to fire.
+- **Duplicate objective-completion events.** Sometimes the same objective gets credited twice in a single session — likely the deterministic safety net and the archivist attributing the same change independently, with the `unionAchievedIndices` dedup missing the overlap.
 - **Audio queue / overlap / multi-tab echo.** Re-enabling narration mid-session can flush a stale queue; a new turn's audio can overlap the previous clip; two tabs on the same server echo each other because audio messages are broadcast.
 - **Cardinal-only movement.** "Walk to the lander," "head west-by-northwest," and stair phrasings like `up`/`down` stay on the current tile and surface a toast. Use `north / south / east / west`.
 - **No first-class inventory.** Items you "take" stay in the world's established entries — there's no separate inventory data structure or UI. Type `inventory` and the narrator synthesizes a list from the entries it knows about, but specific picked-up items occasionally don't make the synthesis.
