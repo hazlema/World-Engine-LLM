@@ -1,5 +1,6 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
+import * as ttsModule from "./gemini-tts";
 import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, type ServerMessage } from "./server";
 import type { WorldStack } from "./stack";
 import type { Preset } from "./presets";
@@ -496,4 +497,45 @@ test("snapshotMessage: includes providers info", () => {
   expect(typeof msg.providers.narrator.model).toBe("string");
   expect(typeof msg.providers.tts.voice).toBe("string");
   expect(typeof msg.providers.image.style).toBe("string");
+});
+
+test("processInput: TTS audio messages go through sendAudio (unicast), not send (broadcast)", async () => {
+  interpreterSpy.mockResolvedValue({ action: "stay" } as any);
+  narratorSpy.mockResolvedValue("Narration.");
+  archivistSpy.mockResolvedValue({
+    entries: [], threads: [], turn: 1, moved: false,
+    locationDescription: "", achievedObjectiveIndices: [],
+  } as any);
+
+  // Provide a one-chunk fake stream so the TTS branch actually fires.
+  const ttsSpy = spyOn(ttsModule, "synthesizeStream").mockReturnValue(
+    new ReadableStream<Uint8Array>({
+      start(c) { c.enqueue(new Uint8Array([1, 2, 3])); c.close(); },
+    })
+  );
+
+  const broadcasts: any[] = [];
+  const unicasts: any[] = [];
+  const baseStack: any = {
+    entries: [], threads: [], turn: 0, position: [0, 0],
+    places: {}, objectives: [], presetSlug: null,
+  };
+
+  await processInput(
+    baseStack,
+    "look",
+    (m) => broadcasts.push(m),
+    undefined,
+    "Kore",
+    (m) => unicasts.push(m),
+  );
+
+  ttsSpy.mockRestore();
+
+  const audioOnBroadcast = broadcasts.filter((m) => m.type?.startsWith("audio-"));
+  const audioOnUnicast = unicasts.filter((m) => m.type?.startsWith("audio-"));
+  expect(audioOnBroadcast).toEqual([]);
+  expect(audioOnUnicast.length).toBeGreaterThan(0);
+  expect(audioOnUnicast[0].type).toBe("audio-start");
+  expect(audioOnUnicast.at(-1)!.type).toBe("audio-end");
 });

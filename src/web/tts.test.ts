@@ -73,3 +73,26 @@ describe("RenderQueue", () => {
     expect(await ok).toBe(42);
   });
 });
+
+describe("TTSEngine.stopAll", () => {
+  test("pauses all <audio> elements in the document", () => {
+    const paused: HTMLAudioElement[] = [];
+    const fakeAudio = (): HTMLAudioElement => ({
+      pause: function () { paused.push(this as HTMLAudioElement); },
+    } as unknown as HTMLAudioElement);
+    const a1 = fakeAudio();
+    const a2 = fakeAudio();
+    const origDoc = (globalThis as any).document;
+    (globalThis as any).document = {
+      querySelectorAll: (_sel: string) => [a1, a2],
+    };
+    try {
+      const { TTSEngine } = require("./tts");
+      const eng = new TTSEngine(() => {});
+      eng.stopAll();
+      expect(paused.length).toBe(2);
+    } finally {
+      (globalThis as any).document = origDoc;
+    }
+  });
+});
