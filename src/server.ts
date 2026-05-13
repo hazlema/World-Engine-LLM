@@ -245,6 +245,8 @@ export async function processInput(
   // Pushes audio-start / audio-chunk* / audio-end to the requesting client only.
   const ttsPromise: Promise<void> = voice && sendAudio
     ? (async () => {
+        let chunkCount = 0;
+        let totalBytes = 0;
         try {
           sendAudio({ type: "audio-start" });
           const stream = synthesizeStream(narrative, voice);
@@ -253,11 +255,17 @@ export async function processInput(
             const { done, value } = await reader.read();
             if (done) break;
             if (value && value.length > 0) {
+              chunkCount++;
+              totalBytes += value.length;
               sendAudio({ type: "audio-chunk", data: Buffer.from(value).toString("base64") });
             }
           }
+          // Bytes ÷ 2 (16-bit) ÷ 24000 (sample rate) = seconds of audio delivered.
+          // Compare against expected ~14 chars/sec for spoken English to spot truncation.
+          const seconds = (totalBytes / 2 / 24000).toFixed(1);
+          console.log(`[tts] complete: ${chunkCount} chunks, ${totalBytes} bytes, ${seconds}s of audio for ${narrative.length} chars`);
         } catch (err) {
-          console.error("[tts]", err);
+          console.error(`[tts] stream errored after ${chunkCount} chunks / ${totalBytes} bytes:`, err);
         } finally {
           sendAudio({ type: "audio-end" });
         }
