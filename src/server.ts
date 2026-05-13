@@ -15,7 +15,7 @@ import {
 import { loadAllPresets, type Preset } from "./presets";
 import { synthesizeStream, GEMINI_VOICES, DEFAULT_VOICE } from "./gemini-tts";
 import { generateImage, IMAGE_STYLES, DEFAULT_IMAGE_STYLE, type ImageStyle } from "./gemini-image";
-import { validateApiConfig } from "./api";
+import { validateApiConfig, warmupOpenRouter } from "./api";
 
 let presets: Map<string, Preset> = new Map();
 
@@ -418,6 +418,8 @@ async function handleClientMessage(
       await saveStack(next);
       currentStack = next;
       broadcast(snapshotMessage(currentStack));
+      // Fire-and-forget warmup so the first turn doesn't eat OpenRouter cold-start.
+      warmupOpenRouter().catch(() => {});
     } catch (err) {
       send({ type: "error", source: "archivist", message: `Start failed: ${err}` });
     }

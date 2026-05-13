@@ -2,7 +2,6 @@ import { GoogleGenAI } from "@google/genai";
 
 const LM_STUDIO_URL = process.env.LM_STUDIO_URL ?? "http://localhost:1234";
 const ENDPOINT = `${LM_STUDIO_URL.replace(/\/$/, "")}/v1/chat/completions`;
-console.log(`[api] local endpoint: ${ENDPOINT}`);
 // Local model id sent to LM Studio. Override with LOCAL_MODEL=... for all
 // local stages, or with per-stage LOCAL_NARRATOR_MODEL / LOCAL_ARCHIVIST_MODEL
 // / LOCAL_INTERPRETER_MODEL for finer routing. Each id must match what LM
@@ -81,6 +80,10 @@ logStage("archivist", archivistProvider(), stageModel("ARCHIVIST", archivistProv
 logStage("interpreter", interpreterProvider(), stageModel("INTERPRETER", interpreterProvider(), INTERPRETER_MODEL),
   LOCAL_INTERPRETER_TEMP, LOCAL_INTERPRETER_TOP_P);
 
+if (narratorProvider() === "local" || interpreterProvider() === "local" || archivistProvider() === "local") {
+  console.log(`[api] local endpoint: ${ENDPOINT}`);
+}
+
 // Validation is exported (rather than run at module load) so tests can
 // import this module without process.exit firing on a real-but-test-broken
 // .env. Call from the actual server entry point (src/server.ts main()).
@@ -154,6 +157,43 @@ function openRouterHeaders(apiKey: string): Record<string, string> {
     "HTTP-Referer": "https://github.com/hazlema/World-Engine-LLM",
     "X-Title": "World Engine LLM",
   };
+}
+
+// Fire a small throwaway request to OpenRouter so the underlying provider
+// instance is warm before the player's first real turn. Free-tier cold-start
+// can otherwise add 5-10 seconds to the first interpreter call. Safe to call
+// when no stage uses openrouter — it'll no-op. Errors are swallowed; warmup
+// failure should never block game start.
+export async function warmupOpenRouter(): Promise<void> {
+  const usesOpenRouter =
+    narratorProvider() === "openrouter" ||
+    interpreterProvider() === "openrouter" ||
+    archivistProvider() === "openrouter";
+  if (!usesOpenRouter) return;
+
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) return;
+
+  console.log("[api] warming OpenRouter...");
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: openRouterHeaders(key),
+      body: JSON.stringify({
+        model: openRouterModel("NARRATOR"),
+        messages: [{ role: "user", content: "ping" }],
+        max_tokens: 1,
+        reasoning: { effort: "none" },
+      }),
+    });
+    if (res.ok) {
+      console.log("[api] OpenRouter warm");
+    } else {
+      console.warn(`[api] OpenRouter warmup non-ok: ${res.status}`);
+    }
+  } catch (err) {
+    console.warn(`[api] OpenRouter warmup failed: ${err}`);
+  }
 }
 
 async function callNarratorOpenRouter(systemPrompt: string, input: string): Promise<string> {
