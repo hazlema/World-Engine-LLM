@@ -291,12 +291,6 @@ function App() {
     }
   }, [narrationOn]);
 
-  const invalidateAudioCache = useCallback(() => {
-    setAudioByTurn({});
-    setLastNarratedId(null);
-    ttsRef.current?.cache.clear();
-  }, []);
-
   const changeVoice = useCallback((voice: string) => {
     playbackRef.current?.setVoice(voice);
     setSelectedVoice(voice);
