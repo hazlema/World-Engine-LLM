@@ -4,6 +4,17 @@ import { callModel, callModelStructured, callInterpreterStructured, validateApiC
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 
 beforeEach(() => {
+  delete process.env.NARRATOR_PROVIDER;
+  delete process.env.INTERPRETER_PROVIDER;
+  delete process.env.ARCHIVIST_PROVIDER;
+  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.OPENROUTER_MODEL;
+  delete process.env.OPENROUTER_NARRATOR_MODEL;
+  delete process.env.OPENROUTER_INTERPRETER_MODEL;
+  delete process.env.OPENROUTER_ARCHIVIST_MODEL;
+  delete process.env.OPENROUTER_NARRATOR_THINKING;
+  delete process.env.OPENROUTER_INTERPRETER_THINKING;
+  delete process.env.OPENROUTER_ARCHIVIST_THINKING;
   fetchSpy = spyOn(globalThis, "fetch");
 });
 
@@ -211,7 +222,7 @@ test("openrouter narrator: per-stage thinking=off disables reasoning", async () 
 
   try {
     await callModel("system", "input");
-    expect(capturedBody!.reasoning).toEqual({ effort: "off" });
+    expect(capturedBody!.reasoning).toEqual({ effort: "none" });
   } finally {
     process.env = orig;
   }
@@ -279,7 +290,7 @@ test("openrouter interpreter: posts to openrouter URL with json schema + parses 
     expect(result.direction).toBe("north");
     expect(capturedUrl).toBe("https://openrouter.ai/api/v1/chat/completions");
     expect(capturedBody!.response_format.type).toBe("json_schema");
-    expect(capturedBody!.reasoning.effort).toBe("off");
+    expect(capturedBody!.reasoning.effort).toBe("none");
   } finally {
     process.env = orig;
   }
