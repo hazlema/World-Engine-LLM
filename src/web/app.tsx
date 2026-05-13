@@ -325,6 +325,7 @@ function App() {
   const nextIdRef = useRef(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const lastSubmittedRef = useRef<string>("");
+  const optimisticTurnIdRef = useRef<number | null>(null);
 
   const addTurn = useCallback((t: AnyTurn) => {
     setTurns((prev) => [...prev, t]);
@@ -395,6 +396,14 @@ function App() {
           text: "Cardinal directions only — try north, south, east, or west.",
           id: Date.now(),
         });
+        // Replace the optimistic input turn with the blocked system block.
+        if (optimisticTurnIdRef.current !== null) {
+          const removeId = optimisticTurnIdRef.current;
+          setTurns((prev) => prev.filter((t) => t.id !== removeId));
+          optimisticTurnIdRef.current = null;
+          serverAudioPendingTurnIdRef.current = null;
+          setPending(false);
+        }
         addTurn({
           id: nextIdRef.current++,
           kind: "system",
@@ -405,12 +414,17 @@ function App() {
         return;
       }
       if (msg.type === "turn-start") {
-        const tid = nextIdRef.current++;
-        if (narrationOnRef.current) {
-          serverAudioPendingTurnIdRef.current = tid;
+        // Client-side send() adds the optimistic turn now; this message is
+        // reconciliation. Fall back to the legacy path only if no optimistic
+        // turn exists (server-initiated turn or unexpected ordering).
+        if (optimisticTurnIdRef.current === null) {
+          const tid = nextIdRef.current++;
+          if (narrationOnRef.current) {
+            serverAudioPendingTurnIdRef.current = tid;
+          }
+          addTurn({ id: tid, input: msg.input, pending: true });
+          setPending(true);
         }
-        addTurn({ id: tid, input: msg.input, pending: true });
-        setPending(true);
         return;
       }
       if (msg.type === "narrative") {
@@ -453,6 +467,7 @@ function App() {
         });
         updateLastInputTurn((t) => ({ ...t, pending: false }));
         setPending(false);
+        optimisticTurnIdRef.current = null;
         return;
       }
       if (msg.type === "win") {
@@ -491,6 +506,7 @@ function App() {
           error: `${msg.source} error: ${msg.message}`,
         }));
         setPending(false);
+        optimisticTurnIdRef.current = null;
         return;
       }
     });
@@ -611,6 +627,18 @@ function App() {
     if (narrationOn && ttsRef.current?.status.kind !== "ready") {
       ttsRef.current?.load().catch(() => {});
     }
+
+    // Optimistically render the input echo + pending indicator before the
+    // server's interpreter call completes. Server's turn-start becomes a no-op
+    // when this ref is set; move-blocked removes the optimistic turn.
+    const tid = nextIdRef.current++;
+    if (narrationOnRef.current) {
+      serverAudioPendingTurnIdRef.current = tid;
+    }
+    addTurn({ id: tid, input: trimmed, pending: true });
+    setPending(true);
+    optimisticTurnIdRef.current = tid;
+
     wsRef.current.send(JSON.stringify({
       type: "input",
       text: trimmed,
