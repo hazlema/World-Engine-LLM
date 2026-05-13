@@ -8,11 +8,29 @@
  * - SIGINT/SIGTERM on the Bun process kill the Python child cleanly.
  */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { Subprocess } from "bun";
 
 const SIDECAR_HOST = process.env.TTS_SIDECAR_HOST ?? "127.0.0.1";
 const SIDECAR_PORT = process.env.TTS_SIDECAR_PORT ?? "5005";
 export const SIDECAR_BASE_URL = `http://${SIDECAR_HOST}:${SIDECAR_PORT}`;
+
+/**
+ * Resolve the Python interpreter to use for the sidecar.
+ *
+ * Prefers `tts_sidecar/.venv/bin/python` if the in-tree venv exists
+ * (matches the setup recommended in tts_sidecar/README.md). Falls back
+ * to `python3` from PATH otherwise. Override with TTS_SIDECAR_PYTHON env
+ * var if neither path is correct on your system.
+ */
+function pythonExecutable(): string {
+  const override = process.env.TTS_SIDECAR_PYTHON;
+  if (override) return override;
+  const venvPython = join(process.cwd(), "tts_sidecar", ".venv", "bin", "python");
+  if (existsSync(venvPython)) return venvPython;
+  return "python3";
+}
 
 let _ready = false;
 let _process: Subprocess | null = null;
@@ -40,7 +58,9 @@ export function resetSidecarStateForTesting(): void {
 export function spawnSidecar(): Subprocess {
   if (_process) return _process;
 
-  const proc = Bun.spawn(["python3", "tts_sidecar/server.py"], {
+  const py = pythonExecutable();
+  console.log(`[tts] using python: ${py}`);
+  const proc = Bun.spawn([py, "tts_sidecar/server.py"], {
     env: { ...process.env, TTS_SIDECAR_HOST: SIDECAR_HOST, TTS_SIDECAR_PORT: SIDECAR_PORT },
     stdout: "pipe",
     stderr: "pipe",
