@@ -581,7 +581,11 @@ async function main() {
       }
       if (url.pathname.startsWith("/media/") && req.method === "GET") {
         const rel = url.pathname.slice("/media/".length);
-        if (!rel || rel.includes("/") || rel.includes("..") || rel.startsWith(".")) {
+        // Allow one level of nesting (e.g., media/audio/<hash>.wav for the
+        // Chatterbox cache) but defend against traversal and hidden files.
+        const parts = rel.split("/");
+        const traversal = parts.some((p) => p === "" || p === "." || p === ".." || p.startsWith("."));
+        if (!rel || traversal || parts.length > 2) {
           return new Response("invalid path", { status: 400 });
         }
         const filePath = new URL(`../media/${rel}`, import.meta.url).pathname;
