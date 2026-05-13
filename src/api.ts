@@ -225,15 +225,6 @@ export async function callInterpreterStructured<T>(
 export async function callModel(systemPrompt: string, input: string): Promise<string> {
   if (NARRATOR_PROVIDER === "gemini") return callNarratorGemini(systemPrompt, input);
 
-  // Nvidia's Nemotron family uses an in-prompt directive to control its
-  // chain-of-thought ("detailed thinking on/off"). The API-level reasoning
-  // hint below is not enough on its own — the directive must appear in the
-  // system prompt for Nemotron to honor it. Other model families ignore it.
-  const isNemotron = NARRATOR_MODEL.startsWith("nvidia/nemotron-");
-  const effectiveSystem = isNemotron
-    ? `detailed thinking off\n\n${systemPrompt}`
-    : systemPrompt;
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -244,7 +235,7 @@ export async function callModel(systemPrompt: string, input: string): Promise<st
       body: JSON.stringify({
         model: NARRATOR_MODEL,
         messages: [
-          { role: "system", content: effectiveSystem },
+          { role: "system", content: systemPrompt },
           { role: "user", content: input },
         ],
         reasoning: { effort: "off" },
