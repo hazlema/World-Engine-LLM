@@ -1,7 +1,7 @@
-import type { Config } from "./config";
+import type { Config, Provider } from "./config";
 
 export type ProbeTarget = {
-  provider: "local" | "openrouter";
+  provider: Provider;
   model: string;
   usedBy: string[];   // stage names that share this (provider, model) tuple
 };

@@ -40,7 +40,12 @@ describe("buildProbeTargets", () => {
     });
     const targets = buildProbeTargets(config);
     expect(targets).toHaveLength(3);
-    expect(targets.map(t => t.usedBy.length)).toEqual([1, 1, 1]);
+    const narr = targets.find(t => t.model === "narr-model");
+    expect(narr).toEqual({ provider: "openrouter", model: "narr-model", usedBy: ["narrator"] });
+    const arch = targets.find(t => t.model === "arch-model");
+    expect(arch).toEqual({ provider: "openrouter", model: "arch-model", usedBy: ["archivist"] });
+    const interp = targets.find(t => t.model === "interp-model");
+    expect(interp).toEqual({ provider: "local", model: "interp-model", usedBy: ["interpreter"] });
   });
 
   test("two stages share, one differs → 2 targets with shared usedBy", () => {
