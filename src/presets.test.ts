@@ -289,17 +289,29 @@ body`;
   expect(() => parsePresetText(text, "x")).toThrow(/10 sub-bullets/);
 });
 
-test("parsePresetText: throws on empty attribute name", () => {
+test("parsePresetText: throws on empty attribute name (whitespace-only bullet)", () => {
+  // "  -   " (dash followed by spaces, content trimmable to "") matches the
+  // listItem regex but trips the empty-bullet guard. The pattern
+  // distinguishes "empty content" from "malformed line" (the latter would be
+  // e.g. a 3-space indent, which falls through to the catch-all throw).
+  const text = "---\ntitle: T\ndescription: D\nattributes:\n  -   \nobjects:\n  - a\nobjectives:\n  - o\n---\nbody";
+  expect(() => parsePresetText(text, "x")).toThrow(/empty bullet/);
+});
+
+test("parsePresetText: accepts exactly 10 sub-bullets per attribute", () => {
+  const subs = Array.from({ length: 10 }, (_, i) => `    - sub ${i}`).join("\n");
   const text = `---
 title: T
 description: D
 attributes:
-  -
+  - magic
+${subs}
 objects:
   - a
 objectives:
   - o
 ---
 body`;
-  expect(() => parsePresetText(text, "x")).toThrow();
+  const p = parsePresetText(text, "x");
+  expect(p.attributes[0]?.scope).toHaveLength(10);
 });
