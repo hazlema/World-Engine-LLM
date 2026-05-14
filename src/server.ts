@@ -16,7 +16,8 @@ import { loadAllPresets, type Preset } from "./presets";
 import { synthesizeToFile } from "./tts";
 import { spawnSidecar, waitForSidecarReady, isNarrationReady, listSidecarVoices, markSidecarReady } from "./sidecar";
 import { generateImage, IMAGE_STYLES, DEFAULT_IMAGE_STYLE, type ImageStyle } from "./gemini-image";
-import { warmupOpenRouter, logStartupRouting } from "./api";
+import { logStartupRouting } from "./api";
+import { probeProvidersAtStartup, startKeepAlivePings } from "./prober";
 import { loadConfig, type Config } from "./config";
 
 // Default voice slug — must exist in tts_sidecar/voices/ after the user runs
@@ -427,8 +428,6 @@ async function handleClientMessage(
       await saveStack(next);
       currentStack = next;
       broadcast(snapshotMessage(currentStack));
-      // Fire-and-forget warmup so the first turn doesn't eat OpenRouter cold-start.
-      warmupOpenRouter().catch(() => {});
     } catch (err) {
       send({ type: "error", source: "archivist", message: `Start failed: ${err}` });
     }
@@ -473,6 +472,14 @@ async function handleClientMessage(
 async function main() {
   serverConfig = loadConfig();
   logStartupRouting();
+
+  try {
+    await probeProvidersAtStartup(serverConfig);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    console.error("[prober] startup failed; exiting");
+    process.exit(1);
+  }
 
   if (!serverConfig.useNarration) {
     console.log("[tts] USE_NARRATION=false — narration disabled");
@@ -617,6 +624,8 @@ async function main() {
   });
 
   console.log(`World Engine listening at http://localhost:${server.port}`);
+
+  startKeepAlivePings(serverConfig);
 
   // Now that the server is up, kick off the sidecar-ready wait. When it
   // resolves, broadcast a fresh snapshot so connected clients learn that

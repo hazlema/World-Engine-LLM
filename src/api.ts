@@ -65,37 +65,6 @@ function openRouterHeaders(apiKey: string): Record<string, string> {
   };
 }
 
-export async function warmupOpenRouter(): Promise<void> {
-  const c = config();
-  const usesOpenRouter =
-    c.narrator.provider === "openrouter" ||
-    c.archivist.provider === "openrouter" ||
-    c.interpreter.provider === "openrouter";
-  if (!usesOpenRouter) return;
-  if (!c.openRouterApiKey) return;
-
-  console.log("[api] warming OpenRouter...");
-  try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: openRouterHeaders(c.openRouterApiKey),
-      body: JSON.stringify({
-        model: c.narrator.model,
-        messages: [{ role: "user", content: "ping" }],
-        max_tokens: 1,
-        reasoning: { effort: "none" },
-      }),
-    });
-    if (res.ok) {
-      console.log("[api] OpenRouter warm");
-    } else {
-      console.warn(`[api] OpenRouter warmup non-ok: ${res.status}`);
-    }
-  } catch (err) {
-    console.warn(`[api] OpenRouter warmup failed: ${err}`);
-  }
-}
-
 async function callOpenRouterChat(
   stage: StageConfig,
   apiKey: string,
