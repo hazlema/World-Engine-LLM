@@ -70,15 +70,18 @@ export function spawnSidecar(): Subprocess {
   pipeWithPrefix(proc.stdout, "[tts-sidecar]");
   pipeWithPrefix(proc.stderr, "[tts-sidecar]");
 
-  // Make sure the child dies when Bun dies.
-  const onExit = () => {
+  // Make sure the child dies when Bun dies. Installing a SIGINT/SIGTERM
+  // handler overrides Node/Bun's default of terminating the process, so we
+  // have to exit explicitly after killing the child — otherwise Ctrl-C only
+  // kills the sidecar and Bun keeps running.
+  const killChild = () => {
     if (_process && _process.exitCode === null) {
       _process.kill("SIGTERM");
     }
   };
-  process.on("SIGINT", onExit);
-  process.on("SIGTERM", onExit);
-  process.on("exit", onExit);
+  process.on("SIGINT", () => { killChild(); process.exit(0); });
+  process.on("SIGTERM", () => { killChild(); process.exit(0); });
+  process.on("exit", killChild);
 
   return proc;
 }

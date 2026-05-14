@@ -474,16 +474,6 @@ async function main() {
   if (serverConfig.useNarration) {
     console.log("[tts] spawning sidecar...");
     spawnSidecar();
-    // Fire-and-forget — the server starts listening immediately; narration
-    // becomes available once the sidecar reports ready.
-    waitForSidecarReady().then(async (ready) => {
-      if (ready) {
-        _voiceList = await listSidecarVoices();
-        console.log(`[tts] sidecar ready, voices: ${_voiceList.join(", ") || "(none — run generate_voices.py)"}`);
-      } else {
-        console.warn("[tts] sidecar did not become ready within timeout — narration disabled");
-      }
-    });
   } else {
     console.log("[tts] USE_NARRATION=false — sidecar not started, narration disabled");
   }
@@ -618,6 +608,22 @@ async function main() {
   });
 
   console.log(`World Engine listening at http://localhost:${server.port}`);
+
+  // Now that the server is up, kick off the sidecar-ready wait. When it
+  // resolves, broadcast a fresh snapshot so connected clients learn that
+  // narrationReady flipped true (the initial snapshot was sent while the
+  // sidecar was still loading, so it said false).
+  if (serverConfig.useNarration) {
+    waitForSidecarReady().then(async (ready) => {
+      if (ready) {
+        _voiceList = await listSidecarVoices();
+        console.log(`[tts] sidecar ready, voices: ${_voiceList.join(", ") || "(none — run generate_voices.py)"}`);
+        server.publish("world", JSON.stringify(snapshotMessage(currentStack)));
+      } else {
+        console.warn("[tts] sidecar did not become ready within timeout — narration disabled");
+      }
+    });
+  }
 }
 
 if (import.meta.main) {
