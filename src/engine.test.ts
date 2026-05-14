@@ -579,3 +579,19 @@ test("SNAPSHOT_FIXTURES on → narrator + archivist rows appended", async () => 
   expect(archivistRow.archivist.objectiveCount).toBe(1);
   await rm(dir, { recursive: true });
 });
+
+test("narratorTurn: includes PLAYER ATTRIBUTES section in user message when stack has attributes", async () => {
+  let capturedInput = "";
+  callModelSpy.mockImplementationOnce(async (_sys: string, inp: string) => {
+    capturedInput = inp;
+    return "Something happens.";
+  });
+  const stack: WorldStack = {
+    ...emptyStack,
+    attributes: [{ name: "magic", scope: ["can manipulate objects"] }],
+  };
+  await narratorTurn(stack, "raise the candlestick with magic");
+  expect(capturedInput).toContain("PLAYER ATTRIBUTES (immutable):");
+  expect(capturedInput).toContain("- magic");
+  expect(capturedInput).toContain("  - can manipulate objects");
+});

@@ -729,3 +729,77 @@ test("applyPresetToStack: attributes scope arrays are reference-isolated from th
   stack.attributes[0]!.scope.push("MUTATED");
   expect(preset.attributes[0]!.scope).toEqual(["can do thing"]);
 });
+
+test("formatStackForNarrator: includes PLAYER ATTRIBUTES as the first section when populated", () => {
+  const stack: WorldStack = {
+    entries: ["dusty bookshelf"],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [
+      { name: "magic", scope: ["can manipulate objects", "cannot manipulate time"] },
+      { name: "red hair", scope: [] },
+    ],
+  };
+  const out = formatStackForNarrator(stack, "you wake in a study");
+  // Section appears first.
+  const attrIdx = out.indexOf("PLAYER ATTRIBUTES (immutable):");
+  const briefingIdx = out.indexOf("MISSION BRIEFING");
+  expect(attrIdx).toBeGreaterThanOrEqual(0);
+  expect(briefingIdx).toBeGreaterThan(attrIdx);
+  // Format check: top-level dash, sub-bullet 2-space indent.
+  expect(out).toContain("- magic");
+  expect(out).toContain("  - can manipulate objects");
+  expect(out).toContain("  - cannot manipulate time");
+  expect(out).toContain("- red hair");
+});
+
+test("formatStackForNarrator: omits PLAYER ATTRIBUTES section when empty", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+  };
+  const out = formatStackForNarrator(stack, "premise");
+  expect(out).not.toContain("PLAYER ATTRIBUTES");
+});
+
+test("formatStackForArchivist: includes PLAYER ATTRIBUTES section when populated", () => {
+  const stack: WorldStack = {
+    entries: ["a key on the table"],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [{ name: "wizard", scope: ["can read minds"] }],
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("PLAYER ATTRIBUTES (immutable):");
+  expect(out).toContain("- wizard");
+  expect(out).toContain("  - can read minds");
+});
+
+test("formatStackForArchivist: omits PLAYER ATTRIBUTES section when empty", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).not.toContain("PLAYER ATTRIBUTES");
+});

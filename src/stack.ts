@@ -224,8 +224,22 @@ function findTargetNamingHints(activeObjectives: Objective[], entries: string[])
   return hints;
 }
 
+function formatPlayerAttributesBlock(attrs: PlayerAttribute[]): string | null {
+  if (attrs.length === 0) return null;
+  const lines: string[] = [];
+  for (const a of attrs) {
+    lines.push(`- ${a.name}`);
+    for (const s of a.scope) {
+      lines.push(`  - ${s}`);
+    }
+  }
+  return `PLAYER ATTRIBUTES (immutable):\n${lines.join("\n")}`;
+}
+
 export function formatStackForNarrator(stack: WorldStack, briefing?: string): string {
   const parts: string[] = [];
+  const attrBlock = formatPlayerAttributesBlock(stack.attributes);
+  if (attrBlock) parts.push(attrBlock);
   if (briefing && briefing.trim().length > 0) {
     parts.push(`MISSION BRIEFING (durable premise):\n${briefing.trim()}`);
   }
@@ -302,7 +316,8 @@ export function formatStackForArchivist(stack: WorldStack): string {
     stack.threads.length === 0
       ? "ACTIVE THREADS: (none)"
       : `ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`;
-  const parts = [facts, threads];
+  const attrBlock = formatPlayerAttributesBlock(stack.attributes);
+  const parts: string[] = attrBlock ? [attrBlock, facts, threads] : [facts, threads];
   if (stack.objectives.length > 0) {
     const lines = stack.objectives.map((o, i) => {
       const status = o.achieved ? "x" : " ";
