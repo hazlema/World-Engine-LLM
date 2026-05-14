@@ -216,6 +216,17 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
+  // The /api/voices fetch above usually 503s on first load because the
+  // sidecar is still warming up. Once the snapshot's providers.voices
+  // populates (after the sidecar-ready broadcast), seed selectedVoice
+  // and the local voices list from there.
+  useEffect(() => {
+    const sidecarVoices = providers?.voices ?? [];
+    if (sidecarVoices.length === 0) return;
+    setVoices((prev) => prev.length > 0 ? prev : sidecarVoices);
+    setSelectedVoice((prev) => prev && sidecarVoices.includes(prev) ? prev : sidecarVoices[0]);
+  }, [providers?.voices]);
+
   const renderImage = useCallback((turnId: number, text: string) => {
     if (imageByTurn[turnId]) return;
     setImagePending((prev) => {
@@ -584,9 +595,9 @@ function App() {
     wsRef.current.send(JSON.stringify({
       type: "input",
       text: trimmed,
-      ...(narrationOn ? { voice: selectedVoice || "Kore" } : {}),
+      ...(narrationOn ? { voice: selectedVoice || providers?.voices?.[0] || "noir" } : {}),
     }));
-  }, [addTurn, pending, stack, narrationOn]);
+  }, [addTurn, pending, stack, narrationOn, selectedVoice, providers]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
