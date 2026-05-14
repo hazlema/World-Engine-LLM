@@ -43,8 +43,43 @@ def make_silent_wav(seconds: float = 1.0) -> bytes:
     return header + pcm
 
 
+def _gen_float(name: str, default: float) -> float:
+    """Read a float from env, return default if unset or unparseable."""
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _gen_int(name: str, default: int) -> int:
+    """Read an int from env, return default if unset or unparseable."""
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 def generate_audio(text: str, voice: str) -> bytes:
-    """Generate WAV bytes via Chatterbox Turbo using the named voice reference."""
+    """Generate WAV bytes via Chatterbox Turbo using the named voice reference.
+
+    Turbo's generate() ignores cfg_weight/exaggeration/min_p (those apply to
+    original Chatterbox only). The knobs that DO affect Turbo output:
+
+      - repetition_penalty (default 1.2; raise to 1.5-2.0 to discourage
+        repeating words / nonsense loops)
+      - temperature (default 0.8; lower to 0.6 for more deterministic prose)
+      - top_p (default 0.95)
+      - top_k (default 1000)
+
+    All four are tunable via env vars at sidecar start time, without code
+    changes. Restart Bun for changes to take effect.
+    """
     if _model is None:
         raise RuntimeError(
             f"model not loaded yet "
@@ -58,7 +93,14 @@ def generate_audio(text: str, voice: str) -> bytes:
     # Chatterbox returns a torch tensor; convert to a WAV byte buffer.
     import torchaudio as ta
 
-    wav_tensor = _model.generate(text, audio_prompt_path=str(voice_path))
+    wav_tensor = _model.generate(
+        text,
+        audio_prompt_path=str(voice_path),
+        repetition_penalty=_gen_float("TTS_REPETITION_PENALTY", 1.2),
+        temperature=_gen_float("TTS_TEMPERATURE", 0.8),
+        top_p=_gen_float("TTS_TOP_P", 0.95),
+        top_k=_gen_int("TTS_TOP_K", 1000),
+    )
     buf = io.BytesIO()
     ta.save(buf, wav_tensor, _model.sr, format="wav")
     return buf.getvalue()
