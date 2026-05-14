@@ -1,5 +1,5 @@
 import { test, expect, describe, spyOn, beforeEach, afterEach } from "bun:test";
-import { buildProbeTargets, probeProvidersAtStartup } from "./prober";
+import { buildProbeTargets, probeProvidersAtStartup, runKeepAliveTick, startKeepAlivePings } from "./prober";
 import type { Config } from "./config";
 
 function makeConfig(overrides: Partial<Config> = {}): Config {
@@ -213,5 +213,59 @@ describe("probeProvidersAtStartup", () => {
     await probeProvidersAtStartup(config);
     // Structural assertion: if parallel, all 3 are in flight at peak. Serial would peak at 1.
     expect(maxConcurrent).toBe(3);
+  });
+});
+
+describe("runKeepAliveTick", () => {
+  test("resolves silently when all probes succeed", async () => {
+    fetchSpy.mockImplementation(async () => new Response("{}"));
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const config = makeConfig();
+    try {
+      await expect(
+        runKeepAliveTick(buildProbeTargets(config), config.lmStudioUrl, config.openRouterApiKey)
+      ).resolves.toBeUndefined();
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("warns but does not throw when a probe fails", async () => {
+    fetchSpy.mockImplementation(async () => new Response("err", { status: 500 }));
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const config = makeConfig({
+      narrator: { provider: "openrouter", model: "x" },
+      archivist: { provider: "openrouter", model: "x" },
+      interpreter: { provider: "openrouter", model: "x" },
+    });
+    try {
+      await expect(
+        runKeepAliveTick(buildProbeTargets(config), config.lmStudioUrl, config.openRouterApiKey)
+      ).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalled();
+      const msg = warnSpy.mock.calls.map(c => String(c[0])).join("\n");
+      expect(msg).toContain("keep-alive failed");
+      expect(msg).toContain("openrouter,x");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});
+
+describe("startKeepAlivePings", () => {
+  test("returns a Timer that ticks at the configured interval and stops on clearInterval", async () => {
+    fetchSpy.mockImplementation(async () => new Response("{}"));
+    const config = makeConfig();
+    const timer = startKeepAlivePings(config, 10);
+    await Bun.sleep(35);
+    clearInterval(timer);
+    const callsWhileTicking = fetchSpy.mock.calls.length;
+    // Single dedup'd target × ~3 ticks expected
+    expect(callsWhileTicking).toBeGreaterThanOrEqual(2);
+
+    await Bun.sleep(30);
+    // No new ticks after clearInterval
+    expect(fetchSpy.mock.calls.length).toBe(callsWhileTicking);
   });
 });

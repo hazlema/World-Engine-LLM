@@ -148,3 +148,44 @@ export async function probeProvidersAtStartup(config: Config): Promise<void> {
   }
   console.log(`[prober] all ${targets.length} provider(s) ready (${Date.now() - start}ms)`);
 }
+
+const DEFAULT_KEEPALIVE_MS = 60_000;
+
+/**
+ * Per-tick keep-alive logic, extracted so tests can call it directly without
+ * timer mocking. Re-probes every target in parallel; failures call
+ * console.warn but do not throw.
+ */
+export async function runKeepAliveTick(
+  targets: ProbeTarget[],
+  lmStudioUrl: string,
+  openRouterApiKey: string | null,
+): Promise<void> {
+  const results = await Promise.allSettled(
+    targets.map(t => probeOne(t, lmStudioUrl, openRouterApiKey))
+  );
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i]!;
+    if (r.status === "rejected") {
+      const t = targets[i]!;
+      const hint = explainFailure(t, (r as PromiseRejectedResult).reason);
+      console.warn(`[prober] keep-alive failed: ${t.provider},${t.model} — ${hint}`);
+    }
+  }
+}
+
+/**
+ * Start a 60s setInterval that runs runKeepAliveTick. Returns the Timer so
+ * callers can clearInterval it (mainly for tests). The Timer is .unref()'d
+ * so it doesn't keep Bun alive on shutdown.
+ *
+ * `intervalMs` defaults to 60_000; tests pass a small value to verify ticking.
+ */
+export function startKeepAlivePings(config: Config, intervalMs: number = DEFAULT_KEEPALIVE_MS): Timer {
+  const targets = buildProbeTargets(config);
+  const timer = setInterval(() => {
+    runKeepAliveTick(targets, config.lmStudioUrl, config.openRouterApiKey);
+  }, intervalMs);
+  timer.unref();
+  return timer;
+}
