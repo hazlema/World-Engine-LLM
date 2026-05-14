@@ -595,3 +595,35 @@ test("narratorTurn: includes PLAYER ATTRIBUTES section in user message when stac
   expect(capturedInput).toContain("- magic");
   expect(capturedInput).toContain("  - can manipulate objects");
 });
+
+test("archivistTurn: includes PLAYER ATTRIBUTES section in user message when stack has attributes", async () => {
+  let capturedInput = "";
+  callModelStructuredSpy.mockImplementationOnce(async (_sys: string, inp: string) => {
+    capturedInput = inp;
+    return { entries: [], threads: [], moved: false, locationDescription: "", achievedObjectiveIndices: [] };
+  });
+  const stack: WorldStack = {
+    ...emptyStack,
+    attributes: [{ name: "wizard", scope: ["can read minds"] }],
+  };
+  await archivistTurn(stack, "the candle gutters");
+  expect(capturedInput).toContain("PLAYER ATTRIBUTES (immutable):");
+  expect(capturedInput).toContain("- wizard");
+  expect(capturedInput).toContain("  - can read minds");
+});
+
+test("NARRATOR_SYSTEM: honors PLAYER ATTRIBUTES when present, denies absent abilities", () => {
+  expect(NARRATOR_SYSTEM).toContain("PLAYER ATTRIBUTES (immutable)");
+  const lower = NARRATOR_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/absence is denial/);
+  expect(lower).toMatch(/sub-bullets scope/);
+  expect(lower).toMatch(/ordinary mortal human/);
+});
+
+test("ARCHIVIST_SYSTEM: forbids paraphrasing player attributes as world entries", async () => {
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  expect(ARCHIVIST_SYSTEM).toContain("PLAYER ATTRIBUTES (immutable)");
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/immutable session data/);
+  expect(lower).toMatch(/do not add entries.*paraphrase|paraphrase.*restate/);
+});
