@@ -268,4 +268,20 @@ describe("startKeepAlivePings", () => {
     // No new ticks after clearInterval
     expect(fetchSpy.mock.calls.length).toBe(callsWhileTicking);
   });
+
+  test("a failing tick warns but does not stop the interval", async () => {
+    fetchSpy.mockImplementation(async () => new Response("err", { status: 500 }));
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const config = makeConfig();
+    try {
+      const timer = startKeepAlivePings(config, 10);
+      await Bun.sleep(35);
+      clearInterval(timer);
+      // Tick should warn on each failure and the interval should keep firing.
+      expect(warnSpy).toHaveBeenCalled();
+      expect(fetchSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });
