@@ -17,6 +17,7 @@ const emptyStack: WorldStack = {
   places: {},
   objectives: [],
   presetSlug: null,
+  attributes: [],
 };
 
 beforeEach(() => {
@@ -108,6 +109,7 @@ test("processInput: narrator receives the target tile's stored description as an
     places: { "1,0": "A windswept dune crowned by a single dead tree." },
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   narratorSpy.mockImplementationOnce(async () => "You return to the dune.");
@@ -137,6 +139,7 @@ test("processInput: return visit does NOT overwrite stored description", async (
     places: { "1,0": "ORIGINAL DESCRIPTION" },
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   narratorSpy.mockImplementationOnce(async () => "You return.");
@@ -260,6 +263,7 @@ const lunarPreset: Preset = {
     { text: "Find the transmitter" },
     { text: "Send the signal" },
   ],
+  attributes: [],
   body: "You are an astronaut.",
 };
 
@@ -298,6 +302,7 @@ test("keepExploring: clears presetSlug, leaves objectives intact", () => {
       { text: "b", achieved: true },
     ],
     presetSlug: "lunar-rescue",
+    attributes: [],
   };
   const after = keepExploring(s);
   expect(after.presetSlug).toBeNull();
@@ -325,6 +330,7 @@ test("processInput: stack-update includes objectives", async () => {
     places: {},
     objectives: [{ text: "a", achieved: false }],
     presetSlug: "x",
+    attributes: [],
   };
   const messages: ServerMessage[] = [];
   await processInput(stack, "look", (m) => messages.push(m));
@@ -357,6 +363,7 @@ test("processInput: applies achievedObjectiveIndices monotonically", async () =>
       { text: "b", achieved: false },
     ],
     presetSlug: "x",
+    attributes: [],
   };
   const newStack = await processInput(stack, "look", () => {});
   expect(newStack.objectives).toEqual([
@@ -387,6 +394,7 @@ test("processInput: emits win when last objective is achieved", async () => {
       { text: "b", achieved: false },
     ],
     presetSlug: "x",
+    attributes: [],
   };
   const messages: ServerMessage[] = [];
   await processInput(stack, "look", (m) => messages.push(m));
@@ -415,6 +423,7 @@ test("processInput: does NOT re-emit win on subsequent turns when already won", 
       { text: "b", achieved: true },
     ],
     presetSlug: "x",
+    attributes: [],
   };
   const messages: ServerMessage[] = [];
   await processInput(alreadyWon, "look", (m) => messages.push(m));

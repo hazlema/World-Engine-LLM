@@ -188,6 +188,7 @@ export function emptyWorld(): WorldStack {
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
 }
 
@@ -325,6 +326,7 @@ export async function processInput(
     places,
     objectives: newObjectives,
     presetSlug: stack.presetSlug,
+    attributes: stack.attributes,
   };
 
   await appendPlayLog(archived.turn, input, narrative, finalPosition);

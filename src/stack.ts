@@ -1,4 +1,4 @@
-import type { Preset } from "./presets";
+import type { Preset, PlayerAttribute } from "./presets";
 
 const STACK_FILE = new URL("../world-stack.json", import.meta.url).pathname;
 export const MAX_STACK_ENTRIES = 25;
@@ -21,6 +21,7 @@ export interface WorldStack {
   places: Record<string, string>;
   objectives: Objective[];
   presetSlug: string | null;
+  attributes: PlayerAttribute[];
 }
 
 // Coordinate convention: Position is [lat, lon] — north/south affect index 0,
@@ -95,6 +96,7 @@ function emptyStack(): WorldStack {
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
 }
 
@@ -144,6 +146,18 @@ export function parseStackData(data: any): WorldStack | null {
     : [];
   const presetSlug: string | null =
     typeof data.presetSlug === "string" ? data.presetSlug : null;
+  const attributes: PlayerAttribute[] = Array.isArray(data.attributes)
+    ? data.attributes
+        .filter(
+          (a: any) =>
+            a &&
+            typeof a === "object" &&
+            typeof a.name === "string" &&
+            Array.isArray(a.scope) &&
+            a.scope.every((s: any) => typeof s === "string")
+        )
+        .map((a: any) => ({ name: a.name, scope: [...a.scope] }))
+    : [];
 
   return {
     entries: data.entries,
@@ -153,6 +167,7 @@ export function parseStackData(data: any): WorldStack | null {
     places,
     objectives,
     presetSlug,
+    attributes,
   };
 }
 
@@ -315,6 +330,7 @@ export function applyPresetToStack(preset: Preset): WorldStack {
       return obj;
     }),
     presetSlug: preset.slug,
+    attributes: [...preset.attributes],
   };
 }
 
