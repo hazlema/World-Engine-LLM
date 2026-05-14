@@ -188,22 +188,32 @@ Click any thumbnail to jump to it. Click the big image to lightbox it. Use ← /
 All settings live in `.env`. Copy `.env-sample` to get started.
 
 ```bash
-## Required for any stage with provider=local
 LM_STUDIO_URL=http://localhost:1234
-
-## Required for any stage with provider=openrouter
 OPENROUTER_API_KEY=
 
-## One line per pipeline stage: provider,model
-## provider must be one of: local, openrouter
-NARRATOR_PROVIDER=openrouter,nvidia/nemotron-3-nano
-ARCHIVIST_PROVIDER=local,nvidia/nemotron-3-nano
-INTERPRETER_PROVIDER=local,nvidia/nemotron-3-nano
+NARRATOR_PROVIDER=openrouter,nvidia/nemotron-3-nano-30b-a3b:free
+ARCHIVIST_PROVIDER=openrouter,nvidia/nemotron-3-nano-30b-a3b:free
+INTERPRETER_PROVIDER=openrouter,nvidia/nemotron-3-nano-30b-a3b:free
 
-## Optional features
-USE_NARRATION=true
+###########################################################
+## Optional Gemini features
+##
+## Required if either USE_GEMINI_* flag below is true.
+## Get a key at https://aistudio.google.com/app/api-keys
+###########################################################
 GEMINI_API_KEY=
-USE_GEMINI_IMAGES=false
+USE_GEMINI_IMAGES=true
+
+###########################################################
+## ElevenLabs (cloud TTS) — overrides local Chatterbox.
+###########################################################
+USE_ELEVENLABS=false
+ELEVENLABS_API_KEY=
+ELEVENLABS_VOICES=Declan:kqVT88a5QfII1HNAEPTJ,Josh:pg7Nd5b8Y3tnfSndq5lh,Samantha:tVplNHhGm5NvP54mKUGh,Emma:56bWURjYFHyYyVf490Dp
+ELEVENLABS_MODEL=eleven_flash_v2_5
+
+USE_NARRATION=false
+
 ```
 
 The server validates this at startup. If anything is missing or malformed, it prints every problem to stderr and exits before opening the port. It also sends a 1-token reachability probe to every unique `(provider, model)` pair in parallel — bad API keys, missing OpenRouter credits, an unreachable LM Studio, and unloaded models all surface as per-stage error lines and exit before the port opens. Once probes pass, a 60-second keep-alive ping holds each connection warm so the first turn doesn't eat TLS or model-load cold-start latency.
@@ -306,6 +316,8 @@ Covers the stack, presets, engine prompts, server message handlers, and the API 
 
 ## Known Issues
 
+- **first turn of a game takes a bit.** Yes, but subsequent turns will be speedy. (Working on it)
+
 - **Mild narrative drift on long runs.** The structural drift classes (item retcon, count drift, oscillating entries) are closed. What can still happen on long sessions: the narrator occasionally recycles phrasing or skips an item the player hasn't touched in a while. Less severe than before, but worth flagging.
 
 - **Wrong-noun world-update toasts.** Occasionally the toast surfaces an entry about a different object than the one your action targeted. Extraction latches onto the most recently mentioned noun rather than the action's subject. Observed primarily on the previous local narrator/archivist combo; the current `nvidia/nemotron-3-nano` config may improve this, but it hasn't been verified across a long run.
@@ -313,8 +325,6 @@ Covers the stack, presets, engine prompts, server message handlers, and the API 
 - **LOCATE objectives complete on tile entry.** When you walk onto a tile that contains a "find / locate / reach the X" target, the deterministic safety net in `stack.ts` marks the objective complete the moment you arrive, before you've looked at or examined the thing. This should require an explicit `look`, `inspect`, or `examine` to fire.
 
 - **Duplicate objective-completion events.** Sometimes the same objective gets credited twice in a single session. Likely caused by the deterministic safety net and the archivist attributing the same change independently, with the `unionAchievedIndices` dedup missing the overlap.
-
-- **Audio queue / overlap / multi-tab echo.** Re-enabling narration mid-session can flush a stale queue; a new turn's audio can overlap the previous clip; two tabs on the same server can echo each other because audio messages are broadcast.
 
 - **Cardinal-only movement.** "Walk to the lander," "head west-by-northwest," and stair phrasings like `up` / `down` stay on the current tile and surface a toast. Use `north`, `south`, `east`, or `west`.
 
