@@ -65,7 +65,6 @@ function openRouterHeaders(apiKey: string): Record<string, string> {
   };
 }
 
-
 async function callOpenRouterChat(
   stage: StageConfig,
   apiKey: string,

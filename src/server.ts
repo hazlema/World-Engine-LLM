@@ -428,7 +428,6 @@ async function handleClientMessage(
       await saveStack(next);
       currentStack = next;
       broadcast(snapshotMessage(currentStack));
-
     } catch (err) {
       send({ type: "error", source: "archivist", message: `Start failed: ${err}` });
     }
@@ -477,7 +476,7 @@ async function main() {
   try {
     await probeProvidersAtStartup(serverConfig);
   } catch (err) {
-    console.error((err as Error).message);
+    console.error(err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
 
