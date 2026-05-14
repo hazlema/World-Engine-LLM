@@ -119,8 +119,14 @@ describe("probeProvidersAtStartup", () => {
       archivist: { provider: "local", model: "arch-model" },
       interpreter: { provider: "local", model: "arch-model" },
     });
-    await expect(probeProvidersAtStartup(config)).rejects.toThrow(/openrouter,narr-model/);
-    await expect(probeProvidersAtStartup(config)).rejects.toThrow(/OPENROUTER_API_KEY/);
+    try {
+      await probeProvidersAtStartup(config);
+      throw new Error("should have thrown");
+    } catch (err) {
+      const msg = (err as Error).message;
+      expect(msg).toMatch(/openrouter,narr-model/);
+      expect(msg).toMatch(/OPENROUTER_API_KEY/);
+    }
   });
 
   test("aggregated error names every failed target", async () => {
@@ -190,10 +196,13 @@ describe("probeProvidersAtStartup", () => {
   });
 
   test("probes fire in parallel, not serially", async () => {
-    const callTimes: number[] = [];
+    let inflight = 0;
+    let maxConcurrent = 0;
     fetchSpy.mockImplementation(async () => {
-      callTimes.push(Date.now());
+      inflight++;
+      maxConcurrent = Math.max(maxConcurrent, inflight);
       await Bun.sleep(20);
+      inflight--;
       return new Response("{}");
     });
     const config = makeConfig({
@@ -202,10 +211,7 @@ describe("probeProvidersAtStartup", () => {
       interpreter: { provider: "local", model: "c" },
     });
     await probeProvidersAtStartup(config);
-    expect(callTimes).toHaveLength(3);
-    // All three calls should fire within ~5ms of each other if parallel;
-    // serial would be ~20ms apart per call.
-    const spread = Math.max(...callTimes) - Math.min(...callTimes);
-    expect(spread).toBeLessThan(15);
+    // Structural assertion: if parallel, all 3 are in flight at peak. Serial would peak at 1.
+    expect(maxConcurrent).toBe(3);
   });
 });

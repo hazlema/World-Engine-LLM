@@ -49,7 +49,11 @@ class ProbeHttpError extends Error {
 function explainFailure(target: ProbeTarget, err: unknown): string {
   if (err instanceof ProbeHttpError) {
     const code = err.status;
-    if (code === 401 || code === 403) return "check OPENROUTER_API_KEY";
+    if (code === 401 || code === 403) {
+      return target.provider === "openrouter"
+        ? "check OPENROUTER_API_KEY"
+        : `HTTP ${code}: local endpoint returned Unauthorized`;
+    }
     if (code === 402) return "OpenRouter out of credits";
     if (code === 404) {
       return target.provider === "local"
