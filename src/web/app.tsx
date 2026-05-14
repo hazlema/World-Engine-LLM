@@ -169,11 +169,6 @@ function App() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const playbackRef = useRef<PlaybackController | null>(null);
   if (!playbackRef.current) playbackRef.current = new PlaybackController();
-  const audioElementRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    playbackRef.current?.attachElement(audioElementRef.current);
-  }, []);
 
   const [entriesCollapsed, toggleEntries] = useCollapsed("rail.entriesCollapsed", true);
   const [threadsCollapsed, toggleThreads] = useCollapsed("rail.threadsCollapsed", true);
@@ -654,7 +649,7 @@ function App() {
 
   return (
     <>
-      <audio ref={audioElementRef} preload="auto" />
+      <audio ref={(el) => playbackRef.current?.attachElement(el)} preload="auto" />
       <div className="page">
         <header className="masthead">
           <div className="app-header">World Engine</div>
