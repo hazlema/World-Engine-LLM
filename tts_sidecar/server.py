@@ -84,7 +84,13 @@ async def on_startup() -> None:
         print(f"[tts-sidecar] startup failed: {_load_error}", flush=True)
         return
 
-    device = "cuda" if _cuda_available() else "cpu"
+    # TTS_SIDECAR_DEVICE overrides auto-detect (e.g., force CPU when GPU is
+    # too crowded to hold Chatterbox alongside LM Studio).
+    override = os.environ.get("TTS_SIDECAR_DEVICE", "").strip().lower()
+    if override in ("cuda", "cpu"):
+        device = override
+    else:
+        device = "cuda" if _cuda_available() else "cpu"
     try:
         print(f"[tts-sidecar] loading ChatterboxTurboTTS on {device}...", flush=True)
         _model = ChatterboxTurboTTS.from_pretrained(device=device)

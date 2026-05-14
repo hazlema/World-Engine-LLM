@@ -61,7 +61,14 @@ export function spawnSidecar(): Subprocess {
   const py = pythonExecutable();
   console.log(`[tts] using python: ${py}`);
   const proc = Bun.spawn([py, "tts_sidecar/server.py"], {
-    env: { ...process.env, TTS_SIDECAR_HOST: SIDECAR_HOST, TTS_SIDECAR_PORT: SIDECAR_PORT },
+    env: {
+      ...process.env,
+      TTS_SIDECAR_HOST: SIDECAR_HOST,
+      TTS_SIDECAR_PORT: SIDECAR_PORT,
+      // Reduce fragmentation when sharing a GPU with another process (e.g.,
+      // LM Studio). PyTorch's own OOM messages suggest this; safe default.
+      PYTORCH_CUDA_ALLOC_CONF: process.env.PYTORCH_CUDA_ALLOC_CONF ?? "expandable_segments:True",
+    },
     stdout: "pipe",
     stderr: "pipe",
   });
