@@ -8,6 +8,7 @@ end-to-end before the heavy ML deps are installed.
 
 import io
 import os
+import re
 import struct
 import sys
 from pathlib import Path
@@ -62,6 +63,18 @@ def normalize_for_tts(text: str) -> str:
     for src, dst in _TTS_NORMALIZE_MAP.items():
         text = text.replace(src, dst)
     return text
+
+
+# Sentence-boundary splitter. Splits on .!? followed by whitespace.
+# Imperfect (will trip on abbreviations like "U.S.") but the narrator's prose
+# is regular enough that this works for our content.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def split_sentences(text: str) -> list:
+    """Break text into sentences. Filters empty fragments."""
+    parts = _SENTENCE_SPLIT_RE.split(text.strip())
+    return [p.strip() for p in parts if p.strip()]
 
 
 def _gen_float(name: str, default: float) -> float:
@@ -121,21 +134,52 @@ def generate_audio(text: str, voice: str) -> bytes:
     # empty (off) — set TTS_TEXT_PREFIX=". " for a near-invisible pause, or
     # "Ah, " for a softer human-sounding warmup.
     prefix = os.environ.get("TTS_TEXT_PREFIX", "")
-    payload = f"{prefix}{normalized}" if prefix else normalized
 
-    # Chatterbox returns a torch tensor; convert to a WAV byte buffer.
+    # Split into sentences and generate each separately, then concatenate.
+    # Localizes per-sentence failures (gibberish stays bounded to one
+    # sentence instead of cascading) and sidesteps the token-budget
+    # truncation problem entirely. Disable with TTS_SENTENCE_CHUNK=false
+    # to fall back to single-call generation.
+    chunk_enabled = os.environ.get("TTS_SENTENCE_CHUNK", "true").lower() != "false"
+    gap_ms = _gen_int("TTS_SENTENCE_GAP_MS", 150)
+
+    if chunk_enabled:
+        sentences = split_sentences(normalized) or [normalized]
+    else:
+        sentences = [normalized]
+
+    if prefix:
+        sentences[0] = f"{prefix}{sentences[0]}"
+
+    import torch
     import torchaudio as ta
 
-    wav_tensor = _model.generate(
-        payload,
-        audio_prompt_path=str(voice_path),
-        repetition_penalty=_gen_float("TTS_REPETITION_PENALTY", 1.2),
-        temperature=_gen_float("TTS_TEMPERATURE", 0.8),
-        top_p=_gen_float("TTS_TOP_P", 0.95),
-        top_k=_gen_int("TTS_TOP_K", 1000),
-    )
+    sample_rate = _model.sr
+    gap = torch.zeros(1, int(gap_ms / 1000 * sample_rate))
+    audio_chunks: list = []
+
+    rep = _gen_float("TTS_REPETITION_PENALTY", 1.2)
+    temp = _gen_float("TTS_TEMPERATURE", 0.8)
+    top_p = _gen_float("TTS_TOP_P", 0.95)
+    top_k = _gen_int("TTS_TOP_K", 1000)
+
+    print(f"[tts-sidecar] generating {len(sentences)} sentence chunk(s)...", flush=True)
+    for i, sentence in enumerate(sentences):
+        wav_tensor = _model.generate(
+            sentence,
+            audio_prompt_path=str(voice_path),
+            repetition_penalty=rep,
+            temperature=temp,
+            top_p=top_p,
+            top_k=top_k,
+        )
+        audio_chunks.append(wav_tensor)
+        if i < len(sentences) - 1:
+            audio_chunks.append(gap)
+
+    full_audio = torch.cat(audio_chunks, dim=-1)
     buf = io.BytesIO()
-    ta.save(buf, wav_tensor, _model.sr, format="wav")
+    ta.save(buf, full_audio, sample_rate, format="wav")
     return buf.getvalue()
 
 
