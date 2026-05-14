@@ -46,7 +46,7 @@ class ProbeHttpError extends Error {
  * actionable hint. Returns the hint string; the caller composes the full
  * "[prober] FAIL ..." line.
  */
-function explainFailure(target: ProbeTarget, err: unknown): string {
+function explainFailure(target: ProbeTarget, lmStudioUrl: string, err: unknown): string {
   if (err instanceof ProbeHttpError) {
     const code = err.status;
     if (code === 401 || code === 403) {
@@ -71,8 +71,8 @@ function explainFailure(target: ProbeTarget, err: unknown): string {
     const cause = (err as { cause?: { code?: string } }).cause;
     if (msg.includes("econnrefused") || cause?.code === "ECONNREFUSED" || msg === "fetch failed") {
       return target.provider === "local"
-        ? `connect refused: is LM Studio running?`
-        : `connect refused: is the network up?`;
+        ? `connect refused at ${lmStudioUrl}: is LM Studio running?`
+        : `connect refused at ${OPENROUTER_URL}: is the network up?`;
     }
     return err.message;
   }
@@ -135,7 +135,7 @@ export async function probeProvidersAtStartup(config: Config): Promise<void> {
     const r = results[i]!;
     if (r.status === "rejected") {
       const t = targets[i]!;
-      const hint = explainFailure(t, (r as PromiseRejectedResult).reason);
+      const hint = explainFailure(t, config.lmStudioUrl, (r as PromiseRejectedResult).reason);
       failures.push(
         `  ${t.provider},${t.model} (used by: ${t.usedBy.join(", ")})\n    → ${hint}`,
       );
@@ -168,7 +168,7 @@ export async function runKeepAliveTick(
     const r = results[i]!;
     if (r.status === "rejected") {
       const t = targets[i]!;
-      const hint = explainFailure(t, (r as PromiseRejectedResult).reason);
+      const hint = explainFailure(t, lmStudioUrl, (r as PromiseRejectedResult).reason);
       console.warn(`[prober] keep-alive failed: ${t.provider},${t.model} — ${hint}`);
     }
   }

@@ -477,6 +477,7 @@ async function main() {
     await probeProvidersAtStartup(serverConfig);
   } catch (err) {
     console.error(err instanceof Error ? err.message : String(err));
+    console.error("[prober] startup failed; exiting");
     process.exit(1);
   }
 
