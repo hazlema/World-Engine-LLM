@@ -287,6 +287,26 @@ Append `@ x,y` to an objective to anchor it to a tile. Players have to actually 
 
 > **Coordinate convention.** The first number is north-south (north positive, south negative). The second is east-west (east positive, west negative). So `@ -1,0` is one tile south of start, and `@ 0,1` is one tile east. Same convention everywhere positions appear, including the `/debug` modal and `world-stack.json`.
 
+#### Optional: player attributes
+
+Presets can declare immutable player attributes — species, descriptors, scope-bounded capabilities — that the engine treats as canonical:
+
+```yaml
+attributes:
+  - normal human abilities
+    - cannot lie
+  - tattoo of a dove on left shoulder
+  - magic
+    - can manipulate objects
+    - cannot manipulate time
+```
+
+Top-level bullets are attributes; sub-bullets (4-space indent) scope the parent. The narrator judges each player action against the scope — `magic / can manipulate objects` lets the player snap a tree limb but denies teleport. `cannot ...` bullets create hard limits even when the parent is permissive.
+
+The first attribute is conventionally the player's species or class (`normal human abilities`, `vampire`, `crow`, `demon`). The narrator inherits common-sense expectations from the name. Sub-bullets refine: confirm specific powers, add restrictions, override defaults.
+
+The field is optional. Presets without it behave exactly as before — the player is treated as an ordinary mortal human. See `presets/merlin-trial.md` for a full example.
+
 Drop a new `.md` in `presets/` and it'll appear on the title screen on the next page load.
 
 ### Architecture
