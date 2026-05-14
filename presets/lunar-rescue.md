@@ -1,6 +1,13 @@
 ---
 title: Lunar Rescue
 description: Stranded on the far side. Send the signal.
+attributes:
+  - normal human abilities
+  - mid-forties, lean and weathered
+  - close-cropped silver-streaked dark hair
+  - pale scar across the left eyebrow
+  - white EVA suit, mission patch on the right shoulder
+  - amber-tinted visor pinned with a strip of repair tape
 objects:
   - damaged transmitter half-buried in regolith
   - oxygen cache strapped to the lander hull

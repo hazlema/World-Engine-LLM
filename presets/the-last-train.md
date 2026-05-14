@@ -1,6 +1,13 @@
 ---
 title: The Last Train
 description: One car, six strangers, ninety minutes.
+attributes:
+  - normal human abilities
+  - late twenties, slim build
+  - shoulder-length copper hair, slightly tousled
+  - alert grey-green eyes that catch the flicker of the carriage lights
+  - threadbare wool overcoat over a faded green sweater
+  - worn leather satchel held tight in their lap
 objects:
   - leather satchel left on a window seat
   - half-empty bottle of plum wine on the floor

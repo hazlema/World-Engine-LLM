@@ -1,6 +1,13 @@
 ---
 title: Cellar of Glass
 description: A locksmith's tomb beneath the cathedral.
+attributes:
+  - normal human abilities
+  - lean wiry build, mid-thirties
+  - jet-black hair pulled back in a short braid
+  - scarred knuckles from years of forced locks
+  - soft-soled boots that make no sound on stone
+  - dark canvas coat, hood pushed back
 objects:
   - brass key tarnished green at the bow
   - shattered apothecary jar leaking clear fluid
