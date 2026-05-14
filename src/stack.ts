@@ -330,7 +330,7 @@ export function applyPresetToStack(preset: Preset): WorldStack {
       return obj;
     }),
     presetSlug: preset.slug,
-    attributes: [...preset.attributes],
+    attributes: preset.attributes.map((a) => ({ name: a.name, scope: [...a.scope] })),
   };
 }
 
