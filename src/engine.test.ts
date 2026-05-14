@@ -11,7 +11,7 @@ let callModelSpy: any;
 let callModelStructuredSpy: any;
 let callInterpreterStructuredSpy: any;
 
-const emptyStack: WorldStack = { entries: [] as string[], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null };
+const emptyStack: WorldStack = { entries: [] as string[], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] };
 const populatedStack: WorldStack = {
   entries: ["world is cold", "crow watches"],
   threads: ["find the watcher"],
@@ -20,6 +20,7 @@ const populatedStack: WorldStack = {
   places: {},
   objectives: [],
   presetSlug: null,
+  attributes: [],
 };
 
 function makeStack(overrides: Partial<WorldStack> = {}): WorldStack {
@@ -31,6 +32,7 @@ function makeStack(overrides: Partial<WorldStack> = {}): WorldStack {
     places: { "0,0": "a stone cellar with damp walls" },
     objectives: [{ text: "Find the rusted key", achieved: false, position: [0, 0] }],
     presetSlug: null,
+    attributes: [],
     ...overrides,
   };
 }
@@ -282,6 +284,7 @@ test("archivistTurn: returns moved and locationDescription fields", async () => 
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   callModelStructuredSpy.mockImplementationOnce(async () => ({
     entries: ["dune"],
@@ -305,6 +308,7 @@ test("archivistTurn: missing moved/locationDescription default safely", async ()
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   callModelStructuredSpy.mockImplementationOnce(async () => ({
     entries: [],
@@ -334,6 +338,7 @@ test("narratorTurn: includes MISSION BRIEFING and OBJECTIVES when provided", asy
     places: {},
     objectives: [{ text: "Find the transmitter", achieved: false }],
     presetSlug: "lunar-rescue",
+    attributes: [],
   };
   let captured = "";
   callModelSpy.mockImplementationOnce(async (_sys: string, inp: string) => {
@@ -573,4 +578,52 @@ test("SNAPSHOT_FIXTURES on → narrator + archivist rows appended", async () => 
   expect(archivistRow.archivist.narrativePassage).toContain("rusted key");
   expect(archivistRow.archivist.objectiveCount).toBe(1);
   await rm(dir, { recursive: true });
+});
+
+test("narratorTurn: includes PLAYER ATTRIBUTES section in user message when stack has attributes", async () => {
+  let capturedInput = "";
+  callModelSpy.mockImplementationOnce(async (_sys: string, inp: string) => {
+    capturedInput = inp;
+    return "Something happens.";
+  });
+  const stack: WorldStack = {
+    ...emptyStack,
+    attributes: [{ name: "magic", scope: ["can manipulate objects"] }],
+  };
+  await narratorTurn(stack, "raise the candlestick with magic");
+  expect(capturedInput).toContain("PLAYER ATTRIBUTES (immutable):");
+  expect(capturedInput).toContain("- magic");
+  expect(capturedInput).toContain("  - can manipulate objects");
+});
+
+test("archivistTurn: includes PLAYER ATTRIBUTES section in user message when stack has attributes", async () => {
+  let capturedInput = "";
+  callModelStructuredSpy.mockImplementationOnce(async (_sys: string, inp: string) => {
+    capturedInput = inp;
+    return { entries: [], threads: [], moved: false, locationDescription: "", achievedObjectiveIndices: [] };
+  });
+  const stack: WorldStack = {
+    ...emptyStack,
+    attributes: [{ name: "wizard", scope: ["can read minds"] }],
+  };
+  await archivistTurn(stack, "the candle gutters");
+  expect(capturedInput).toContain("PLAYER ATTRIBUTES (immutable):");
+  expect(capturedInput).toContain("- wizard");
+  expect(capturedInput).toContain("  - can read minds");
+});
+
+test("NARRATOR_SYSTEM: honors PLAYER ATTRIBUTES when present, denies absent abilities", () => {
+  expect(NARRATOR_SYSTEM).toContain("PLAYER ATTRIBUTES (immutable)");
+  const lower = NARRATOR_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/absence is denial/);
+  expect(lower).toMatch(/sub-bullets scope/);
+  expect(lower).toMatch(/ordinary mortal human/);
+});
+
+test("ARCHIVIST_SYSTEM: forbids paraphrasing player attributes as world entries", async () => {
+  const { ARCHIVIST_SYSTEM } = await import("./engine");
+  expect(ARCHIVIST_SYSTEM).toContain("PLAYER ATTRIBUTES (immutable)");
+  const lower = ARCHIVIST_SYSTEM.toLowerCase();
+  expect(lower).toMatch(/immutable session data/);
+  expect(lower).toMatch(/do not add entries.*paraphrase|paraphrase.*restate/);
 });

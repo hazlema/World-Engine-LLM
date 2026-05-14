@@ -1,4 +1,4 @@
-import type { Preset } from "./presets";
+import type { Preset, PlayerAttribute } from "./presets";
 
 const STACK_FILE = new URL("../world-stack.json", import.meta.url).pathname;
 export const MAX_STACK_ENTRIES = 25;
@@ -21,6 +21,7 @@ export interface WorldStack {
   places: Record<string, string>;
   objectives: Objective[];
   presetSlug: string | null;
+  attributes: PlayerAttribute[];
 }
 
 // Coordinate convention: Position is [lat, lon] — north/south affect index 0,
@@ -95,6 +96,7 @@ function emptyStack(): WorldStack {
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
 }
 
@@ -144,6 +146,18 @@ export function parseStackData(data: any): WorldStack | null {
     : [];
   const presetSlug: string | null =
     typeof data.presetSlug === "string" ? data.presetSlug : null;
+  const attributes: PlayerAttribute[] = Array.isArray(data.attributes)
+    ? data.attributes
+        .filter(
+          (a: any) =>
+            a &&
+            typeof a === "object" &&
+            typeof a.name === "string" &&
+            Array.isArray(a.scope) &&
+            a.scope.every((s: any) => typeof s === "string")
+        )
+        .map((a: any) => ({ name: a.name, scope: [...a.scope] }))
+    : [];
 
   return {
     entries: data.entries,
@@ -153,6 +167,7 @@ export function parseStackData(data: any): WorldStack | null {
     places,
     objectives,
     presetSlug,
+    attributes,
   };
 }
 
@@ -209,8 +224,22 @@ function findTargetNamingHints(activeObjectives: Objective[], entries: string[])
   return hints;
 }
 
+function formatPlayerAttributesBlock(attrs: PlayerAttribute[]): string | null {
+  if (attrs.length === 0) return null;
+  const lines: string[] = [];
+  for (const a of attrs) {
+    lines.push(`- ${a.name}`);
+    for (const s of a.scope) {
+      lines.push(`  - ${s}`);
+    }
+  }
+  return `PLAYER ATTRIBUTES (immutable):\n${lines.join("\n")}`;
+}
+
 export function formatStackForNarrator(stack: WorldStack, briefing?: string): string {
   const parts: string[] = [];
+  const attrBlock = formatPlayerAttributesBlock(stack.attributes);
+  if (attrBlock) parts.push(attrBlock);
   if (briefing && briefing.trim().length > 0) {
     parts.push(`MISSION BRIEFING (durable premise):\n${briefing.trim()}`);
   }
@@ -279,6 +308,9 @@ export function inferLocateCompletions(
 }
 
 export function formatStackForArchivist(stack: WorldStack): string {
+  const parts: string[] = [];
+  const attrBlock = formatPlayerAttributesBlock(stack.attributes);
+  if (attrBlock) parts.push(attrBlock);
   const facts =
     stack.entries.length === 0
       ? "CURRENT STACK: (empty)"
@@ -287,7 +319,8 @@ export function formatStackForArchivist(stack: WorldStack): string {
     stack.threads.length === 0
       ? "ACTIVE THREADS: (none)"
       : `ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`;
-  const parts = [facts, threads];
+  parts.push(facts);
+  parts.push(threads);
   if (stack.objectives.length > 0) {
     const lines = stack.objectives.map((o, i) => {
       const status = o.achieved ? "x" : " ";
@@ -315,6 +348,7 @@ export function applyPresetToStack(preset: Preset): WorldStack {
       return obj;
     }),
     presetSlug: preset.slug,
+    attributes: preset.attributes.map((a) => ({ name: a.name, scope: [...a.scope] })),
   };
 }
 

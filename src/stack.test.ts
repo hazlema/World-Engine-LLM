@@ -1,20 +1,20 @@
 import { test, expect } from "bun:test";
 import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, type WorldStack } from "./stack";
-import type { Preset } from "./presets";
+import type { Preset, PlayerAttribute } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
-  expect(formatStackForNarrator({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null })).toBe("");
+  expect(formatStackForNarrator({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] })).toBe("");
 });
 
 test("formatStackForNarrator: entries only", () => {
-  const stack = { entries: ["world is cold", "crow watches"], threads: [], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null };
+  const stack = { entries: ["world is cold", "crow watches"], threads: [], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] };
   expect(formatStackForNarrator(stack)).toBe(
     "ESTABLISHED WORLD:\n- world is cold\n- crow watches\n\n"
   );
 });
 
 test("formatStackForNarrator: threads only", () => {
-  const stack = { entries: [], threads: ["find the missing watcher"], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null };
+  const stack = { entries: [], threads: ["find the missing watcher"], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] };
   expect(formatStackForNarrator(stack)).toBe(
     "ACTIVE THREADS:\n- find the missing watcher\n\n"
   );
@@ -29,6 +29,7 @@ test("formatStackForNarrator: entries and threads together", () => {
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   expect(formatStackForNarrator(stack)).toBe(
     "ESTABLISHED WORLD:\n- world is cold\n\nACTIVE THREADS:\n- find the watcher\n\n"
@@ -36,7 +37,7 @@ test("formatStackForNarrator: entries and threads together", () => {
 });
 
 test("formatStackForArchivist: empty stack returns empty headers for both", () => {
-  expect(formatStackForArchivist({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null })).toBe(
+  expect(formatStackForArchivist({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] })).toBe(
     "CURRENT STACK: (empty)\n\nACTIVE THREADS: (none)\n\n"
   );
 });
@@ -50,6 +51,7 @@ test("formatStackForArchivist: populated stack", () => {
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   expect(formatStackForArchivist(stack)).toBe(
     "CURRENT STACK:\n- world is cold\n\nACTIVE THREADS:\n- find the watcher\n\n"
@@ -87,6 +89,7 @@ test("formatStackForNarrator: includes stored location description when present"
     places: { "1,0": "A windswept dune crowned by a single dead tree." },
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("CURRENT LOCATION (canonical description):");
@@ -102,6 +105,7 @@ test("formatStackForNarrator: omits the location section when no description sto
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).not.toContain("CURRENT LOCATION (canonical description):");
@@ -116,6 +120,7 @@ const samplePreset: Preset = {
     { text: "Find the transmitter" },
     { text: "Send the signal" },
   ],
+  attributes: [],
   body: "You are an astronaut.",
 };
 
@@ -143,6 +148,7 @@ test("applyPresetToStack: forwards objective position from preset", () => {
       { text: "Open chest", position: [1, 0] },
       { text: "Wander" },
     ],
+    attributes: [],
     body: "body",
   };
   const s = applyPresetToStack(preset);
@@ -235,6 +241,7 @@ test("formatStackForNarrator: includes MISSION BRIEFING when briefing is provide
     places: {},
     objectives: [],
     presetSlug: "lunar-rescue",
+    attributes: [],
   };
   const out = formatStackForNarrator(stack, "You are an astronaut.");
   expect(out).toContain("MISSION BRIEFING (durable premise):");
@@ -250,6 +257,7 @@ test("formatStackForNarrator: omits MISSION BRIEFING when briefing is undefined"
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).not.toContain("MISSION BRIEFING");
@@ -267,6 +275,7 @@ test("formatStackForNarrator: renders OBJECTIVES checkboxes when objectives pres
       { text: "Send the signal", achieved: false },
     ],
     presetSlug: "lunar-rescue",
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
@@ -283,6 +292,7 @@ test("formatStackForNarrator: omits OBJECTIVES when none", () => {
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   expect(formatStackForNarrator(stack)).not.toContain("OBJECTIVES:");
 });
@@ -299,6 +309,7 @@ test("formatStackForArchivist: includes OBJECTIVES with indices when present", (
       { text: "Send the signal", achieved: false },
     ],
     presetSlug: "lunar-rescue",
+    attributes: [],
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("OBJECTIVES:");
@@ -315,6 +326,7 @@ test("formatStackForArchivist: omits OBJECTIVES section when empty", () => {
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
   expect(formatStackForArchivist(stack)).not.toContain("OBJECTIVES:");
 });
@@ -459,6 +471,7 @@ test("formatStackForNarrator: positionless objectives still render under OBJECTI
     places: {},
     objectives: [{ text: "Find the journal", achieved: false }],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
@@ -475,6 +488,7 @@ test("formatStackForNarrator: positioned objective at current tile is active", (
     places: {},
     objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
@@ -491,6 +505,7 @@ test("formatStackForNarrator: positioned objective elsewhere is distant with tra
     places: {},
     objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OFF-TILE OBJECTIVES (require travel):");
@@ -511,6 +526,7 @@ test("formatStackForNarrator: mixed active and distant render in their own secti
       { text: "Escape", achieved: false, position: [0, 0] },
     ],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
@@ -534,6 +550,7 @@ test("formatStackForNarrator: distant objectives include cardinal direction in h
       { text: "Cross the bridge", achieved: false, position: [0, 1] },
     ],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("[ ] Find the journal (1 move south)");
@@ -551,6 +568,7 @@ test("formatStackForArchivist: positionless objective shows no flag", () => {
     places: {},
     objectives: [{ text: "Find the journal", achieved: false }],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Find the journal");
@@ -566,6 +584,7 @@ test("formatStackForArchivist: positioned-at-current-tile objective shows no fla
     places: {},
     objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Open the chest");
@@ -584,6 +603,7 @@ test("formatStackForArchivist: positioned-elsewhere objective is flagged [OFF-TI
       { text: "Find the journal", achieved: false },
     ],
     presetSlug: null,
+    attributes: [],
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Open the chest [OFF-TILE — cannot be completed this turn]");
@@ -614,4 +634,177 @@ test("locateObjectiveAnchor: returns null for bare 'Find' with no target", () =>
 
 test("locateObjectiveAnchor: handles 'Reach the broken spire'", () => {
   expect(locateObjectiveAnchor("Reach the broken spire")).toBe("spire");
+});
+
+test("applyPresetToStack: copies preset.attributes onto the new stack", () => {
+  const preset: Preset = {
+    slug: "test",
+    title: "T",
+    description: "D",
+    objects: [],
+    objectives: [],
+    attributes: [
+      { name: "magic", scope: ["can manipulate objects"] },
+      { name: "red hair", scope: [] },
+    ],
+    body: "body",
+  };
+  const stack = applyPresetToStack(preset);
+  expect(stack.attributes).toEqual([
+    { name: "magic", scope: ["can manipulate objects"] },
+    { name: "red hair", scope: [] },
+  ]);
+});
+
+test("parseStackData: preserves attributes through JSON round-trip", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [{ name: "magic", scope: ["can manipulate objects"] }],
+  };
+  const json = JSON.stringify(stack);
+  const reparsed = parseStackData(JSON.parse(json));
+  expect(reparsed?.attributes).toEqual([{ name: "magic", scope: ["can manipulate objects"] }]);
+});
+
+test("parseStackData: defaults attributes to [] when field is missing (old stack file)", () => {
+  const oldShape = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    // no attributes field
+  };
+  const parsed = parseStackData(oldShape);
+  expect(parsed?.attributes).toEqual([]);
+});
+
+test("parseStackData: defaults attributes to [] when field is malformed", () => {
+  const badShape = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: "not an array",
+  };
+  const parsed = parseStackData(badShape);
+  expect(parsed?.attributes).toEqual([]);
+});
+
+test("parseStackData: drops individual attribute when its scope contains a non-string element, keeps others", () => {
+  // The every() filter is item-level, not element-level: a bad scope
+  // element drops the whole attribute (defensive, predictable). This test
+  // pins that behavior so a future change to filter element-by-element
+  // shows up as a deliberate break.
+  const shape = {
+    entries: [], threads: [], turn: 0, position: [0, 0], places: {}, objectives: [], presetSlug: null,
+    attributes: [
+      { name: "magic", scope: ["can manipulate objects", 42, "also valid"] },
+      { name: "red hair", scope: [] },
+    ],
+  };
+  const parsed = parseStackData(shape);
+  expect(parsed?.attributes).toEqual([{ name: "red hair", scope: [] }]);
+});
+
+test("applyPresetToStack: attributes scope arrays are reference-isolated from the preset", () => {
+  const preset: Preset = {
+    slug: "x", title: "T", description: "D", objects: [], objectives: [],
+    attributes: [{ name: "magic", scope: ["can do thing"] }],
+    body: "b",
+  };
+  const stack = applyPresetToStack(preset);
+  // Mutating the stack's scope must not affect the preset's scope.
+  stack.attributes[0]!.scope.push("MUTATED");
+  expect(preset.attributes[0]!.scope).toEqual(["can do thing"]);
+});
+
+test("formatStackForNarrator: includes PLAYER ATTRIBUTES as the first section when populated", () => {
+  const stack: WorldStack = {
+    entries: ["dusty bookshelf"],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [
+      { name: "magic", scope: ["can manipulate objects", "cannot manipulate time"] },
+      { name: "red hair", scope: [] },
+    ],
+  };
+  const out = formatStackForNarrator(stack, "you wake in a study");
+  // Section appears first.
+  const attrIdx = out.indexOf("PLAYER ATTRIBUTES (immutable):");
+  const briefingIdx = out.indexOf("MISSION BRIEFING");
+  expect(attrIdx).toBeGreaterThanOrEqual(0);
+  expect(briefingIdx).toBeGreaterThan(attrIdx);
+  // Format check: top-level dash, sub-bullet 2-space indent.
+  expect(out).toContain("- magic");
+  expect(out).toContain("  - can manipulate objects");
+  expect(out).toContain("  - cannot manipulate time");
+  expect(out).toContain("- red hair");
+});
+
+test("formatStackForNarrator: omits PLAYER ATTRIBUTES section when empty", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+  };
+  const out = formatStackForNarrator(stack, "premise");
+  expect(out).not.toContain("PLAYER ATTRIBUTES");
+});
+
+test("formatStackForArchivist: includes PLAYER ATTRIBUTES as the first section when populated", () => {
+  const stack: WorldStack = {
+    entries: ["a key on the table"],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [{ name: "wizard", scope: ["can read minds"] }],
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("PLAYER ATTRIBUTES (immutable):");
+  expect(out).toContain("- wizard");
+  expect(out).toContain("  - can read minds");
+  // Section appears first — before CURRENT STACK and ACTIVE THREADS.
+  const attrIdx = out.indexOf("PLAYER ATTRIBUTES (immutable):");
+  const stackIdx = out.indexOf("CURRENT STACK:");
+  expect(attrIdx).toBeGreaterThanOrEqual(0);
+  expect(stackIdx).toBeGreaterThan(attrIdx);
+});
+
+test("formatStackForArchivist: omits PLAYER ATTRIBUTES section when empty", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).not.toContain("PLAYER ATTRIBUTES");
 });

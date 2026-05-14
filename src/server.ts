@@ -188,6 +188,7 @@ export function emptyWorld(): WorldStack {
     places: {},
     objectives: [],
     presetSlug: null,
+    attributes: [],
   };
 }
 
@@ -325,6 +326,7 @@ export async function processInput(
     places,
     objectives: newObjectives,
     presetSlug: stack.presetSlug,
+    attributes: stack.attributes,
   };
 
   await appendPlayLog(archived.turn, input, narrative, finalPosition);
@@ -535,7 +537,7 @@ async function main() {
           const style: ImageStyle = typeof body.style === "string" && (IMAGE_STYLES as readonly string[]).includes(body.style)
             ? body.style as ImageStyle
             : DEFAULT_IMAGE_STYLE;
-          const png = await generateImage(text, style);
+          const png = await generateImage(text, style, currentStack.attributes);
           return new Response(png, {
             headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
           });

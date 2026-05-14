@@ -1,4 +1,5 @@
 import { GoogleGenAI, Modality } from "@google/genai";
+import type { PlayerAttribute } from "./presets";
 
 const IMAGE_MODEL = "gemini-2.5-flash-image";
 
@@ -14,20 +15,45 @@ const STYLE_DESCRIPTIONS: Record<ImageStyle, string> = {
   anime:      "Anime / cel-shaded illustration. Bold linework. Saturated palette.",
 };
 
-export async function generateImage(narrative: string, style: ImageStyle = DEFAULT_IMAGE_STYLE): Promise<Buffer> {
+export function buildImagePrompt(
+  narrative: string,
+  style: ImageStyle = DEFAULT_IMAGE_STYLE,
+  playerAttributes?: PlayerAttribute[],
+): string {
+  const styleDescription = STYLE_DESCRIPTIONS[style] ?? STYLE_DESCRIPTIONS[DEFAULT_IMAGE_STYLE];
+  const parts: string[] = [
+    "Render this scene as a cinematic 21:9 ultrawide image.",
+    `Style: ${styleDescription}`,
+    "No text, captions, or watermarks.",
+  ];
+  if (playerAttributes && playerAttributes.length > 0) {
+    const attrLines: string[] = [];
+    for (const a of playerAttributes) {
+      attrLines.push(`- ${a.name}`);
+      for (const s of a.scope) {
+        attrLines.push(`  - ${s}`);
+      }
+    }
+    parts.push("");
+    parts.push("Player character details (apply only if the player figure appears in frame):");
+    parts.push(...attrLines);
+  }
+  parts.push("");
+  parts.push("Scene:");
+  parts.push(narrative);
+  return parts.join("\n");
+}
+
+export async function generateImage(
+  narrative: string,
+  style: ImageStyle = DEFAULT_IMAGE_STYLE,
+  playerAttributes?: PlayerAttribute[],
+): Promise<Buffer> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set");
 
   const ai = new GoogleGenAI({ apiKey: key });
-  const styleDescription = STYLE_DESCRIPTIONS[style] ?? STYLE_DESCRIPTIONS[DEFAULT_IMAGE_STYLE];
-  const prompt = [
-    "Render this scene as a cinematic 21:9 ultrawide image.",
-    `Style: ${styleDescription}`,
-    "No text, captions, or watermarks.",
-    "",
-    "Scene:",
-    narrative,
-  ].join("\n");
+  const prompt = buildImagePrompt(narrative, style, playerAttributes);
 
   const response = await ai.models.generateContent({
     model: IMAGE_MODEL,

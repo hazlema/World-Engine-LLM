@@ -142,3 +142,176 @@ body`;
   const p = parsePresetText(text, "x");
   expect(p.objectives).toEqual([{ text: "@ 1,2" }]);
 });
+
+test("parsePresetText: parses attributes with hierarchical bullets", () => {
+  const text = `---
+title: T
+description: D
+attributes:
+  - normal human abilities
+    - cannot lie
+  - tattoo of a dove on left shoulder
+  - magic
+    - can manipulate objects
+    - cannot manipulate time
+objects:
+  - oak staff
+objectives:
+  - do something
+---
+body`;
+  const p = parsePresetText(text, "x");
+  expect(p.attributes).toEqual([
+    { name: "normal human abilities", scope: ["cannot lie"] },
+    { name: "tattoo of a dove on left shoulder", scope: [] },
+    { name: "magic", scope: ["can manipulate objects", "cannot manipulate time"] },
+  ]);
+});
+
+test("parsePresetText: missing attributes field defaults to []", () => {
+  const text = `---
+title: T
+description: D
+objects:
+  - a
+objectives:
+  - o
+---
+body`;
+  const p = parsePresetText(text, "x");
+  expect(p.attributes).toEqual([]);
+});
+
+test("parsePresetText: empty attributes header defaults to []", () => {
+  const text = `---
+title: T
+description: D
+attributes:
+objects:
+  - a
+objectives:
+  - o
+---
+body`;
+  const p = parsePresetText(text, "x");
+  expect(p.attributes).toEqual([]);
+});
+
+test("parsePresetText: bare top-level attribute has empty scope", () => {
+  const text = `---
+title: T
+description: D
+attributes:
+  - red hair
+objects:
+  - a
+objectives:
+  - o
+---
+body`;
+  const p = parsePresetText(text, "x");
+  expect(p.attributes).toEqual([{ name: "red hair", scope: [] }]);
+});
+
+test("parsePresetText: throws when sub-bullet appears under objects:", () => {
+  const text = `---
+title: T
+description: D
+objects:
+  - candle
+    - melted
+objectives:
+  - o
+---
+body`;
+  expect(() => parsePresetText(text, "x")).toThrow(/sub-bullet/);
+});
+
+test("parsePresetText: throws when sub-bullet appears under objectives:", () => {
+  const text = `---
+title: T
+description: D
+objects:
+  - a
+objectives:
+  - find it
+    - in the corner
+---
+body`;
+  expect(() => parsePresetText(text, "x")).toThrow(/sub-bullet/);
+});
+
+test("parsePresetText: throws when sub-bullet appears with no parent attribute", () => {
+  const text = `---
+title: T
+description: D
+attributes:
+    - orphan sub-bullet
+objects:
+  - a
+objectives:
+  - o
+---
+body`;
+  expect(() => parsePresetText(text, "x")).toThrow(/sub-bullet/);
+});
+
+test("parsePresetText: throws when an attribute name exceeds 80 chars", () => {
+  const longName = "x".repeat(81);
+  const text = `---
+title: T
+description: D
+attributes:
+  - ${longName}
+objects:
+  - a
+objectives:
+  - o
+---
+body`;
+  expect(() => parsePresetText(text, "x")).toThrow(/80/);
+});
+
+test("parsePresetText: throws when an attribute has more than 10 sub-bullets", () => {
+  const subs = Array.from({ length: 11 }, (_, i) => `    - sub ${i}`).join("\n");
+  const text = `---
+title: T
+description: D
+attributes:
+  - magic
+${subs}
+objects:
+  - a
+objectives:
+  - o
+---
+body`;
+  expect(() => parsePresetText(text, "x")).toThrow(/10 sub-bullets/);
+});
+
+test("parsePresetText: throws on empty attribute name (whitespace-only bullet)", () => {
+  // "  -   " (dash followed by spaces, content trimmable to "") matches the
+  // listItem regex but trips the empty-bullet guard. The pattern
+  // distinguishes "empty content" from "malformed line" (the latter would be
+  // e.g. a 3-space indent, which falls through to the catch-all throw).
+  const text = "---\ntitle: T\ndescription: D\nattributes:\n  -   \nobjects:\n  - a\nobjectives:\n  - o\n---\nbody";
+  expect(() => parsePresetText(text, "x")).toThrow(/empty bullet/);
+});
+
+test("parsePresetText: accepts exactly 10 sub-bullets per attribute", () => {
+  const subs = Array.from({ length: 10 }, (_, i) => `    - sub ${i}`).join("\n");
+  const text = `---
+title: T
+description: D
+attributes:
+  - magic
+${subs}
+objects:
+  - a
+objectives:
+  - o
+---
+body`;
+  const p = parsePresetText(text, "x");
+  expect(p.attributes[0]?.scope).toHaveLength(10);
+});
