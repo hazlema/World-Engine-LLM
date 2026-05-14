@@ -7,6 +7,8 @@ export type StageConfig = {
   topP?: number;
 };
 
+export type ElevenLabsVoice = { label: string; voiceId: string };
+
 export type Config = {
   lmStudioUrl: string;
   openRouterApiKey: string | null;
@@ -16,7 +18,31 @@ export type Config = {
   interpreter: StageConfig;
   useGeminiImages: boolean;
   useNarration: boolean;
+  useElevenLabs: boolean;
+  elevenLabsApiKey: string | null;
+  elevenLabsVoices: ElevenLabsVoice[];
+  elevenLabsModel: string;
 };
+
+/**
+ * Parse "label:voice_id,label:voice_id" into structured pairs. Whitespace
+ * around delimiters is tolerated; malformed entries are silently skipped
+ * (validation catches the empty-result case).
+ */
+export function parseElevenLabsVoices(raw: string | undefined): ElevenLabsVoice[] {
+  if (!raw || !raw.trim()) return [];
+  return raw
+    .split(",")
+    .map((pair) => {
+      const idx = pair.indexOf(":");
+      if (idx === -1) return null;
+      const label = pair.slice(0, idx).trim();
+      const voiceId = pair.slice(idx + 1).trim();
+      if (!label || !voiceId) return null;
+      return { label, voiceId };
+    })
+    .filter((x): x is ElevenLabsVoice => x !== null);
+}
 
 export type ParseResult =
   | { ok: true; config: Config }
@@ -111,6 +137,26 @@ export function parseConfig(env: Record<string, string | undefined>): ParseResul
     ? true
     : env.USE_NARRATION.trim().toLowerCase() !== "false";
 
+  // USE_ELEVENLABS overrides the local Chatterbox sidecar with ElevenLabs API
+  // calls. When true, the Python sidecar is never spawned.
+  const useElevenLabs = parseBool(env.USE_ELEVENLABS);
+  const elevenLabsApiKey = (env.ELEVENLABS_API_KEY ?? "").trim() || null;
+  const elevenLabsVoices = parseElevenLabsVoices(env.ELEVENLABS_VOICES);
+  const elevenLabsModel = (env.ELEVENLABS_MODEL ?? "eleven_flash_v2_5").trim();
+
+  if (useElevenLabs) {
+    if (!elevenLabsApiKey) {
+      errors.push(
+        "USE_ELEVENLABS=true but ELEVENLABS_API_KEY is empty. Get a key at https://elevenlabs.io/app/settings/api-keys.",
+      );
+    }
+    if (elevenLabsVoices.length === 0) {
+      errors.push(
+        "USE_ELEVENLABS=true but ELEVENLABS_VOICES is empty. Format: label:voice_id,label:voice_id",
+      );
+    }
+  }
+
   // Cross-validation: providers need their API keys.
   const usesOpenRouter =
     narratorRaw?.provider === "openrouter" ||
@@ -149,6 +195,10 @@ export function parseConfig(env: Record<string, string | undefined>): ParseResul
       interpreter: applyTuning(interpreterRaw, env, TUNING_KEYS.interpreter),
       useGeminiImages,
       useNarration,
+      useElevenLabs,
+      elevenLabsApiKey,
+      elevenLabsVoices,
+      elevenLabsModel,
     },
   };
 }

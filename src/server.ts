@@ -14,7 +14,7 @@ import {
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
 import { synthesizeToFile } from "./tts";
-import { spawnSidecar, waitForSidecarReady, isNarrationReady, listSidecarVoices } from "./sidecar";
+import { spawnSidecar, waitForSidecarReady, isNarrationReady, listSidecarVoices, markSidecarReady } from "./sidecar";
 import { generateImage, IMAGE_STYLES, DEFAULT_IMAGE_STYLE, type ImageStyle } from "./gemini-image";
 import { warmupOpenRouter, logStartupRouting } from "./api";
 import { loadConfig, type Config } from "./config";
@@ -97,7 +97,10 @@ function providerInfo(): ProviderInfo {
     narrator: { provider: c.narrator.provider, model: c.narrator.model },
     archivist: { model: c.archivist.model },
     interpreter: { provider: c.interpreter.provider, model: c.interpreter.model },
-    tts: { provider: "chatterbox", voice: _voiceList[0] ?? DEFAULT_VOICE },
+    tts: {
+      provider: c.useElevenLabs ? "elevenlabs" : "chatterbox",
+      voice: _voiceList[0] ?? DEFAULT_VOICE,
+    },
     image: { provider: "gemini", style: DEFAULT_IMAGE_STYLE },
     useGeminiImages: c.useGeminiImages,
     useNarration: c.useNarration,
@@ -471,11 +474,17 @@ async function main() {
   serverConfig = loadConfig();
   logStartupRouting();
 
-  if (serverConfig.useNarration) {
+  if (!serverConfig.useNarration) {
+    console.log("[tts] USE_NARRATION=false — narration disabled");
+  } else if (serverConfig.useElevenLabs) {
+    _voiceList = serverConfig.elevenLabsVoices.map((v) => v.label);
+    markSidecarReady(true);
+    console.log(
+      `[tts] using ElevenLabs (${serverConfig.elevenLabsModel}); voices: ${_voiceList.join(", ")}`,
+    );
+  } else {
     console.log("[tts] spawning sidecar...");
     spawnSidecar();
-  } else {
-    console.log("[tts] USE_NARRATION=false — sidecar not started, narration disabled");
   }
 
   presets = await loadAllPresets();
@@ -613,7 +622,7 @@ async function main() {
   // resolves, broadcast a fresh snapshot so connected clients learn that
   // narrationReady flipped true (the initial snapshot was sent while the
   // sidecar was still loading, so it said false).
-  if (serverConfig.useNarration) {
+  if (serverConfig.useNarration && !serverConfig.useElevenLabs) {
     waitForSidecarReady().then(async (ready) => {
       if (ready) {
         _voiceList = await listSidecarVoices();

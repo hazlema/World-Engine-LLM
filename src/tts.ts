@@ -14,6 +14,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseElevenLabsVoices } from "./config";
+import { synthesizeElevenLabs } from "./eleven-tts";
 import { SIDECAR_BASE_URL } from "./sidecar";
 
 function mediaRoot(): string {
@@ -33,14 +35,20 @@ export function _hashForTesting(text: string, voice: string): string {
 }
 
 /**
- * Returns the public URL path of a WAV file for (text, voice). Generates
- * via the sidecar on cache miss.
+ * Returns the public URL path of an audio file for (text, voice). Generates
+ * via the active provider on cache miss.
  *
- * @throws if the sidecar returns non-2xx.
+ * Provider is chosen by USE_ELEVENLABS at call time:
+ *   - true  → ElevenLabs cloud API, mp3 output
+ *   - false → local Chatterbox sidecar, wav output
+ *
+ * @throws if the provider returns non-2xx.
  */
 export async function synthesizeToFile(text: string, voice: string): Promise<string> {
+  const useEleven = (process.env.USE_ELEVENLABS ?? "").trim().toLowerCase() === "true";
+  const ext = useEleven ? "mp3" : "wav";
   const hash = _hashForTesting(text, voice);
-  const filename = `${hash}.wav`;
+  const filename = `${hash}.${ext}`;
   const filePath = join(audioDir(), filename);
   const urlPath = `/media/audio/${filename}`;
 
@@ -48,6 +56,15 @@ export async function synthesizeToFile(text: string, voice: string): Promise<str
     return urlPath;
   }
 
+  const bytes = useEleven
+    ? await synthesizeViaElevenLabs(text, voice)
+    : await synthesizeViaSidecar(text, voice);
+
+  writeFileSync(filePath, bytes);
+  return urlPath;
+}
+
+async function synthesizeViaSidecar(text: string, voice: string): Promise<Uint8Array> {
   const res = await fetch(`${SIDECAR_BASE_URL}/tts?voice=${encodeURIComponent(voice)}`, {
     method: "POST",
     headers: { "Content-Type": "text/plain" },
@@ -59,7 +76,19 @@ export async function synthesizeToFile(text: string, voice: string): Promise<str
     throw new Error(`sidecar /tts ${res.status}: ${detail.slice(0, 200)}`);
   }
 
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  writeFileSync(filePath, bytes);
-  return urlPath;
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+async function synthesizeViaElevenLabs(text: string, voice: string): Promise<Uint8Array> {
+  const apiKey = (process.env.ELEVENLABS_API_KEY ?? "").trim();
+  if (!apiKey) throw new Error("ELEVENLABS_API_KEY is empty");
+
+  const voices = parseElevenLabsVoices(process.env.ELEVENLABS_VOICES);
+  const match = voices.find((v) => v.label === voice);
+  if (!match) {
+    throw new Error(`unknown elevenlabs voice label: ${voice}`);
+  }
+
+  const model = (process.env.ELEVENLABS_MODEL ?? "eleven_flash_v2_5").trim();
+  return synthesizeElevenLabs(text, match.voiceId, apiKey, model);
 }
