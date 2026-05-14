@@ -43,6 +43,27 @@ def make_silent_wav(seconds: float = 1.0) -> bytes:
     return header + pcm
 
 
+# Punctuation Chatterbox handles poorly. Swap for ASCII equivalents
+# pre-generate; the listener hears the same prosodic intent.
+_TTS_NORMALIZE_MAP = {
+    "—": ", ",   # em-dash —   (the big offender for our narrator's prose)
+    "–": "-",    # en-dash –
+    "‘": "'",    # left single quote
+    "’": "'",    # right single quote / apostrophe
+    "“": '"',    # left double quote
+    "”": '"',    # right double quote
+    "…": "...",  # ellipsis char …
+    " ": " ",    # non-breaking space
+}
+
+
+def normalize_for_tts(text: str) -> str:
+    """Replace common non-ASCII punctuation that confuses Chatterbox."""
+    for src, dst in _TTS_NORMALIZE_MAP.items():
+        text = text.replace(src, dst)
+    return text
+
+
 def _gen_float(name: str, default: float) -> float:
     """Read a float from env, return default if unset or unparseable."""
     raw = os.environ.get(name)
@@ -90,13 +111,17 @@ def generate_audio(text: str, voice: str) -> bytes:
     if not voice_path.exists():
         raise RuntimeError(f"voice reference file missing: {voice_path}")
 
+    # Normalize Chatterbox-hostile punctuation (em-dashes, curly quotes, etc.)
+    # before generation. Listener won't notice; model handles ASCII cleanly.
+    normalized = normalize_for_tts(text)
+
     # Chatterbox's first few output tokens can be garbled while the prosody
     # system warms up. Prepending a short throwaway phrase lets the model
     # absorb that warmup on something the listener won't miss. Defaults
     # empty (off) — set TTS_TEXT_PREFIX=". " for a near-invisible pause, or
     # "Ah, " for a softer human-sounding warmup.
     prefix = os.environ.get("TTS_TEXT_PREFIX", "")
-    payload = f"{prefix}{text}" if prefix else text
+    payload = f"{prefix}{normalized}" if prefix else normalized
 
     # Chatterbox returns a torch tensor; convert to a WAV byte buffer.
     import torchaudio as ta
