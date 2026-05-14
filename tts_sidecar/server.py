@@ -90,11 +90,19 @@ def generate_audio(text: str, voice: str) -> bytes:
     if not voice_path.exists():
         raise RuntimeError(f"voice reference file missing: {voice_path}")
 
+    # Chatterbox's first few output tokens can be garbled while the prosody
+    # system warms up. Prepending a short throwaway phrase lets the model
+    # absorb that warmup on something the listener won't miss. Defaults
+    # empty (off) — set TTS_TEXT_PREFIX=". " for a near-invisible pause, or
+    # "Ah, " for a softer human-sounding warmup.
+    prefix = os.environ.get("TTS_TEXT_PREFIX", "")
+    payload = f"{prefix}{text}" if prefix else text
+
     # Chatterbox returns a torch tensor; convert to a WAV byte buffer.
     import torchaudio as ta
 
     wav_tensor = _model.generate(
-        text,
+        payload,
         audio_prompt_path=str(voice_path),
         repetition_penalty=_gen_float("TTS_REPETITION_PENALTY", 1.2),
         temperature=_gen_float("TTS_TEMPERATURE", 0.8),
