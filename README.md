@@ -301,7 +301,7 @@ attributes:
     - cannot manipulate time
 ```
 
-Top-level bullets are attributes; sub-bullets (4-space indent) scope the parent. The narrator judges each player action against the scope — `magic / can manipulate objects` lets the player snap a tree limb but denies teleport. `cannot ...` bullets create hard limits even when the parent is permissive.
+Top-level bullets are attributes; sub-bullets (4-space indent) scope the parent. The narrator judges each player action against the scope — `magic / can manipulate objects` lets the player snap a tree limb but denies teleport. `cannot ...` bullets create hard limits even when the parent is permissive. Don't put blank lines inside the `attributes:` block — a blank line ends the list.
 
 The first attribute is conventionally the player's species or class (`normal human abilities`, `vampire`, `crow`, `demon`). The narrator inherits common-sense expectations from the name. Sub-bullets refine: confirm specific powers, add restrictions, override defaults.
 
