@@ -308,6 +308,9 @@ export function inferLocateCompletions(
 }
 
 export function formatStackForArchivist(stack: WorldStack): string {
+  const parts: string[] = [];
+  const attrBlock = formatPlayerAttributesBlock(stack.attributes);
+  if (attrBlock) parts.push(attrBlock);
   const facts =
     stack.entries.length === 0
       ? "CURRENT STACK: (empty)"
@@ -316,8 +319,8 @@ export function formatStackForArchivist(stack: WorldStack): string {
     stack.threads.length === 0
       ? "ACTIVE THREADS: (none)"
       : `ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`;
-  const attrBlock = formatPlayerAttributesBlock(stack.attributes);
-  const parts: string[] = attrBlock ? [attrBlock, facts, threads] : [facts, threads];
+  parts.push(facts);
+  parts.push(threads);
   if (stack.objectives.length > 0) {
     const lines = stack.objectives.map((o, i) => {
       const status = o.achieved ? "x" : " ";

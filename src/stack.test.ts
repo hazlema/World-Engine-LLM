@@ -772,7 +772,7 @@ test("formatStackForNarrator: omits PLAYER ATTRIBUTES section when empty", () =>
   expect(out).not.toContain("PLAYER ATTRIBUTES");
 });
 
-test("formatStackForArchivist: includes PLAYER ATTRIBUTES section when populated", () => {
+test("formatStackForArchivist: includes PLAYER ATTRIBUTES as the first section when populated", () => {
   const stack: WorldStack = {
     entries: ["a key on the table"],
     threads: [],
@@ -787,6 +787,11 @@ test("formatStackForArchivist: includes PLAYER ATTRIBUTES section when populated
   expect(out).toContain("PLAYER ATTRIBUTES (immutable):");
   expect(out).toContain("- wizard");
   expect(out).toContain("  - can read minds");
+  // Section appears first — before CURRENT STACK and ACTIVE THREADS.
+  const attrIdx = out.indexOf("PLAYER ATTRIBUTES (immutable):");
+  const stackIdx = out.indexOf("CURRENT STACK:");
+  expect(attrIdx).toBeGreaterThanOrEqual(0);
+  expect(stackIdx).toBeGreaterThan(attrIdx);
 });
 
 test("formatStackForArchivist: omits PLAYER ATTRIBUTES section when empty", () => {
