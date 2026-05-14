@@ -169,6 +169,19 @@ async def on_startup() -> None:
     try:
         print(f"[tts-sidecar] loading ChatterboxTurboTTS on {device}...", flush=True)
         _model = ChatterboxTurboTTS.from_pretrained(device=device)
+
+        # The library hardcodes max_gen_len=1000 inside t3.inference_turbo,
+        # which caps audio at ~20-40s and truncates longer narrations.
+        # Monkeypatch to raise it; the speech-token budget scales with text
+        # length, so longer prose just needs more headroom. Tunable via env.
+        max_gen_len = _gen_int("TTS_MAX_GEN_LEN", 2000)
+        _orig_inference_turbo = _model.t3.inference_turbo
+        def _patched_inference_turbo(*args, **kwargs):
+            kwargs.setdefault("max_gen_len", max_gen_len)
+            return _orig_inference_turbo(*args, **kwargs)
+        _model.t3.inference_turbo = _patched_inference_turbo
+        print(f"[tts-sidecar] max_gen_len raised to {max_gen_len}", flush=True)
+
         _ready = True
         print(f"[tts-sidecar] ready; voices: {list_voices()}", flush=True)
     except Exception as exc:
