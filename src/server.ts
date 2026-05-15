@@ -375,6 +375,34 @@ export async function processInput(
 
 let currentStack: WorldStack;
 
+const BANNER_CONTENT_TYPES: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+};
+
+export async function presetBannerResponse(slug: string): Promise<Response> {
+  const preset = presets.get(slug);
+  if (!preset?.bannerPath) {
+    return new Response("not found", { status: 404 });
+  }
+  const ext = preset.bannerPath.split(".").pop()?.toLowerCase() ?? "";
+  const contentType = BANNER_CONTENT_TYPES[ext] ?? "application/octet-stream";
+  const file = Bun.file(preset.bannerPath);
+  if (!(await file.exists())) {
+    console.warn("[/api/preset-banner] file missing on disk:", preset.bannerPath);
+    return new Response("not found", { status: 404 });
+  }
+  const bytes = await file.arrayBuffer();
+  return new Response(bytes, {
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=86400",
+    },
+  });
+}
+
 function presetSummaries(): PresetSummary[] {
   return [...presets.values()].map((p) => ({
     slug: p.slug,
@@ -553,6 +581,10 @@ async function main() {
           const message = err instanceof Error ? err.message : String(err);
           return new Response(message.slice(0, 500), { status: 500 });
         }
+      }
+      if (url.pathname.startsWith("/api/preset-banner/") && req.method === "GET") {
+        const slug = url.pathname.slice("/api/preset-banner/".length);
+        return await presetBannerResponse(slug);
       }
       if (url.pathname === "/api/media/save" && req.method === "POST") {
         try {

@@ -1,9 +1,12 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
-import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, resetServerConfigForTesting, setPresetsForTesting, type ServerMessage } from "./server";
+import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, resetServerConfigForTesting, setPresetsForTesting, presetBannerResponse, type ServerMessage } from "./server";
 import { resetConfigForTesting } from "./api";
 import type { WorldStack } from "./stack";
 import type { Preset } from "./presets";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 let interpreterSpy: any;
 let narratorSpy: any;
@@ -593,4 +596,77 @@ test("snapshotMessage: includes hasBanner=true for presets with bannerPath", () 
   const byslug = new Map(msg.presets.map((p) => [p.slug, p]));
   expect(byslug.get("a")?.hasBanner).toBe(true);
   expect(byslug.get("b")?.hasBanner).toBe(false);
+});
+
+test("presetBannerResponse: 404 when slug unknown", async () => {
+  setPresetsForTesting(new Map());
+  const res = await presetBannerResponse("nope");
+  expect(res.status).toBe(404);
+});
+
+test("presetBannerResponse: 404 when preset has no banner", async () => {
+  setPresetsForTesting(new Map<string, Preset>([
+    ["x", { slug: "x", title: "X", description: "d", objects: ["o"], objectives: [{ text: "o" }], attributes: [], body: "b" }],
+  ]));
+  const res = await presetBannerResponse("x");
+  expect(res.status).toBe(404);
+});
+
+test("presetBannerResponse: 404 when bannerPath points to a missing file", async () => {
+  setPresetsForTesting(new Map<string, Preset>([
+    ["x", { slug: "x", title: "X", description: "d", objects: ["o"], objectives: [{ text: "o" }], attributes: [], body: "b", bannerPath: "/tmp/does-not-exist-banner.png" }],
+  ]));
+  const res = await presetBannerResponse("x");
+  expect(res.status).toBe(404);
+});
+
+test("presetBannerResponse: serves png with correct Content-Type", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "banner-"));
+  try {
+    const path = join(dir, "x.png");
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    await writeFile(path, bytes);
+    setPresetsForTesting(new Map<string, Preset>([
+      ["x", { slug: "x", title: "X", description: "d", objects: ["o"], objectives: [{ text: "o" }], attributes: [], body: "b", bannerPath: path }],
+    ]));
+    const res = await presetBannerResponse("x");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/png");
+    const buf = new Uint8Array(await res.arrayBuffer());
+    expect(buf).toEqual(bytes);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("presetBannerResponse: serves jpg with image/jpeg Content-Type", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "banner-"));
+  try {
+    const path = join(dir, "x.jpg");
+    await writeFile(path, new Uint8Array([0xff, 0xd8, 0xff]));
+    setPresetsForTesting(new Map<string, Preset>([
+      ["x", { slug: "x", title: "X", description: "d", objects: ["o"], objectives: [{ text: "o" }], attributes: [], body: "b", bannerPath: path }],
+    ]));
+    const res = await presetBannerResponse("x");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/jpeg");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("presetBannerResponse: serves webp with image/webp Content-Type", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "banner-"));
+  try {
+    const path = join(dir, "x.webp");
+    await writeFile(path, new Uint8Array([0x52, 0x49, 0x46, 0x46]));
+    setPresetsForTesting(new Map<string, Preset>([
+      ["x", { slug: "x", title: "X", description: "d", objects: ["o"], objectives: [{ text: "o" }], attributes: [], body: "b", bannerPath: path }],
+    ]));
+    const res = await presetBannerResponse("x");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/webp");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
