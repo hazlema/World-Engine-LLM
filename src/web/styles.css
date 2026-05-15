@@ -1695,3 +1695,26 @@ button {
   justify-content: center;
 }
 .lightbox-close:hover { background: rgba(0, 0, 0, 0.8); }
+
+/* ── preset briefing banner ─────────────────────────────────────────────── */
+
+/* Cancel the card's top padding so the image sits flush at the top edge.   */
+.turn-block.system.briefing .turn-content:has(.briefing-banner) {
+  padding-top: 0;
+}
+
+/* Bleed the image to the left and right card edges.                        */
+/* The card has horizontal padding 1.25rem on each side, so we use          */
+/* negative margins and widen to calc(100% + 2 * 1.25rem) = 100% + 2.5rem. */
+/* overflow: hidden on .turn-content clips the top corners automatically.   */
+.briefing-banner {
+  display: block;
+  width: calc(100% + 2.5rem);
+  height: auto;
+  margin-left: -1.25rem;
+  margin-right: -1.25rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  border-top-left-radius: var(--r-lg);
+  border-top-right-radius: var(--r-lg);
+}
