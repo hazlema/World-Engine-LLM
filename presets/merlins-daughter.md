@@ -1,11 +1,16 @@
 ---
-title: The Merlin Trial
+title: Merlins Daughter
 description: A wizard's first labor — open the apprentice's chest before the candle burns out.
 attributes:
   - normal human abilities
     - cannot lie
-  - tattoo of a dove on left shoulder
-  - striking auburn hair in a ponytail
+  - tattoo of magic wand her left shoulder
+  - beautiful auburn hair to her shoulders
+  - green eyes
+  - 23 years old
+  - solid white tank top
+  - black jeans
+  - back leather boots
   - magic
     - can manipulate objects
     - cannot manipulate time
