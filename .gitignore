@@ -15,12 +15,6 @@ logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
 
 # caches
 .eslintcache
@@ -33,19 +27,16 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 
-# Playwright MCP session logs
+# loose debug screenshots at repo root
+/media/*.png
+
+.superpowers/
+/.claude/worktrees/
 .playwright-mcp/
 
 # loose debug screenshots at repo root
-/*.png
-
-.superpowers/
-
-/.claude/
-
-
-# Generated audio files (re-created on demand from the disk cache)
-media/audio/
+media/*.png
+media/audio/*
 
 # Python sidecar virtualenv (if user creates one in-tree)
 tts_sidecar/.venv/
@@ -53,6 +44,10 @@ tts_sidecar/__pycache__/
 tts_sidecar/.pytest_cache/
 play-log.jsonl
 world-stack.json
-/.claude/worktrees/*
 docs/
-.openrouter-key
+
+/.*
+/.env
+/.env-*
+
+
