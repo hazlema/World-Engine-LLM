@@ -30,6 +30,7 @@ type PresetSummary = {
   title: string;
   description: string;
   body: string;
+  hasBanner: boolean;
 };
 
 type Stack = {
@@ -689,6 +690,11 @@ function App() {
                   key={t.id}
                   turn={t}
                   audioUrl={audioByTurn[t.id]}
+                  bannerUrl={
+                    t.variant === "briefing" && activePreset?.hasBanner
+                      ? `/api/preset-banner/${stack.presetSlug}`
+                      : undefined
+                  }
                   onPlay={() => {
                     const text = narratableText(t);
                     if (text) renderTurn(t.id, text);
@@ -1152,9 +1158,10 @@ function TurnBlock({ turn, audioUrl, onPlay, onPlayCached, onAbort, isAudible, i
   );
 }
 
-function SystemBlock({ turn, audioUrl, onPlay, onPlayCached, onAbort, isAudible }: {
+function SystemBlock({ turn, audioUrl, bannerUrl, onPlay, onPlayCached, onAbort, isAudible }: {
   turn: SystemTurn;
   audioUrl?: string;
+  bannerUrl?: string;
   onPlay?: () => void;         // request server-side render (no cached URL yet)
   onPlayCached?: () => void;   // play known URL via centralized element
   onAbort?: () => void;        // stop everything
@@ -1164,6 +1171,9 @@ function SystemBlock({ turn, audioUrl, onPlay, onPlayCached, onAbort, isAudible 
   return (
     <div className={`turn-block system ${turn.variant || ""}`}>
       <div className="turn-content">
+        {isBriefing && bannerUrl && (
+          <img className="briefing-banner" src={bannerUrl} alt="" />
+        )}
         <div className={isBriefing ? "briefing-header-row" : ""}>
           <div className="turn-header">{turn.title}</div>
           {isBriefing && (onPlay || onPlayCached) && (
