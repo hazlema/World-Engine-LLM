@@ -59,9 +59,9 @@ export class PlaybackController {
       el.src.endsWith(url);
 
     if (isResumeSameClip) {
+      this.setState("playing", turnId);
       try {
         await el.play();
-        this.setState("playing", turnId);
       } catch (err) {
         this.setState("idle", null);
         if ((err as Error)?.name !== "NotAllowedError") {

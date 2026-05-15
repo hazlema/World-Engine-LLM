@@ -318,7 +318,10 @@ function App() {
       return;
     }
     const text = narratableText(turn);
-    if (text) renderTurn(id, text);
+    if (text) {
+      setRenderPending((prev) => new Set(prev).add(id));
+      renderTurn(id, text);
+    }
   }, [playbackState, audioByTurn, renderTurn]);
 
   const toggleNarration = useCallback(async () => {
@@ -333,6 +336,7 @@ function App() {
     setSelectedVoice(voice);
     try { localStorage.setItem("narrationVoice", voice); } catch {}
     setAudioByTurn({});  // old cached URLs were for the old voice
+    setRenderPending(new Set());
   }, []);
 
   // One-time toast the first time we detect Gemini is unavailable.
