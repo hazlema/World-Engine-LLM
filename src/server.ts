@@ -398,7 +398,7 @@ export async function presetBannerResponse(slug: string): Promise<Response> {
   return new Response(bytes, {
     headers: {
       "Content-Type": contentType,
-      "Cache-Control": "public, max-age=86400",
+      "Cache-Control": "no-store",
     },
   });
 }
