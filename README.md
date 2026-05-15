@@ -1,4 +1,4 @@
-![World Engine — A world that pushes back](media/title.png)
+![World Engine — A world that pushes back](promo/title2.png)
 
 # World Engine
 
