@@ -1,6 +1,6 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
-import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, resetServerConfigForTesting, type ServerMessage } from "./server";
+import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, resetServerConfigForTesting, setPresetsForTesting, type ServerMessage } from "./server";
 import { resetConfigForTesting } from "./api";
 import type { WorldStack } from "./stack";
 import type { Preset } from "./presets";
@@ -581,4 +581,16 @@ test("processInput: TTS audio-ready message goes through sendAudio (unicast), no
   } finally {
     ttsSpy.mockRestore();
   }
+});
+
+test("snapshotMessage: includes hasBanner=true for presets with bannerPath", () => {
+  setPresetsForTesting(new Map<string, Preset>([
+    ["a", { slug: "a", title: "A", description: "d", objects: ["x"], objectives: [{ text: "o" }], attributes: [], body: "b", bannerPath: "/tmp/a.png" }],
+    ["b", { slug: "b", title: "B", description: "d", objects: ["x"], objectives: [{ text: "o" }], attributes: [], body: "b" }],
+  ]));
+  const msg = snapshotMessage(emptyStack);
+  if (msg.type !== "snapshot") throw new Error("expected snapshot");
+  const byslug = new Map(msg.presets.map((p) => [p.slug, p]));
+  expect(byslug.get("a")?.hasBanner).toBe(true);
+  expect(byslug.get("b")?.hasBanner).toBe(false);
 });

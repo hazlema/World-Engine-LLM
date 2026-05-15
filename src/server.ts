@@ -28,6 +28,10 @@ let _voiceList: string[] = [];
 
 let presets: Map<string, Preset> = new Map();
 
+export function setPresetsForTesting(next: Map<string, Preset>): void {
+  presets = next;
+}
+
 const PLAY_LOG_FILE = new URL("../play-log.jsonl", import.meta.url).pathname;
 
 async function appendPlayLog(turn: number, input: string, narrative: string, position: [number, number]): Promise<void> {
@@ -44,6 +48,7 @@ export interface PresetSummary {
   title: string;
   description: string;
   body: string;
+  hasBanner: boolean;
 }
 
 export interface InterpreterTrace {
@@ -85,6 +90,7 @@ let serverConfig: Config | undefined;
 /** For tests only — call before each test that exercises snapshotMessage or processInput. */
 export function resetServerConfigForTesting(): void {
   serverConfig = undefined;
+  presets = new Map();
 }
 
 function getServerConfig(): Config {
@@ -375,6 +381,7 @@ function presetSummaries(): PresetSummary[] {
     title: p.title,
     description: p.description,
     body: p.body,
+    hasBanner: Boolean(p.bannerPath),
   }));
 }
 
