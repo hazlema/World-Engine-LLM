@@ -145,6 +145,7 @@ function App() {
   const [audioByTurn, setAudioByTurn] = useState<Record<number, string>>({});
   const [imageByTurn, setImageByTurn] = useState<Record<number, string>>({});
   const [imagePending, setImagePending] = useState<Set<number>>(() => new Set());
+  const [renderPending, setRenderPending] = useState<Set<number>>(() => new Set());
   // Sticky once true: stops auto-render from retrying when the server reports
   // GEMINI_API_KEY missing. Either path (image or TTS) can flip it.
   const [geminiUnavailable, setGeminiUnavailable] = useState(false);
@@ -272,12 +273,18 @@ function App() {
     try { localStorage.setItem("imageStyle", style); } catch {}
   }, []);
 
-  const renderTurn = useCallback((turnId: number, _text: string) => {
-    // On-demand regeneration isn't wired in this version — audio is produced
-    // server-side at turn time. If audioUrl is missing, narration was off or
-    // the sidecar errored. The speaker click in that case is a no-op.
-    console.warn(`[narration] audio not available for turn ${turnId}; renderTurn is a no-op`);
-  }, []);
+  const renderTurn = useCallback((turnId: number, text: string) => {
+    if (!narrationOn) return;
+    if (!selectedVoice) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    wsRef.current?.send(JSON.stringify({
+      type: "render-audio",
+      turnId,
+      text: trimmed,
+      voice: selectedVoice,
+    }));
+  }, [narrationOn, selectedVoice]);
 
   const toggleNarration = useCallback(async () => {
     const next = !narrationOn;
@@ -463,12 +470,24 @@ function App() {
       }
       if (msg.type === "audio-ready") {
         setAudioByTurn((prev) => ({ ...prev, [msg.turnId]: msg.url }));
+        setRenderPending((prev) => {
+          if (!prev.has(msg.turnId)) return prev;
+          const next = new Set(prev);
+          next.delete(msg.turnId);
+          return next;
+        });
         if (narrationOnRef.current) {
           playbackRef.current?.play(msg.turnId, msg.url);
         }
         return;
       }
       if (msg.type === "audio-error") {
+        setRenderPending((prev) => {
+          if (!prev.has(msg.turnId)) return prev;
+          const next = new Set(prev);
+          next.delete(msg.turnId);
+          return next;
+        });
         // Log it, but don't break the turn — the narrative is already on screen.
         console.warn("[narration]", msg.message);
         return;
@@ -518,6 +537,26 @@ function App() {
       }
     }
   }, [turns, imagesOn, imageByTurn, imagePending, renderImage, geminiUnavailable]);
+
+  // Auto-render briefing audio when narrationOn and the most recent briefing has no cached audio yet.
+  // Walks newest-first and breaks on the first briefing — mirrors the audio auto-render strategy
+  // (feedback_auto_render_only_latest) so we never queue duplicate renders.
+  useEffect(() => {
+    if (!narrationOn) return;
+    for (let i = turns.length - 1; i >= 0; i--) {
+      const t = turns[i];
+      if (!t) continue;
+      if (!isSystemTurn(t) || t.variant !== "briefing") continue;
+      if (t.id in audioByTurn) break;
+      if (renderPending.has(t.id)) break;
+      const text = narratableText(t);
+      if (text) {
+        setRenderPending((prev) => new Set(prev).add(t.id));
+        renderTurn(t.id, text);
+      }
+      break;
+    }
+  }, [turns, narrationOn, audioByTurn, renderPending, renderTurn]);
 
   // Restore focus to the input when it becomes interactive again
   useEffect(() => {
