@@ -1479,6 +1479,29 @@ button {
   box-shadow: 0 0 12px var(--ember-tint-2);
 }
 
+.turn-speaker.audible {
+  color: var(--ember);
+  border-color: var(--ember);
+  background: var(--ember-tint-2);
+}
+
+.turn-speaker.audible:hover {
+  color: var(--ember-soft);
+  border-color: var(--ember);
+  box-shadow: 0 0 12px var(--ember-tint-2);
+}
+
+.turn-speaker.paused {
+  color: var(--ember);
+  border-color: var(--ember);
+  background: var(--ember-tint);
+}
+
+.turn-speaker.paused:hover {
+  color: var(--ember-soft);
+  border-color: var(--ember);
+}
+
 /* per-turn image generation */
 .turn-image-btn {
   background: transparent;

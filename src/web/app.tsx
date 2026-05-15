@@ -172,6 +172,20 @@ function App() {
   const playbackRef = useRef<PlaybackController | null>(null);
   if (!playbackRef.current) playbackRef.current = new PlaybackController();
 
+  const [playbackState, setPlaybackState] = useState<{
+    state: "idle" | "playing" | "paused";
+    currentTurnId: number | null;
+  }>({ state: "idle", currentTurnId: null });
+
+  useEffect(() => {
+    const pc = playbackRef.current;
+    if (!pc) return;
+    pc.onStateChange = (state, currentTurnId) => {
+      setPlaybackState({ state, currentTurnId });
+    };
+    return () => { pc.onStateChange = undefined; };
+  }, []);
+
   const [entriesCollapsed, toggleEntries] = useCollapsed("rail.entriesCollapsed", true);
   const [threadsCollapsed, toggleThreads] = useCollapsed("rail.threadsCollapsed", true);
   // Refs so the WebSocket handler (set up once on mount) always reads current values.
@@ -285,6 +299,27 @@ function App() {
       voice: selectedVoice,
     }));
   }, [narrationOn, selectedVoice]);
+
+  const handleSpeaker = useCallback((turn: AnyTurn) => {
+    const pc = playbackRef.current;
+    if (!pc) return;
+    const id = turn.id;
+    if (playbackState.state === "playing" && playbackState.currentTurnId === id) {
+      pc.pause();
+      return;
+    }
+    if (playbackState.state === "paused" && playbackState.currentTurnId === id) {
+      pc.resume();
+      return;
+    }
+    const url = audioByTurn[id];
+    if (url) {
+      pc.play(id, url);
+      return;
+    }
+    const text = narratableText(turn);
+    if (text) renderTurn(id, text);
+  }, [playbackState, audioByTurn, renderTurn]);
 
   const toggleNarration = useCallback(async () => {
     const next = !narrationOn;
@@ -734,35 +769,18 @@ function App() {
                       ? `/api/preset-banner/${stack.presetSlug}`
                       : undefined
                   }
-                  onPlay={() => {
-                    const text = narratableText(t);
-                    if (text) renderTurn(t.id, text);
-                  }}
-                  onPlayCached={() => {
-                    if (audioByTurn[t.id]) {
-                      playbackRef.current?.play(t.id, audioByTurn[t.id]);
-                    }
-                  }}
-                  onAbort={() => playbackRef.current?.abortCurrent()}
-                  isAudible={() => playbackRef.current?.isAudible() ?? false}
+                  isPlaying={playbackState.state === "playing" && playbackState.currentTurnId === t.id}
+                  isPaused={playbackState.state === "paused" && playbackState.currentTurnId === t.id}
+                  onSpeaker={() => handleSpeaker(t)}
                 />
               ) : (
                 <TurnBlock
                   key={t.id}
                   turn={t}
                   audioUrl={audioByTurn[t.id]}
-                  onPlay={() => {
-                    if (t.narrative) {
-                      renderTurn(t.id, t.narrative);
-                    }
-                  }}
-                  onPlayCached={() => {
-                    if (audioByTurn[t.id]) {
-                      playbackRef.current?.play(t.id, audioByTurn[t.id]);
-                    }
-                  }}
-                  onAbort={() => playbackRef.current?.abortCurrent()}
-                  isAudible={() => playbackRef.current?.isAudible() ?? false}
+                  isPlaying={playbackState.state === "playing" && playbackState.currentTurnId === t.id}
+                  isPaused={playbackState.state === "paused" && playbackState.currentTurnId === t.id}
+                  onSpeaker={() => handleSpeaker(t)}
                   imageUrl={imageByTurn[t.id]}
                   imagePending={imagePending.has(t.id)}
                   onGenerateImage={t.narrative ? () => renderImage(t.id, t.narrative!) : undefined}
@@ -1123,13 +1141,12 @@ function GalleryModal({ onClose, onZoom }: { onClose: () => void; onZoom?: (url:
   );
 }
 
-function TurnBlock({ turn, audioUrl, onPlay, onPlayCached, onAbort, isAudible, imageUrl, imagePending, onGenerateImage, onZoomImage }: {
+function TurnBlock({ turn, audioUrl, isPlaying, isPaused, onSpeaker, imageUrl, imagePending, onGenerateImage, onZoomImage }: {
   turn: Turn;
   audioUrl?: string;
-  onPlay: () => void;         // request server-side render (no cached URL yet)
-  onPlayCached?: () => void;  // play known URL via centralized element
-  onAbort?: () => void;       // stop everything
-  isAudible?: () => boolean;
+  isPlaying?: boolean;
+  isPaused?: boolean;
+  onSpeaker: () => void;
   imageUrl?: string;
   imagePending?: boolean;
   onGenerateImage?: () => void;
@@ -1144,22 +1161,12 @@ function TurnBlock({ turn, audioUrl, onPlay, onPlayCached, onAbort, isAudible, i
         {turn.narrative && (
           <button
             type="button"
-            className={`turn-speaker ${audioUrl ? "ready" : ""}`}
-            onClick={() => {
-              if (isAudible?.()) {
-                onAbort?.();
-                return;
-              }
-              if (audioUrl) {
-                onPlayCached?.();
-              } else {
-                onPlay();
-              }
-            }}
-            title={audioUrl ? "Play narration" : "Generate narration"}
-            aria-label={audioUrl ? "Play narration" : "Generate narration"}
+            className={`turn-speaker ${audioUrl ? "ready" : ""} ${isPlaying ? "audible" : ""} ${isPaused ? "paused" : ""}`}
+            onClick={onSpeaker}
+            title={isPlaying ? "Pause" : isPaused ? "Resume" : audioUrl ? "Play" : "Generate"}
+            aria-label={isPlaying ? "Pause narration" : isPaused ? "Resume narration" : audioUrl ? "Play narration" : "Generate narration"}
           >
-            ◐
+            {isPlaying ? "❚❚" : isPaused ? "▶" : "◐"}
           </button>
         )}
         {turn.narrative && onGenerateImage && (
@@ -1197,14 +1204,13 @@ function TurnBlock({ turn, audioUrl, onPlay, onPlayCached, onAbort, isAudible, i
   );
 }
 
-function SystemBlock({ turn, audioUrl, bannerUrl, onPlay, onPlayCached, onAbort, isAudible }: {
+function SystemBlock({ turn, audioUrl, bannerUrl, isPlaying, isPaused, onSpeaker }: {
   turn: SystemTurn;
   audioUrl?: string;
   bannerUrl?: string;
-  onPlay?: () => void;         // request server-side render (no cached URL yet)
-  onPlayCached?: () => void;   // play known URL via centralized element
-  onAbort?: () => void;        // stop everything
-  isAudible?: () => boolean;
+  isPlaying?: boolean;
+  isPaused?: boolean;
+  onSpeaker?: () => void;
 }) {
   const isBriefing = turn.variant === "briefing";
   if (isBriefing) {
@@ -1212,25 +1218,15 @@ function SystemBlock({ turn, audioUrl, bannerUrl, onPlay, onPlayCached, onAbort,
       <div className="turn-block briefing-turn">
         <div className="turn-margin">
           <span aria-hidden="true">00</span>
-          {(onPlay || onPlayCached) && (
+          {onSpeaker && (
             <button
               type="button"
-              className={`turn-speaker ${audioUrl ? "ready" : ""}`}
-              onClick={() => {
-                if (isAudible?.()) {
-                  onAbort?.();
-                  return;
-                }
-                if (audioUrl) {
-                  onPlayCached?.();
-                } else {
-                  onPlay?.();
-                }
-              }}
-              aria-label={audioUrl ? "Play narration" : "Generate narration"}
-              title={audioUrl ? "Play narration" : "Generate narration"}
+              className={`turn-speaker ${audioUrl ? "ready" : ""} ${isPlaying ? "audible" : ""} ${isPaused ? "paused" : ""}`}
+              onClick={onSpeaker}
+              aria-label={isPlaying ? "Pause narration" : isPaused ? "Resume narration" : audioUrl ? "Play narration" : "Generate narration"}
+              title={isPlaying ? "Pause" : isPaused ? "Resume" : audioUrl ? "Play" : "Generate"}
             >
-              ◐
+              {isPlaying ? "❚❚" : isPaused ? "▶" : "◐"}
             </button>
           )}
         </div>
