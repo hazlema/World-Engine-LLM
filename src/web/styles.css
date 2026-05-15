@@ -1696,25 +1696,18 @@ button {
 }
 .lightbox-close:hover { background: rgba(0, 0, 0, 0.8); }
 
-/* ── preset briefing banner ─────────────────────────────────────────────── */
+/* ── preset briefing turn ───────────────────────────────────────────────── */
 
-/* Cancel the card's top padding so the image sits flush at the top edge.   */
-.turn-block.system.briefing .turn-content:has(.briefing-banner) {
-  padding-top: 0;
+/* The opening briefing renders like a regular narrator turn (no card chrome),
+   distinguished only by an ember "00" in the margin gutter and the banner. */
+.briefing-turn .turn-margin > span {
+  color: var(--ember);
 }
 
-/* Bleed the image to the left and right card edges.                        */
-/* The card has horizontal padding 1.25rem on each side, so we use          */
-/* negative margins and widen to calc(100% + 2 * 1.25rem) = 100% + 2.5rem. */
-/* overflow: hidden on .turn-content clips the top corners automatically.   */
 .briefing-banner {
   display: block;
-  width: calc(100% + 2.5rem);
+  width: 100%;
   height: auto;
-  margin-left: -1.25rem;
-  margin-right: -1.25rem;
-  margin-top: 0;
-  margin-bottom: 1rem;
-  border-top-left-radius: var(--r-lg);
-  border-top-right-radius: var(--r-lg);
+  border-radius: 6px;
+  border: 1px solid var(--stroke-mid);
 }

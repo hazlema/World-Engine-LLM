@@ -1168,15 +1168,12 @@ function SystemBlock({ turn, audioUrl, bannerUrl, onPlay, onPlayCached, onAbort,
   isAudible?: () => boolean;
 }) {
   const isBriefing = turn.variant === "briefing";
-  return (
-    <div className={`turn-block system ${turn.variant || ""}`}>
-      <div className="turn-content">
-        {isBriefing && bannerUrl && (
-          <img className="briefing-banner" src={bannerUrl} alt="" />
-        )}
-        <div className={isBriefing ? "briefing-header-row" : ""}>
-          <div className="turn-header">{turn.title}</div>
-          {isBriefing && (onPlay || onPlayCached) && (
+  if (isBriefing) {
+    return (
+      <div className="turn-block briefing-turn">
+        <div className="turn-margin">
+          <span aria-hidden="true">00</span>
+          {(onPlay || onPlayCached) && (
             <button
               type="button"
               className={`turn-speaker ${audioUrl ? "ready" : ""}`}
@@ -1198,17 +1195,26 @@ function SystemBlock({ turn, audioUrl, bannerUrl, onPlay, onPlayCached, onAbort,
             </button>
           )}
         </div>
-        {isBriefing ? (
-          turn.items.map((item, idx) => (
+        <div className="turn-content">
+          {bannerUrl && (
+            <img className="briefing-banner" src={bannerUrl} alt="" />
+          )}
+          {turn.items.map((item, idx) => (
             <p key={idx} className="turn-narrative">{item}</p>
-          ))
-        ) : (
-          <ul className={`system-list ${turn.variant || ""}`}>
-            {turn.items.map((item, idx) => (
-              <li key={idx}>{item}</li>
-            ))}
-          </ul>
-        )}
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className={`turn-block system ${turn.variant || ""}`}>
+      <div className="turn-content">
+        <div className="turn-header">{turn.title}</div>
+        <ul className={`system-list ${turn.variant || ""}`}>
+          {turn.items.map((item, idx) => (
+            <li key={idx}>{item}</li>
+          ))}
+        </ul>
       </div>
     </div>
   );
