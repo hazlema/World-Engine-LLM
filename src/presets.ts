@@ -1,3 +1,4 @@
+import { join as pathJoin } from "node:path";
 import type { Position } from "./stack";
 
 export interface PlayerAttribute {
@@ -18,6 +19,7 @@ export interface Preset {
   objectives: PresetObjective[];
   attributes: PlayerAttribute[];   // empty array when no attributes: header
   body: string;
+  bannerPath?: string;             // absolute path to a banner image, if present
 }
 
 export function presetSlugFromPath(path: string): string {
@@ -155,13 +157,26 @@ function parseFrontmatter(
   return { strings, lists, attributes };
 }
 
+const BANNER_EXTENSIONS = ["png", "jpg", "webp"] as const;
+
+async function findBannerPath(dir: string, slug: string): Promise<string | undefined> {
+  for (const ext of BANNER_EXTENSIONS) {
+    const candidate = pathJoin(dir, `${slug}.${ext}`);
+    if (await Bun.file(candidate).exists()) return candidate;
+  }
+  return undefined;
+}
+
 export async function loadAllPresets(dir = "presets"): Promise<Map<string, Preset>> {
   const out = new Map<string, Preset>();
   const glob = new Bun.Glob(`${dir}/*.md`);
   for await (const path of glob.scan(".")) {
     const slug = presetSlugFromPath(path);
     const text = await Bun.file(path).text();
-    out.set(slug, parsePresetText(text, slug));
+    const preset = parsePresetText(text, slug);
+    const bannerPath = await findBannerPath(dir, slug);
+    if (bannerPath) preset.bannerPath = bannerPath;
+    out.set(slug, preset);
   }
   return out;
 }

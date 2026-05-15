@@ -1,5 +1,8 @@
 import { test, expect } from "bun:test";
-import { parsePresetText, presetSlugFromPath } from "./presets";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { parsePresetText, presetSlugFromPath, loadAllPresets } from "./presets";
 
 const SAMPLE = `---
 title: Lunar Rescue
@@ -314,4 +317,63 @@ objectives:
 body`;
   const p = parsePresetText(text, "x");
   expect(p.attributes[0]?.scope).toHaveLength(10);
+});
+
+const MIN_PRESET = `---
+title: T
+description: D
+objects:
+  - thing
+objectives:
+  - do thing
+---
+body`;
+
+test("loadAllPresets: stores bannerPath when matching .png exists", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "presets-"));
+  try {
+    await writeFile(join(dir, "alpha.md"), MIN_PRESET);
+    await writeFile(join(dir, "alpha.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const presets = await loadAllPresets(dir);
+    expect(presets.get("alpha")?.bannerPath).toBe(join(dir, "alpha.png"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("loadAllPresets: prefers .png over .jpg over .webp", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "presets-"));
+  try {
+    await writeFile(join(dir, "alpha.md"), MIN_PRESET);
+    await writeFile(join(dir, "alpha.webp"), Buffer.from([0x52, 0x49, 0x46, 0x46]));
+    await writeFile(join(dir, "alpha.jpg"), Buffer.from([0xff, 0xd8, 0xff]));
+    await writeFile(join(dir, "alpha.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const presets = await loadAllPresets(dir);
+    expect(presets.get("alpha")?.bannerPath).toBe(join(dir, "alpha.png"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("loadAllPresets: leaves bannerPath undefined when no image", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "presets-"));
+  try {
+    await writeFile(join(dir, "alpha.md"), MIN_PRESET);
+    const presets = await loadAllPresets(dir);
+    expect(presets.get("alpha")?.bannerPath).toBeUndefined();
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("loadAllPresets: falls back to .jpg when .png missing", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "presets-"));
+  try {
+    await writeFile(join(dir, "alpha.md"), MIN_PRESET);
+    await writeFile(join(dir, "alpha.jpg"), Buffer.from([0xff, 0xd8, 0xff]));
+    const presets = await loadAllPresets(dir);
+    expect(presets.get("alpha")?.bannerPath).toBe(join(dir, "alpha.jpg"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
