@@ -96,4 +96,82 @@ describe("PlaybackController", () => {
     pc.setVolume(0.5);
     expect(el.volume).toBe(0.5);
   });
+
+  test("pause(): playing → paused, currentTurnId preserved, audio paused", async () => {
+    await pc.play(7, "/media/audio/x.wav");
+    expect(pc.state).toBe("playing");
+    pc.pause();
+    expect(pc.state).toBe("paused");
+    expect(pc.currentTurnId).toBe(7);
+    expect(el.paused).toBe(true);
+  });
+
+  test("resume(): paused → playing without resetting currentTime", async () => {
+    await pc.play(7, "/media/audio/x.wav");
+    el.currentTime = 4.2;
+    pc.pause();
+    pc.resume();
+    expect(pc.state).toBe("playing");
+    expect(pc.currentTurnId).toBe(7);
+    expect(el.currentTime).toBe(4.2);
+  });
+
+  test("play(sameTurn, sameUrl) while paused resumes (no currentTime reset)", async () => {
+    await pc.play(7, "/media/audio/x.wav");
+    el.currentTime = 4.2;
+    pc.pause();
+    await pc.play(7, "/media/audio/x.wav");
+    expect(pc.state).toBe("playing");
+    expect(el.currentTime).toBe(4.2);
+  });
+
+  test("play(differentTurn, ...) while paused fully resets", async () => {
+    await pc.play(7, "/media/audio/x.wav");
+    el.currentTime = 4.2;
+    pc.pause();
+    await pc.play(8, "/media/audio/y.wav");
+    expect(pc.state).toBe("playing");
+    expect(pc.currentTurnId).toBe(8);
+    expect(el.currentTime).toBe(0);
+    expect(el.src).toBe("/media/audio/y.wav");
+  });
+
+  test("setVoice() while paused → idle, currentTurnId cleared", async () => {
+    await pc.play(7, "/media/audio/x.wav");
+    pc.pause();
+    pc.setVoice("noir");
+    expect(pc.state).toBe("idle");
+    expect(pc.currentTurnId).toBeNull();
+  });
+
+  test("setEnabled(false) while paused → idle, currentTurnId cleared", async () => {
+    await pc.play(7, "/media/audio/x.wav");
+    pc.pause();
+    pc.setEnabled(false);
+    expect(pc.state).toBe("idle");
+    expect(pc.currentTurnId).toBeNull();
+  });
+
+  test("onStateChange fires for every state transition", async () => {
+    const events: Array<{ state: string; turnId: number | null }> = [];
+    pc.onStateChange = (state, turnId) => events.push({ state, turnId });
+    await pc.play(7, "/media/audio/x.wav");
+    pc.pause();
+    pc.resume();
+    pc.abortCurrent();
+    expect(events).toEqual([
+      { state: "playing", turnId: 7 },
+      { state: "paused",  turnId: 7 },
+      { state: "playing", turnId: 7 },
+      { state: "idle",    turnId: null },
+    ]);
+  });
+
+  test("onStateChange fires when audio ends naturally", async () => {
+    const events: Array<{ state: string; turnId: number | null }> = [];
+    pc.onStateChange = (state, turnId) => events.push({ state, turnId });
+    await pc.play(7, "/media/audio/x.wav");
+    el.fire("ended");
+    expect(events.at(-1)).toEqual({ state: "idle", turnId: null });
+  });
 });
