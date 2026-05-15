@@ -1,12 +1,13 @@
 import { test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as engine from "./engine";
-import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, resetServerConfigForTesting, setPresetsForTesting, presetBannerResponse, type ServerMessage } from "./server";
+import { processInput, startWithPreset, keepExploring, emptyWorld, snapshotMessage, resetServerConfigForTesting, setPresetsForTesting, presetBannerResponse, type ServerMessage, type Send } from "./server";
 import { resetConfigForTesting } from "./api";
 import type { WorldStack } from "./stack";
 import type { Preset } from "./presets";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import * as tts from "./tts";
 
 let interpreterSpy: any;
 let narratorSpy: any;
@@ -669,4 +670,80 @@ test("presetBannerResponse: serves webp with image/webp Content-Type", async () 
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("handleClientMessage render-audio: synthesizes and sends audio-ready", async () => {
+  const ttsSpy = spyOn(tts, "synthesizeToFile").mockResolvedValue("/media/audio/abc.wav");
+  process.env.USE_NARRATION = "true";
+  resetServerConfigForTesting();
+  const { handleClientMessage } = await import("./server");
+  const sent: ServerMessage[] = [];
+  const send: Send = (m) => sent.push(m);
+  await handleClientMessage(
+    JSON.stringify({ type: "render-audio", turnId: 1, text: "hello world", voice: "noir" }),
+    send,
+    send,
+  );
+  expect(ttsSpy).toHaveBeenCalledWith("hello world", "noir");
+  expect(sent).toContainEqual({ type: "audio-ready", turnId: 1, url: "/media/audio/abc.wav" });
+  ttsSpy.mockRestore();
+});
+
+test("handleClientMessage render-audio: rejects empty text", async () => {
+  process.env.USE_NARRATION = "true";
+  resetServerConfigForTesting();
+  const { handleClientMessage } = await import("./server");
+  const sent: ServerMessage[] = [];
+  const send: Send = (m) => sent.push(m);
+  await handleClientMessage(
+    JSON.stringify({ type: "render-audio", turnId: 1, text: "  ", voice: "noir" }),
+    send,
+    send,
+  );
+  expect(sent).toContainEqual({ type: "audio-error", turnId: 1, message: "empty text" });
+});
+
+test("handleClientMessage render-audio: rejects text over 8000 chars", async () => {
+  process.env.USE_NARRATION = "true";
+  resetServerConfigForTesting();
+  const { handleClientMessage } = await import("./server");
+  const sent: ServerMessage[] = [];
+  const send: Send = (m) => sent.push(m);
+  const huge = "x".repeat(8001);
+  await handleClientMessage(
+    JSON.stringify({ type: "render-audio", turnId: 1, text: huge, voice: "noir" }),
+    send,
+    send,
+  );
+  expect(sent).toContainEqual({ type: "audio-error", turnId: 1, message: "text too long" });
+});
+
+test("handleClientMessage render-audio: rejects when narration disabled", async () => {
+  process.env.USE_NARRATION = "false";
+  resetServerConfigForTesting();
+  const { handleClientMessage } = await import("./server");
+  const sent: ServerMessage[] = [];
+  const send: Send = (m) => sent.push(m);
+  await handleClientMessage(
+    JSON.stringify({ type: "render-audio", turnId: 1, text: "hello", voice: "noir" }),
+    send,
+    send,
+  );
+  expect(sent).toContainEqual({ type: "audio-error", turnId: 1, message: "narration disabled" });
+});
+
+test("handleClientMessage render-audio: forwards synthesis errors", async () => {
+  const ttsSpy = spyOn(tts, "synthesizeToFile").mockRejectedValue(new Error("sidecar boom"));
+  process.env.USE_NARRATION = "true";
+  resetServerConfigForTesting();
+  const { handleClientMessage } = await import("./server");
+  const sent: ServerMessage[] = [];
+  const send: Send = (m) => sent.push(m);
+  await handleClientMessage(
+    JSON.stringify({ type: "render-audio", turnId: 1, text: "hello", voice: "noir" }),
+    send,
+    send,
+  );
+  expect(sent.some((m) => m.type === "audio-error" && m.message.includes("sidecar boom"))).toBe(true);
+  ttsSpy.mockRestore();
 });

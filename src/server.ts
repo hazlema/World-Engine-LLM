@@ -170,7 +170,8 @@ export type ClientMessage =
   | { type: "input"; text: string; voice?: string }
   | { type: "start"; presetSlug: string | null }
   | { type: "keep-exploring" }
-  | { type: "hello" };
+  | { type: "hello" }
+  | { type: "render-audio"; turnId: number; text: string; voice: string };
 
 export type Send = (message: ServerMessage) => void;
 
@@ -427,7 +428,7 @@ export function snapshotMessage(stack: WorldStack): ServerMessage {
   };
 }
 
-async function handleClientMessage(
+export async function handleClientMessage(
   raw: string,
   send: Send,
   broadcast: Send
@@ -479,6 +480,31 @@ async function handleClientMessage(
       broadcast(snapshotMessage(currentStack));
     } catch (err) {
       send({ type: "error", source: "archivist", message: `Save failed: ${err}` });
+    }
+    return;
+  }
+
+  if (msg.type === "render-audio") {
+    const turnId = msg.turnId;
+    const text = typeof msg.text === "string" ? msg.text.trim() : "";
+    if (!text) {
+      send({ type: "audio-error", turnId, message: "empty text" });
+      return;
+    }
+    if (text.length > 8000) {
+      send({ type: "audio-error", turnId, message: "text too long" });
+      return;
+    }
+    if (!getServerConfig().useNarration) {
+      send({ type: "audio-error", turnId, message: "narration disabled" });
+      return;
+    }
+    try {
+      const url = await synthesizeToFile(text, msg.voice);
+      send({ type: "audio-ready", turnId, url });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      send({ type: "audio-error", turnId, message });
     }
     return;
   }
