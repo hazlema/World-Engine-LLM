@@ -98,6 +98,7 @@ Add a new section after the existing entries/threads rules:
 > - **Update states when the narrative depicts a change.** Player snuffs the candle → `states: ["lit"]` becomes `["snuffed"]`. Player opens the chest → add "open". Don't accumulate contradictory states.
 > - **Preserve `location` across state changes.** The desk is still the desk after the candle is snuffed.
 > - **Categories:** `item` = pickup-able discrete object; `character` = NPC or creature; `fixture` = durable thing attached to the room (candle, chest, lever, painting); `feature` = immovable scenery (wall, floor, dust motes).
+> - **Never emit objects describing the player.** The player's body, hair, eyes, innate appearance, and anything covered by PLAYER ATTRIBUTES is immutable session data — do not duplicate it as a room object. The player is the camera, not an object in the room.
 > - **Max 10 objects per tile.** Prefer dropping `feature` over `fixture`, and drop fixtures with no recent state change before fixtures that just changed.
 > - **MUST INCLUDE names cannot be dropped.** If the input says `MUST INCLUDE: brass candle`, the brass candle must be in your output.
 > - Object updates apply only to the **current tile**. Do not invent objects from other tiles.
@@ -130,10 +131,11 @@ Add one new rule:
 
 After `archivistTurn` returns and before persisting the new stack, in `src/server.ts` or a new helper in `src/stack.ts`:
 
-1. **Compute pinned set.** Extract anchor nouns from active objectives via `locateObjectiveAnchor`. Add nouns from unresolved threads (simple noun extraction or first-content-word heuristic — keep it cheap).
-2. **Force-pin priority.** For each returned object, compute effective priority: `CATEGORY_PRIORITY[obj.category]`, upgraded to `"high"` if `obj.name` matches the pinned set.
-3. **Restore missing pinned objects.** If a pinned name was present in the prior turn's `placeObjects[currentPosKey]` but is absent from the archivist's output, re-inject the prior entry verbatim and log `archivist dropped pinned object: <name>` so the rate is observable.
-4. **Cap enforcement.** If `objects.length > MAX_PLACE_OBJECTS`, drop by (lowest effective priority, then objects with no state change this turn). Never drop high-priority objects via cap enforcement.
+1. **Drop player-self-referential objects.** Filter out any returned object whose `name` starts with `your `, `player's `, or `the player's ` (case-insensitive). Defensive backup for the archivist prompt rule; player attributes are already canonical session data.
+2. **Compute pinned set.** Extract anchor nouns from active objectives via `locateObjectiveAnchor`. Add nouns from unresolved threads (simple noun extraction or first-content-word heuristic — keep it cheap).
+3. **Force-pin priority.** For each returned object, compute effective priority: `CATEGORY_PRIORITY[obj.category]`, upgraded to `"high"` if `obj.name` matches the pinned set.
+4. **Restore missing pinned objects.** If a pinned name was present in the prior turn's `placeObjects[currentPosKey]` but is absent from the archivist's output, re-inject the prior entry verbatim and log `archivist dropped pinned object: <name>` so the rate is observable.
+5. **Cap enforcement.** If `objects.length > MAX_PLACE_OBJECTS`, drop by (lowest effective priority, then objects with no state change this turn). Never drop high-priority objects via cap enforcement.
 
 The safety net never invents objects the archivist didn't return. It only restores from prior state and re-weights existing entries.
 
@@ -153,6 +155,7 @@ If hot-tunable weights become necessary, `CATEGORY_PRIORITY` can be moved to a J
 - `formatStackForArchivist` includes `CURRENT TILE OBJECTS` and `MUST INCLUDE` blocks when applicable, omits both when the current tile has no prior objects and no pinned set.
 - `formatStackForNarrator` includes the `ROOM STATE` block when present, omits it when the current tile has no objects.
 - Safety-net helper unit tests:
+  - Player-self-referential objects (`your hair`, `the player's eyes`) dropped before pinning runs.
   - Pinned object missing from archivist output → restored from prior state.
   - Cap enforcement drops feature before fixture before item.
   - High-priority objects never evicted by cap enforcement.
@@ -169,6 +172,7 @@ If hot-tunable weights become necessary, `CATEGORY_PRIORITY` can be moved to a J
 ## Out of Scope
 
 - **Inventory / player-held items.** Separate problem ([[project_inventory_not_implemented]]). Carrying an item between tiles is not modeled by this design.
+- **Wearables (clothes/armor put on or taken off).** The natural use case for tracking player-body state in room objects. Deferred alongside inventory — when that work happens, revisit whether wearables live in inventory, in a new player-body slot, or back in room objects with a relaxed filter.
 - **Adjacent-tile state injection.** Geography drift ([[project_geography_drift]]) is a separate concern; this pass shows the narrator the current tile only.
 - **Narrator emphasis weighting.** Importance only drives eviction. The narrator does not see category or priority.
 - **Cross-tile state effects.** Snuffing one candle does not affect a distant hallway. Future work if it surfaces.
