@@ -54,17 +54,30 @@ type ArchivistTrace = {
   moved: boolean;
   locationDescription: string;
 };
+type RoomObjectTrace = {
+  name: string;
+  states: string[];
+  location?: string;
+  category: "item" | "fixture" | "feature" | "character";
+};
+type LocationTrace = {
+  position: [number, number];
+  description: string | null;
+  objects: RoomObjectTrace[];
+  entries: { text: string; tile?: string }[];
+};
 type LastTurnTrace = {
   ts: string;
   turn: number;
   input: string;
   interpreter: InterpreterTrace;
   archivist: ArchivistTrace | null;
+  location: LocationTrace | null;
   error?: { source: "narrator" | "archivist" | "interpreter"; message: string };
 };
 type ProviderInfo = {
   narrator: { provider: string; model: string };
-  archivist: { model: string };
+  archivist: { provider: string; model: string };
   interpreter: { provider: "local" | "openrouter"; model: string };
   tts: { provider: string; voice: string };
   image: { provider: string; style: string };
@@ -1545,7 +1558,7 @@ function DebugModal(props: {
           {providers ? (
             <ul>
               <li>narrator: {providers.narrator.provider} / {providers.narrator.model}</li>
-              <li>archivist: local / {providers.archivist.model}</li>
+              <li>archivist: {providers.archivist.provider} / {providers.archivist.model}</li>
               <li>interpreter: {providers.interpreter.provider} / {providers.interpreter.model}</li>
               <li>tts: {providers.tts.provider} / {providers.tts.voice}</li>
               <li>image: {providers.image.provider} / {providers.image.style}</li>
@@ -1578,6 +1591,8 @@ function DebugModal(props: {
                 <pre className="debug-json">{JSON.stringify(lastTrace.archivist, null, 2)}</pre>
               )}
 
+              {lastTrace.location && <LocationMemory location={lastTrace.location} />}
+
               {lastTrace.error && (
                 <>
                   <h5>Error</h5>
@@ -1590,6 +1605,55 @@ function DebugModal(props: {
       </div>
       <button className="action-button" onClick={onClose}>close</button>
     </div>
+  );
+}
+
+function LocationMemory({ location }: { location: LocationTrace }) {
+  const key = `${location.position[0]},${location.position[1]}`;
+  const hereEntries = location.entries.filter((e) => e.tile === key);
+  const worldEntries = location.entries.filter((e) => e.tile === undefined);
+  const elsewhereCount = location.entries.length - hereEntries.length - worldEntries.length;
+  return (
+    <>
+      <h5>Location memory ({key})</h5>
+      <p><strong>canonical description</strong></p>
+      {location.description ? (
+        <p className="debug-muted">{location.description}</p>
+      ) : (
+        <p className="debug-muted">(none yet — first visit hasn't been archived)</p>
+      )}
+
+      <p><strong>room objects ({location.objects.length})</strong></p>
+      {location.objects.length === 0 ? (
+        <p className="debug-muted">(none)</p>
+      ) : (
+        <ul>
+          {location.objects.map((o, i) => {
+            const states = o.states.length > 0 ? `: ${o.states.join(", ")}` : "";
+            const loc = o.location ? ` (${o.location})` : "";
+            return <li key={i}>[{o.category}] {o.name}{states}{loc}</li>;
+          })}
+        </ul>
+      )}
+
+      <p><strong>entries scoped to this tile ({hereEntries.length})</strong></p>
+      {hereEntries.length === 0 ? (
+        <p className="debug-muted">(none)</p>
+      ) : (
+        <ul>{hereEntries.map((e, i) => <li key={i}>{e.text}</li>)}</ul>
+      )}
+
+      <p><strong>world-scope entries ({worldEntries.length})</strong></p>
+      {worldEntries.length === 0 ? (
+        <p className="debug-muted">(none)</p>
+      ) : (
+        <ul>{worldEntries.map((e, i) => <li key={i}>{e.text}</li>)}</ul>
+      )}
+
+      {elsewhereCount > 0 && (
+        <p className="debug-muted">+ {elsewhereCount} entries scoped to other tiles (not shown — filtered out of narrator prompt)</p>
+      )}
+    </>
   );
 }
 

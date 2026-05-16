@@ -14,6 +14,7 @@ import {
   type WorldStack,
   type Direction,
   type Objective,
+  type RoomObject,
 } from "./stack";
 import { loadAllPresets, type Preset } from "./presets";
 import { synthesizeToFile } from "./tts";
@@ -67,18 +68,26 @@ export interface ArchivistTrace {
   locationDescription: string;
 }
 
+export interface LocationTrace {
+  position: [number, number];
+  description: string | null;
+  objects: RoomObject[];
+  entries: { text: string; tile?: string }[];
+}
+
 export interface LastTurnTrace {
   ts: string;
   turn: number;
   input: string;
   interpreter: InterpreterTrace;
   archivist: ArchivistTrace | null;
+  location: LocationTrace | null;
   error?: { source: "narrator" | "archivist" | "interpreter"; message: string };
 }
 
 export interface ProviderInfo {
   narrator: { provider: string; model: string };
-  archivist: { model: string };
+  archivist: { provider: string; model: string };
   interpreter: { provider: "local" | "openrouter"; model: string };
   tts: { provider: string; voice: string };
   image: { provider: string; style: string };
@@ -105,7 +114,7 @@ function providerInfo(): ProviderInfo {
   const c = getServerConfig();
   return {
     narrator: { provider: c.narrator.provider, model: c.narrator.model },
-    archivist: { model: c.archivist.model },
+    archivist: { provider: c.archivist.provider, model: c.archivist.model },
     interpreter: { provider: c.interpreter.provider, model: c.interpreter.model },
     tts: {
       provider: c.useElevenLabs ? "elevenlabs" : "chatterbox",
@@ -129,6 +138,7 @@ function buildLastTurnTrace(args: {
   input: string;
   action: InterpretedAction;
   archivist: ArchivistTrace | null;
+  location: LocationTrace | null;
   error?: { source: "narrator" | "archivist" | "interpreter"; message: string };
 }): LastTurnTrace {
   return {
@@ -137,7 +147,18 @@ function buildLastTurnTrace(args: {
     input: args.input,
     interpreter: { action: args.action.action, provider: getServerConfig().interpreter.provider },
     archivist: args.archivist,
+    location: args.location,
     ...(args.error ? { error: args.error } : {}),
+  };
+}
+
+function buildLocationTrace(stack: WorldStack): LocationTrace {
+  const key = posKey(stack.position);
+  return {
+    position: stack.position,
+    description: stack.places[key] ?? null,
+    objects: stack.placeObjects[key] ?? [],
+    entries: stack.entries.map((e) => (e.tile === undefined ? { text: e.text } : { text: e.text, tile: e.tile })),
   };
 }
 
@@ -227,7 +248,7 @@ export async function processInput(
   if (action.action === "move-blocked") {
     send({ type: "move-blocked", input });
     try {
-      lastTurnTrace = buildLastTurnTrace({ turn: stack.turn, input, action, archivist: null });
+      lastTurnTrace = buildLastTurnTrace({ turn: stack.turn, input, action, archivist: null, location: buildLocationTrace(stack) });
       send({ type: "debug-trace", trace: lastTurnTrace });
     } catch (err) {
       console.error("[debug-trace] capture failed:", err);
@@ -255,6 +276,7 @@ export async function processInput(
         input,
         action,
         archivist: null,
+        location: buildLocationTrace(stack),
         error: { source: "narrator", message },
       });
       send({ type: "debug-trace", trace: lastTurnTrace });
@@ -297,6 +319,7 @@ export async function processInput(
         input,
         action,
         archivist: null,
+        location: buildLocationTrace(stack),
         error: { source: "archivist", message },
       });
       send({ type: "debug-trace", trace: lastTurnTrace });
@@ -378,6 +401,7 @@ export async function processInput(
         moved: archived.moved,
         locationDescription: archived.locationDescription,
       },
+      location: buildLocationTrace(newStack),
     });
     send({ type: "debug-trace", trace: lastTurnTrace });
   } catch (err) {
