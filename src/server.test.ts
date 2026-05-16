@@ -283,7 +283,7 @@ const lunarPreset: Preset = {
 
 test("startWithPreset: seeds a stack from the preset", () => {
   const s = startWithPreset(lunarPreset);
-  expect(s.entries).toEqual(["damaged transmitter", "oxygen cache"]);
+  expect(s.entries).toEqual([{ text: "damaged transmitter" }, { text: "oxygen cache" }]);
   expect(s.objectives).toEqual([
     { text: "Find the transmitter", achieved: false },
     { text: "Send the signal", achieved: false },
@@ -306,7 +306,7 @@ test("emptyWorld: returns a fresh empty stack", () => {
 
 test("keepExploring: clears presetSlug, leaves objectives intact", () => {
   const s: WorldStack = {
-    entries: ["x"],
+    entries: [{ text: "x" }],
     threads: ["y"],
     turn: 5,
     position: [1, 0],

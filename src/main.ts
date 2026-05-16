@@ -26,7 +26,7 @@ function printStack(stack: WorldStack): void {
     console.log("\n  (world stack is empty)\n");
   } else {
     console.log(`\n  World state — turn ${stack.turn}:`);
-    stack.entries.forEach(e => console.log(`    · ${e}`));
+    stack.entries.forEach(e => console.log(`    · ${e.text}`));
     console.log();
   }
 }

@@ -10,6 +10,7 @@ import {
   inferLocateCompletions,
   applyRoomObjectsSafetyNet,
   extractPinnedNames,
+  tagEntriesByTile,
   type WorldStack,
   type Direction,
   type Objective,
@@ -337,8 +338,14 @@ export async function processInput(
   );
   const placeObjects = { ...stack.placeObjects, [finalKey]: cleanedObjects };
 
+  // Tile-scope entries: brand-new entries from this turn get tagged with the
+  // current tile; entries that match a prior entry's text inherit its tile.
+  // Stops global facts from one tile from leaking into every other tile's
+  // narrator prompt.
+  const taggedEntries = tagEntriesByTile(archived.entries, stack.entries, finalKey);
+
   const newStack: WorldStack = {
-    entries: archived.entries,
+    entries: taggedEntries,
     threads: archived.threads,
     turn: archived.turn,
     position: finalPosition,
@@ -353,7 +360,7 @@ export async function processInput(
 
   send({
     type: "stack-update",
-    entries: newStack.entries,
+    entries: newStack.entries.map((e) => e.text),
     threads: newStack.threads,
     objectives: newStack.objectives,
     position: newStack.position,
@@ -431,7 +438,7 @@ export function snapshotMessage(stack: WorldStack): ServerMessage {
   return {
     type: "snapshot",
     turn: stack.turn,
-    entries: stack.entries,
+    entries: stack.entries.map((e) => e.text),
     threads: stack.threads,
     objectives: stack.objectives,
     position: stack.position,

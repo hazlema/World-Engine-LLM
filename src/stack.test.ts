@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, extractPinnedNames, applyRoomObjectsSafetyNet, CATEGORY_PRIORITY, MAX_PLACE_OBJECTS, type Objective, type WorldStack, type RoomObject, type ObjectCategory } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, extractPinnedNames, applyRoomObjectsSafetyNet, tagEntriesByTile, CATEGORY_PRIORITY, MAX_PLACE_OBJECTS, type Objective, type WorldStack, type RoomObject, type ObjectCategory } from "./stack";
 import type { Preset, PlayerAttribute } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
@@ -7,7 +7,7 @@ test("formatStackForNarrator: empty stack returns empty string", () => {
 });
 
 test("formatStackForNarrator: entries only", () => {
-  const stack = { entries: ["world is cold", "crow watches"], threads: [], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} };
+  const stack = { entries: [{ text: "world is cold" }, { text: "crow watches" }], threads: [], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} };
   expect(formatStackForNarrator(stack)).toBe(
     "ESTABLISHED WORLD:\n- world is cold\n- crow watches\n\n"
   );
@@ -22,7 +22,7 @@ test("formatStackForNarrator: threads only", () => {
 
 test("formatStackForNarrator: entries and threads together", () => {
   const stack = {
-    entries: ["world is cold"],
+    entries: [{ text: "world is cold" }],
     threads: ["find the watcher"],
     turn: 1,
     position: [0, 0] as [number, number],
@@ -45,7 +45,7 @@ test("formatStackForArchivist: empty stack returns empty headers for both", () =
 
 test("formatStackForArchivist: populated stack", () => {
   const stack = {
-    entries: ["world is cold"],
+    entries: [{ text: "world is cold" }],
     threads: ["find the watcher"],
     turn: 2,
     position: [0, 0] as [number, number],
@@ -189,9 +189,9 @@ const samplePreset: Preset = {
   body: "You are an astronaut.",
 };
 
-test("applyPresetToStack: seeds entries from objects, objectives from objectives, sets slug", () => {
+test("applyPresetToStack: seeds entries from objects (world-scope: no tile), objectives from objectives, sets slug", () => {
   const s = applyPresetToStack(samplePreset);
-  expect(s.entries).toEqual(["damaged transmitter", "oxygen cache"]);
+  expect(s.entries).toEqual([{ text: "damaged transmitter" }, { text: "oxygen cache" }]);
   expect(s.threads).toEqual([]);
   expect(s.turn).toBe(0);
   expect(s.position).toEqual([0, 0]);
@@ -1155,4 +1155,199 @@ test("formatStackForArchivist: object without states formats without colon-empty
   const out = formatStackForArchivist(stack);
   expect(out).toContain("- wall (feature)");
   expect(out).not.toContain("- wall (feature): ");
+});
+
+// Entry tile-scoping — the leak fix.
+
+test("formatStackForNarrator: world-scope entries (no tile) appear at every tile", () => {
+  const stack: WorldStack = {
+    entries: [{ text: "no rain in three moons" }, { text: "the king is dead" }],
+    threads: [],
+    turn: 0,
+    position: [3, 5],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {},
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("- no rain in three moons");
+  expect(out).toContain("- the king is dead");
+});
+
+test("formatStackForNarrator: entries tagged to current tile are visible", () => {
+  const stack: WorldStack = {
+    entries: [{ text: "iron key on stone altar", tile: "1,0" }],
+    threads: [],
+    turn: 0,
+    position: [1, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {},
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("- iron key on stone altar");
+});
+
+test("formatStackForNarrator: entries tagged to a DIFFERENT tile are filtered out", () => {
+  const stack: WorldStack = {
+    entries: [
+      { text: "iron key on stone altar", tile: "0,0" },
+      { text: "shattered window", tile: "5,5" },
+    ],
+    threads: [],
+    turn: 0,
+    position: [1, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {},
+  };
+  const out = formatStackForNarrator(stack);
+  // The whole ESTABLISHED WORLD section should be absent when every entry is off-tile.
+  expect(out).not.toContain("ESTABLISHED WORLD");
+  expect(out).not.toContain("iron key");
+  expect(out).not.toContain("shattered window");
+});
+
+test("formatStackForNarrator: mix of world-scope, current-tile, and off-tile renders only the first two", () => {
+  const stack: WorldStack = {
+    entries: [
+      { text: "no rain in three moons" },                          // world-scope
+      { text: "iron key on stone altar", tile: "1,0" },            // current tile
+      { text: "rusted lever in the cellar", tile: "0,0" },         // off-tile (LEAK candidate)
+    ],
+    threads: [],
+    turn: 0,
+    position: [1, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {},
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("- no rain in three moons");
+  expect(out).toContain("- iron key on stone altar");
+  expect(out).not.toContain("rusted lever");
+});
+
+test("formatStackForArchivist: shows ALL entries (full prior state) regardless of tile, text only", () => {
+  const stack: WorldStack = {
+    entries: [
+      { text: "iron key on stone altar", tile: "0,0" },
+      { text: "rusted lever in the cellar", tile: "5,5" },
+      { text: "no rain in three moons" },
+    ],
+    threads: [],
+    turn: 0,
+    position: [1, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {},
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("- iron key on stone altar");
+  expect(out).toContain("- rusted lever in the cellar");
+  expect(out).toContain("- no rain in three moons");
+  // No tile tag leaks into the archivist's view — it sees text only.
+  expect(out).not.toContain("0,0");
+  expect(out).not.toContain("5,5");
+});
+
+// Parser — legacy strings + new object shape.
+
+test("parseStackData: legacy string entries auto-migrate to world-scope (tile=undefined)", () => {
+  const parsed = parseStackData({
+    entries: ["alpha", "beta"],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+  });
+  expect(parsed?.entries).toEqual([{ text: "alpha" }, { text: "beta" }]);
+});
+
+test("parseStackData: new shape preserves tile tags through round-trip", () => {
+  const parsed = parseStackData({
+    entries: [
+      { text: "alpha", tile: "1,0" },
+      { text: "beta" },
+      { text: "gamma", tile: "-2,3" },
+    ],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+  });
+  expect(parsed?.entries).toEqual([
+    { text: "alpha", tile: "1,0" },
+    { text: "beta" },
+    { text: "gamma", tile: "-2,3" },
+  ]);
+});
+
+test("parseStackData: drops malformed entry items (non-string, non-{text})", () => {
+  const parsed = parseStackData({
+    entries: ["ok", { text: "fine", tile: "0,0" }, null, 42, { tile: "1,0" }, { text: 5 }],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+  });
+  expect(parsed?.entries).toEqual([{ text: "ok" }, { text: "fine", tile: "0,0" }]);
+});
+
+test("parseStackData: empty string tile is treated as world-scope (no tile field)", () => {
+  const parsed = parseStackData({
+    entries: [{ text: "alpha", tile: "" }],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+  });
+  expect(parsed?.entries).toEqual([{ text: "alpha" }]);
+});
+
+// tagEntriesByTile — server-side diff tagging.
+
+test("tagEntriesByTile: brand-new entry is tagged with current tile", () => {
+  const out = tagEntriesByTile(["alpha"], [], "1,0");
+  expect(out).toEqual([{ text: "alpha", tile: "1,0" }]);
+});
+
+test("tagEntriesByTile: entry that matches prior text inherits prior's tile", () => {
+  const prior = [{ text: "alpha", tile: "0,0" }];
+  const out = tagEntriesByTile(["alpha"], prior, "1,0");
+  expect(out).toEqual([{ text: "alpha", tile: "0,0" }]);
+});
+
+test("tagEntriesByTile: prior world-scope entry (no tile) stays world-scope on re-emission", () => {
+  const prior = [{ text: "world fact" }];
+  const out = tagEntriesByTile(["world fact"], prior, "1,0");
+  expect(out).toEqual([{ text: "world fact" }]);
+});
+
+test("tagEntriesByTile: mixed prior + new — each tagged correctly", () => {
+  const prior = [
+    { text: "old fact a", tile: "0,0" },
+    { text: "old fact b" },
+  ];
+  const out = tagEntriesByTile(["old fact a", "old fact b", "brand new"], prior, "2,3");
+  expect(out).toEqual([
+    { text: "old fact a", tile: "0,0" },
+    { text: "old fact b" },
+    { text: "brand new", tile: "2,3" },
+  ]);
+});
+
+test("tagEntriesByTile: removed prior entries are not preserved", () => {
+  const prior = [
+    { text: "kept", tile: "0,0" },
+    { text: "dropped", tile: "0,0" },
+  ];
+  const out = tagEntriesByTile(["kept"], prior, "1,0");
+  expect(out).toEqual([{ text: "kept", tile: "0,0" }]);
 });

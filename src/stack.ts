@@ -14,6 +14,14 @@ export interface RoomObject {
   category: ObjectCategory;
 }
 
+// World fact recorded by the archivist. `tile` is a posKey string identifying
+// the tile where the fact was canonicalised, or undefined for world-scope
+// facts that follow the player (premise, atmosphere, relationships).
+export interface Entry {
+  text: string;
+  tile?: string;
+}
+
 export const CATEGORY_PRIORITY: Record<ObjectCategory, "high" | "normal" | "low"> = {
   item: "high",
   character: "high",
@@ -31,7 +39,7 @@ export interface Objective {
 }
 
 export interface WorldStack {
-  entries: string[];
+  entries: Entry[];
   threads: string[];
   turn: number;
   position: Position;
@@ -128,6 +136,18 @@ export function parseStackData(data: any): WorldStack | null {
   ) {
     return null;
   }
+  // Entries accept BOTH the new {text, tile?} object shape AND the legacy
+  // string shape from pre-tile-scoping saves. Legacy strings load as
+  // world-scope (tile=undefined) — safe default that keeps the resume working.
+  const entries: Entry[] = data.entries.flatMap((e: any): Entry[] => {
+    if (typeof e === "string") return [{ text: e }];
+    if (e && typeof e === "object" && typeof e.text === "string") {
+      const out: Entry = { text: e.text };
+      if (typeof e.tile === "string" && e.tile.length > 0) out.tile = e.tile;
+      return [out];
+    }
+    return [];
+  });
   const position: Position =
     Array.isArray(data.position) &&
     data.position.length === 2 &&
@@ -205,7 +225,7 @@ export function parseStackData(data: any): WorldStack | null {
   }
 
   return {
-    entries: data.entries,
+    entries,
     threads: Array.isArray(data.threads) ? data.threads : [],
     turn: data.turn,
     position,
@@ -367,15 +387,15 @@ export function applyRoomObjectsSafetyNet(
 // "Discover the location of X") against entries containing the target noun.
 // Returns explicit per-turn naming directives so the narrator can't substitute
 // a decoy item — the load-bearing rule for LOCATE objective completion.
-function findTargetNamingHints(activeObjectives: Objective[], entries: string[]): string[] {
+function findTargetNamingHints(activeObjectives: Objective[], entries: Entry[]): string[] {
   const hints: string[] = [];
   for (const obj of activeObjectives) {
     if (obj.achieved) continue;
     const anchor = locateObjectiveAnchor(obj.text);
     if (!anchor) continue;
     const re = new RegExp(`\\b${anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-    const match = entries.find((e) => re.test(e));
-    if (match) hints.push(`- "${match}" (matches active objective: "${obj.text}")`);
+    const match = entries.find((e) => re.test(e.text));
+    if (match) hints.push(`- "${match.text}" (matches active objective: "${obj.text}")`);
   }
   return hints;
 }
@@ -428,15 +448,21 @@ export function formatStackForNarrator(stack: WorldStack, briefing?: string): st
     });
     parts.push(`ROOM STATE:\n${lines.join("\n")}`);
   }
-  if (stack.entries.length > 0) {
-    parts.push(`ESTABLISHED WORLD:\n${stack.entries.map((e) => `- ${e}`).join("\n")}`);
+  const hereKey = posKey(stack.position);
+  const visibleEntries = stack.entries.filter(
+    (e) => e.tile === undefined || e.tile === hereKey
+  );
+  if (visibleEntries.length > 0) {
+    parts.push(
+      `ESTABLISHED WORLD:\n${visibleEntries.map((e) => `- ${e.text}`).join("\n")}`
+    );
   }
   if (stack.threads.length > 0) {
     parts.push(`ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`);
   }
   // Append explicit per-turn naming directives LAST so they sit closest to the
   // player input — most recency-weighted position for next-token attention.
-  const namingHints = findTargetNamingHints(activeObjs, stack.entries);
+  const namingHints = findTargetNamingHints(activeObjs, visibleEntries);
   if (namingHints.length > 0) {
     parts.push(
       `THIS TURN — NAME THESE ITEMS EXPLICITLY (use the exact noun, do not substitute or invent a decoy):\n${namingHints.join("\n")}`
@@ -479,7 +505,7 @@ export function formatStackForArchivist(stack: WorldStack): string {
   const facts =
     stack.entries.length === 0
       ? "CURRENT STACK: (empty)"
-      : `CURRENT STACK:\n${stack.entries.map((e) => `- ${e}`).join("\n")}`;
+      : `CURRENT STACK:\n${stack.entries.map((e) => `- ${e.text}`).join("\n")}`;
   const threads =
     stack.threads.length === 0
       ? "ACTIVE THREADS: (none)"
@@ -518,7 +544,10 @@ export function formatStackForArchivist(stack: WorldStack): string {
 
 export function applyPresetToStack(preset: Preset): WorldStack {
   return {
-    entries: [...preset.objects],
+    // Preset-seeded entries are world-scope: they describe the run premise and
+    // are visible from any tile. Tile-local facts get tagged as the archivist
+    // canonises them after the player explores.
+    entries: preset.objects.map((text) => ({ text })),
     threads: [],
     turn: 0,
     position: [0, 0],
@@ -532,6 +561,41 @@ export function applyPresetToStack(preset: Preset): WorldStack {
     attributes: preset.attributes.map((a) => ({ name: a.name, scope: [...a.scope] })),
     placeObjects: {},
   };
+}
+
+// After the archivist returns a fresh list of entry strings, restore the
+// per-entry tile tag. Entries whose text exactly matches a prior entry
+// inherit that prior entry's tile (preserves tile-tag across no-op turns and
+// archivist-rephrase no-ops). Brand-new entries (no exact match in prior)
+// get tagged with the current tile — by construction the archivist only sees
+// the current narrative, so anything new it canonises pertains to the tile
+// the player is on.
+//
+// Caveats this deliberately does NOT handle in v1:
+// - Supersession via rewording ("three candles" -> "two candles") at the
+//   same tile: new text is brand-new, so it gets re-tagged with current
+//   tile. Same tile, so no leak — still correct.
+// - Player inventory (entries that should follow the player as world-scope):
+//   no special handling. If the archivist writes "wooden rose in your hand"
+//   it gets tagged to the tile the player picked it up on; once they move,
+//   it filters out of the narrator's view. This is the pre-existing
+//   inventory-not-implemented issue, not the leak fix.
+export function tagEntriesByTile(
+  newEntries: string[],
+  priorEntries: Entry[],
+  currentTile: string
+): Entry[] {
+  const priorByText = new Map<string, Entry>();
+  for (const e of priorEntries) priorByText.set(e.text, e);
+  return newEntries.map((text) => {
+    const prior = priorByText.get(text);
+    if (prior) {
+      const out: Entry = { text };
+      if (prior.tile !== undefined) out.tile = prior.tile;
+      return out;
+    }
+    return { text, tile: currentTile };
+  });
 }
 
 export function unionAchievedIndices(
