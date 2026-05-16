@@ -3,6 +3,23 @@ import type { Preset, PlayerAttribute } from "./presets";
 const STACK_FILE = new URL("../world-stack.json", import.meta.url).pathname;
 export const MAX_STACK_ENTRIES = 25;
 export const MAX_THREADS = 10;
+export const MAX_PLACE_OBJECTS = 10;
+
+export type ObjectCategory = "item" | "fixture" | "feature" | "character";
+
+export interface RoomObject {
+  name: string;
+  states: string[];
+  location?: string;
+  category: ObjectCategory;
+}
+
+export const CATEGORY_PRIORITY: Record<ObjectCategory, "high" | "normal" | "low"> = {
+  item: "high",
+  character: "high",
+  fixture: "normal",
+  feature: "low",
+};
 
 export type Position = [number, number];
 export type Direction = "north" | "south" | "east" | "west";
