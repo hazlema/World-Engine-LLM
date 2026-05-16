@@ -253,6 +253,38 @@ export function locateObjectiveAnchor(objectiveText: string): string | null {
   return last.toLowerCase();
 }
 
+// Cheap trailing-noun extraction for threads. Mirrors locateObjectiveAnchor's
+// last-word-length>2 rule. Used only as a prompt-side hint; the safety net is
+// the real guard against the archivist dropping critical objects.
+function trailingNoun(text: string): string | null {
+  const words = text.trim().split(/\s+/).filter((w) => w.length > 2);
+  const last = words[words.length - 1];
+  if (!last) return null;
+  return last.replace(/[^a-z0-9]/gi, "").toLowerCase() || null;
+}
+
+export function extractPinnedNames(
+  objectives: Objective[],
+  threads: string[]
+): Set<string> {
+  const names = new Set<string>();
+  for (const obj of objectives) {
+    if (obj.achieved) continue;
+    const anchor = locateObjectiveAnchor(obj.text);
+    if (anchor) names.add(anchor);
+    // Also pull trailing noun for non-LOCATE objectives ("open the iron chest").
+    if (!anchor) {
+      const n = trailingNoun(obj.text);
+      if (n) names.add(n);
+    }
+  }
+  for (const t of threads) {
+    const n = trailingNoun(t);
+    if (n) names.add(n);
+  }
+  return names;
+}
+
 // Match LOCATE-style objectives ("Find the X", "Locate the X", "Reach the X",
 // "Discover the location of X") against entries containing the target noun.
 // Returns explicit per-turn naming directives so the narrator can't substitute

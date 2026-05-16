@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, type WorldStack } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, extractPinnedNames, type Objective, type WorldStack } from "./stack";
 import type { Preset, PlayerAttribute } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
@@ -867,4 +867,36 @@ test("parseStackData: preserves valid placeObjects", () => {
   expect(parsed?.placeObjects["0,0"]?.[0]?.name).toBe("candle");
   expect(parsed?.placeObjects["0,0"]?.[0]?.states).toEqual(["lit"]);
   expect(parsed?.placeObjects["0,0"]?.[0]?.category).toBe("fixture");
+});
+
+test("extractPinnedNames: pulls anchor nouns from active LOCATE objectives", () => {
+  const objectives: Objective[] = [
+    { text: "Find the brass key", achieved: false },
+    { text: "Locate the wooden rose", achieved: false },
+    { text: "Open the iron chest", achieved: false },
+  ];
+  const names = extractPinnedNames(objectives, []);
+  expect(names).toContain("key");
+  expect(names).toContain("rose");
+});
+
+test("extractPinnedNames: skips achieved objectives", () => {
+  const objectives: Objective[] = [
+    { text: "Find the brass key", achieved: true },
+    { text: "Locate the wooden rose", achieved: false },
+  ];
+  const names = extractPinnedNames(objectives, []);
+  expect(names).not.toContain("key");
+  expect(names).toContain("rose");
+});
+
+test("extractPinnedNames: pulls trailing nouns from threads as cheap heuristic", () => {
+  const names = extractPinnedNames([], ["find out who lit the distant fire", "discover the brass altar"]);
+  // last word of each thread, length>2, lowercase
+  expect(names).toContain("fire");
+  expect(names).toContain("altar");
+});
+
+test("extractPinnedNames: returns empty set when nothing to pin", () => {
+  expect(extractPinnedNames([], [])).toEqual(new Set());
 });
