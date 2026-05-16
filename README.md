@@ -338,19 +338,17 @@ Covers the stack, presets, engine prompts, server message handlers, and the API 
 
 ## Known Issues
 
-- **first turn of a game takes a bit.** Yes, but subsequent turns will be speedy. (Working on it)
+- **First turn of a game takes a bit.** Subsequent turns are quick; the cold-start cost is paid once on the narrator + archivist before they're warm.
 
-- **Mild narrative drift on long runs.** The structural drift classes (item retcon, count drift, oscillating entries) are closed. What can still happen on long sessions: the narrator occasionally recycles phrasing or skips an item the player hasn't touched in a while. Less severe than before, but worth flagging.
+- **Cardinal-only movement.** "Walk to the lander", "head north-east", or stair phrasings like `up` / `down` stay on the current tile and surface a toast. Use `north`, `south`, `east`, or `west`.
 
-- **Wrong-noun world-update toasts.** Occasionally the toast surfaces an entry about a different object than the one your action targeted. Extraction latches onto the most recently mentioned noun rather than the action's subject. Observed primarily on the previous local narrator/archivist combo; the current `nvidia/nemotron-3-nano` config may improve this, but it hasn't been verified across a long run.
+- **Off-tile object state can drift.** The narrator knows objects exist on other tiles (from the mission briefing or because you visited them) but it doesn't see their current state when you're elsewhere — so it sometimes invents one. A candle you snuffed before walking away might be described as still flickering until you return to its tile, where the canonical state takes over again.
 
-- **LOCATE objectives complete on tile entry.** When you walk onto a tile that contains a "find / locate / reach the X" target, the deterministic safety net in `stack.ts` marks the objective complete the moment you arrive, before you've looked at or examined the thing. This should require an explicit `look`, `inspect`, or `examine` to fire.
+- **Threads paraphrase across turns.** Active narrative threads can subtly rephrase between turns ("find out what caused the leak" → "what caused the leak?"). They have no stable IDs yet; the archivist re-writes them on each round-trip.
 
-- **Duplicate objective-completion events.** Sometimes the same objective gets credited twice in a single session. Likely caused by the deterministic safety net and the archivist attributing the same change independently, with the `unionAchievedIndices` dedup missing the overlap.
+- **Audio playback edge cases.** Re-enabling narration after disabling it can flush the audio queue oddly; a new turn's clip can occasionally overlap the previous turn's; two tabs of the same session can echo each other.
 
-- **Cardinal-only movement.** "Walk to the lander," "head west-by-northwest," and stair phrasings like `up` / `down` stay on the current tile and surface a toast. Use `north`, `south`, `east`, or `west`.
-
-- **No first-class inventory.** Items you "take" stay in the world's established entries. There's no separate inventory data structure or UI. Type `inventory` and the narrator synthesizes a list from the entries it knows about, but specific picked-up items occasionally don't make the synthesis.
+- **No first-class inventory.** Items you "take" remain in the world's established entries; there's no inventory data structure yet. Type `inventory` and the narrator synthesizes a list from what it knows, but a specific picked-up item may not make the cut.
 
 > Balance is key. We're working on it. 😅
 
