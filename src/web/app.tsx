@@ -1495,6 +1495,14 @@ function WinView(props: {
   );
 }
 
+// Display positions as x,y where x=E/W, y=N/S — matches the convention most
+// players expect. Internal Position is [N/S, E/W] (i.e. [lat, lon]); the swap
+// is purely cosmetic. Movement, objective matching, persistence keys, and
+// archivist/narrator I/O all still use the internal order.
+function fmtPos(p: [number, number]): string {
+  return `${p[1]},${p[0]}`;
+}
+
 function DebugModal(props: {
   stack: Stack;
   position: Position;
@@ -1517,7 +1525,7 @@ function DebugModal(props: {
       <div className="debug-columns">
         <section className="debug-col">
           <h4>Live state</h4>
-          <p><strong>Position</strong> [{position[0]}, {position[1]}] (key: {position[0]},{position[1]})</p>
+          <p><strong>Position</strong> [{fmtPos(position)}] (internal key: {position[0]},{position[1]})</p>
           {placeDescription && (
             <p><strong>Place</strong> {placeDescription}</p>
           )}
@@ -1529,7 +1537,7 @@ function DebugModal(props: {
             <p className="debug-muted">(none)</p>
           ) : (
             <ul>{active.map((o, i) => (
-              <li key={i}>{o.achieved ? "✓" : "·"} {o.text}{o.position ? ` @ [${o.position[0]},${o.position[1]}]` : ""}</li>
+              <li key={i}>{o.achieved ? "✓" : "·"} {o.text}{o.position ? ` @ [${fmtPos(o.position)}]` : ""}</li>
             ))}</ul>
           )}
 
@@ -1538,7 +1546,7 @@ function DebugModal(props: {
             <p className="debug-muted">(none)</p>
           ) : (
             <ul>{distant.map((o, i) => (
-              <li key={i}>{o.achieved ? "✓" : "·"} {o.text} @ [{o.position![0]},{o.position![1]}]</li>
+              <li key={i}>{o.achieved ? "✓" : "·"} {o.text} @ [{fmtPos(o.position!)}]</li>
             ))}</ul>
           )}
 
@@ -1617,7 +1625,7 @@ function LocationMemory({ location }: { location: LocationTrace }) {
   const elsewhereCount = location.entries.length - hereEntries.length - worldEntries.length;
   return (
     <>
-      <h5>Location memory ({key})</h5>
+      <h5>Location memory ({fmtPos(location.position)})</h5>
       <p><strong>canonical description</strong></p>
       {location.description ? (
         <p className="debug-muted">{location.description}</p>
