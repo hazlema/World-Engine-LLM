@@ -22,6 +22,7 @@ const emptyStack: WorldStack = {
   objectives: [],
   presetSlug: null,
   attributes: [],
+  placeObjects: {},
 };
 
 beforeEach(() => {
@@ -114,6 +115,7 @@ test("processInput: narrator receives the target tile's stored description as an
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   narratorSpy.mockImplementationOnce(async () => "You return to the dune.");
@@ -144,6 +146,7 @@ test("processInput: return visit does NOT overwrite stored description", async (
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   interpreterSpy.mockImplementationOnce(async () => ({ action: "move-north" }));
   narratorSpy.mockImplementationOnce(async () => "You return.");
@@ -307,6 +310,7 @@ test("keepExploring: clears presetSlug, leaves objectives intact", () => {
     ],
     presetSlug: "lunar-rescue",
     attributes: [],
+    placeObjects: {},
   };
   const after = keepExploring(s);
   expect(after.presetSlug).toBeNull();
@@ -335,6 +339,7 @@ test("processInput: stack-update includes objectives", async () => {
     objectives: [{ text: "a", achieved: false }],
     presetSlug: "x",
     attributes: [],
+    placeObjects: {},
   };
   const messages: ServerMessage[] = [];
   await processInput(stack, "look", (m) => messages.push(m));
@@ -368,6 +373,7 @@ test("processInput: applies achievedObjectiveIndices monotonically", async () =>
     ],
     presetSlug: "x",
     attributes: [],
+    placeObjects: {},
   };
   const newStack = await processInput(stack, "look", () => {});
   expect(newStack.objectives).toEqual([
@@ -399,6 +405,7 @@ test("processInput: emits win when last objective is achieved", async () => {
     ],
     presetSlug: "x",
     attributes: [],
+    placeObjects: {},
   };
   const messages: ServerMessage[] = [];
   await processInput(stack, "look", (m) => messages.push(m));
@@ -428,6 +435,7 @@ test("processInput: does NOT re-emit win on subsequent turns when already won", 
     ],
     presetSlug: "x",
     attributes: [],
+    placeObjects: {},
   };
   const messages: ServerMessage[] = [];
   await processInput(alreadyWon, "look", (m) => messages.push(m));

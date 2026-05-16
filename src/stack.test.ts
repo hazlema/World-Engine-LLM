@@ -3,18 +3,18 @@ import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection
 import type { Preset, PlayerAttribute } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
-  expect(formatStackForNarrator({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] })).toBe("");
+  expect(formatStackForNarrator({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} })).toBe("");
 });
 
 test("formatStackForNarrator: entries only", () => {
-  const stack = { entries: ["world is cold", "crow watches"], threads: [], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] };
+  const stack = { entries: ["world is cold", "crow watches"], threads: [], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} };
   expect(formatStackForNarrator(stack)).toBe(
     "ESTABLISHED WORLD:\n- world is cold\n- crow watches\n\n"
   );
 });
 
 test("formatStackForNarrator: threads only", () => {
-  const stack = { entries: [], threads: ["find the missing watcher"], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] };
+  const stack = { entries: [], threads: ["find the missing watcher"], turn: 1, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} };
   expect(formatStackForNarrator(stack)).toBe(
     "ACTIVE THREADS:\n- find the missing watcher\n\n"
   );
@@ -30,6 +30,7 @@ test("formatStackForNarrator: entries and threads together", () => {
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   expect(formatStackForNarrator(stack)).toBe(
     "ESTABLISHED WORLD:\n- world is cold\n\nACTIVE THREADS:\n- find the watcher\n\n"
@@ -37,7 +38,7 @@ test("formatStackForNarrator: entries and threads together", () => {
 });
 
 test("formatStackForArchivist: empty stack returns empty headers for both", () => {
-  expect(formatStackForArchivist({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] })).toBe(
+  expect(formatStackForArchivist({ entries: [], threads: [], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} })).toBe(
     "CURRENT STACK: (empty)\n\nACTIVE THREADS: (none)\n\n"
   );
 });
@@ -52,6 +53,7 @@ test("formatStackForArchivist: populated stack", () => {
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   expect(formatStackForArchivist(stack)).toBe(
     "CURRENT STACK:\n- world is cold\n\nACTIVE THREADS:\n- find the watcher\n\n"
@@ -90,6 +92,7 @@ test("formatStackForNarrator: includes stored location description when present"
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("CURRENT LOCATION (canonical description):");
@@ -106,6 +109,7 @@ test("formatStackForNarrator: omits the location section when no description sto
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).not.toContain("CURRENT LOCATION (canonical description):");
@@ -242,6 +246,7 @@ test("formatStackForNarrator: includes MISSION BRIEFING when briefing is provide
     objectives: [],
     presetSlug: "lunar-rescue",
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack, "You are an astronaut.");
   expect(out).toContain("MISSION BRIEFING (durable premise):");
@@ -258,6 +263,7 @@ test("formatStackForNarrator: omits MISSION BRIEFING when briefing is undefined"
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).not.toContain("MISSION BRIEFING");
@@ -276,6 +282,7 @@ test("formatStackForNarrator: renders OBJECTIVES checkboxes when objectives pres
     ],
     presetSlug: "lunar-rescue",
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
@@ -293,6 +300,7 @@ test("formatStackForNarrator: omits OBJECTIVES when none", () => {
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   expect(formatStackForNarrator(stack)).not.toContain("OBJECTIVES:");
 });
@@ -310,6 +318,7 @@ test("formatStackForArchivist: includes OBJECTIVES with indices when present", (
     ],
     presetSlug: "lunar-rescue",
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("OBJECTIVES:");
@@ -327,6 +336,7 @@ test("formatStackForArchivist: omits OBJECTIVES section when empty", () => {
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   expect(formatStackForArchivist(stack)).not.toContain("OBJECTIVES:");
 });
@@ -472,6 +482,7 @@ test("formatStackForNarrator: positionless objectives still render under OBJECTI
     objectives: [{ text: "Find the journal", achieved: false }],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
@@ -489,6 +500,7 @@ test("formatStackForNarrator: positioned objective at current tile is active", (
     objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
@@ -506,6 +518,7 @@ test("formatStackForNarrator: positioned objective elsewhere is distant with tra
     objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OFF-TILE OBJECTIVES (require travel):");
@@ -527,6 +540,7 @@ test("formatStackForNarrator: mixed active and distant render in their own secti
     ],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("OBJECTIVES (active this turn):");
@@ -551,6 +565,7 @@ test("formatStackForNarrator: distant objectives include cardinal direction in h
     ],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack);
   expect(out).toContain("[ ] Find the journal (1 move south)");
@@ -569,6 +584,7 @@ test("formatStackForArchivist: positionless objective shows no flag", () => {
     objectives: [{ text: "Find the journal", achieved: false }],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Find the journal");
@@ -585,6 +601,7 @@ test("formatStackForArchivist: positioned-at-current-tile objective shows no fla
     objectives: [{ text: "Open the chest", achieved: false, position: [2, 1] }],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Open the chest");
@@ -604,6 +621,7 @@ test("formatStackForArchivist: positioned-elsewhere objective is flagged [OFF-TI
     ],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("0: [ ] Open the chest [OFF-TILE — cannot be completed this turn]");
@@ -666,6 +684,7 @@ test("parseStackData: preserves attributes through JSON round-trip", () => {
     objectives: [],
     presetSlug: null,
     attributes: [{ name: "magic", scope: ["can manipulate objects"] }],
+    placeObjects: {},
   };
   const json = JSON.stringify(stack);
   const reparsed = parseStackData(JSON.parse(json));
@@ -743,6 +762,7 @@ test("formatStackForNarrator: includes PLAYER ATTRIBUTES as the first section wh
       { name: "magic", scope: ["can manipulate objects", "cannot manipulate time"] },
       { name: "red hair", scope: [] },
     ],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack, "you wake in a study");
   // Section appears first.
@@ -767,6 +787,7 @@ test("formatStackForNarrator: omits PLAYER ATTRIBUTES section when empty", () =>
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForNarrator(stack, "premise");
   expect(out).not.toContain("PLAYER ATTRIBUTES");
@@ -782,6 +803,7 @@ test("formatStackForArchivist: includes PLAYER ATTRIBUTES as the first section w
     objectives: [],
     presetSlug: null,
     attributes: [{ name: "wizard", scope: ["can read minds"] }],
+    placeObjects: {},
   };
   const out = formatStackForArchivist(stack);
   expect(out).toContain("PLAYER ATTRIBUTES (immutable):");
@@ -804,7 +826,45 @@ test("formatStackForArchivist: omits PLAYER ATTRIBUTES section when empty", () =
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   const out = formatStackForArchivist(stack);
   expect(out).not.toContain("PLAYER ATTRIBUTES");
+});
+
+test("parseStackData: missing placeObjects defaults to empty object", () => {
+  const raw = {
+    entries: ["a"],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+  };
+  const parsed = parseStackData(raw);
+  expect(parsed?.placeObjects).toEqual({});
+});
+
+test("parseStackData: preserves valid placeObjects", () => {
+  const raw = {
+    entries: [],
+    threads: [],
+    turn: 0,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {
+      "0,0": [
+        { name: "candle", states: ["lit"], location: "on desk", category: "fixture" },
+      ],
+    },
+  };
+  const parsed = parseStackData(raw);
+  expect(parsed?.placeObjects["0,0"]?.[0]?.name).toBe("candle");
+  expect(parsed?.placeObjects["0,0"]?.[0]?.states).toEqual(["lit"]);
+  expect(parsed?.placeObjects["0,0"]?.[0]?.category).toBe("fixture");
 });

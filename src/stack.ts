@@ -39,6 +39,7 @@ export interface WorldStack {
   objectives: Objective[];
   presetSlug: string | null;
   attributes: PlayerAttribute[];
+  placeObjects: Record<string, RoomObject[]>;
 }
 
 // Coordinate convention: Position is [lat, lon] — north/south affect index 0,
@@ -114,6 +115,7 @@ function emptyStack(): WorldStack {
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
 }
 
@@ -176,6 +178,32 @@ export function parseStackData(data: any): WorldStack | null {
         .map((a: any) => ({ name: a.name, scope: [...a.scope] }))
     : [];
 
+  const placeObjects: Record<string, RoomObject[]> = {};
+  if (data.placeObjects !== null && typeof data.placeObjects === "object" && !Array.isArray(data.placeObjects)) {
+    for (const key of Object.keys(data.placeObjects)) {
+      const arr = data.placeObjects[key];
+      if (!Array.isArray(arr)) continue;
+      const cleaned: RoomObject[] = [];
+      for (const obj of arr) {
+        if (!obj || typeof obj !== "object") continue;
+        if (typeof obj.name !== "string" || obj.name.length === 0) continue;
+        if (!Array.isArray(obj.states)) continue;
+        if (!obj.states.every((s: any) => typeof s === "string")) continue;
+        if (obj.category !== "item" && obj.category !== "fixture" && obj.category !== "feature" && obj.category !== "character") continue;
+        const ro: RoomObject = {
+          name: obj.name,
+          states: [...obj.states],
+          category: obj.category,
+        };
+        if (typeof obj.location === "string" && obj.location.length > 0) {
+          ro.location = obj.location;
+        }
+        cleaned.push(ro);
+      }
+      placeObjects[key] = cleaned;
+    }
+  }
+
   return {
     entries: data.entries,
     threads: Array.isArray(data.threads) ? data.threads : [],
@@ -185,6 +213,7 @@ export function parseStackData(data: any): WorldStack | null {
     objectives,
     presetSlug,
     attributes,
+    placeObjects,
   };
 }
 
@@ -366,6 +395,7 @@ export function applyPresetToStack(preset: Preset): WorldStack {
     }),
     presetSlug: preset.slug,
     attributes: preset.attributes.map((a) => ({ name: a.name, scope: [...a.scope] })),
+    placeObjects: {},
   };
 }
 

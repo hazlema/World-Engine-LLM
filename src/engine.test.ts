@@ -11,7 +11,7 @@ let callModelSpy: any;
 let callModelStructuredSpy: any;
 let callInterpreterStructuredSpy: any;
 
-const emptyStack: WorldStack = { entries: [] as string[], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [] };
+const emptyStack: WorldStack = { entries: [] as string[], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} };
 const populatedStack: WorldStack = {
   entries: ["world is cold", "crow watches"],
   threads: ["find the watcher"],
@@ -21,6 +21,7 @@ const populatedStack: WorldStack = {
   objectives: [],
   presetSlug: null,
   attributes: [],
+  placeObjects: {},
 };
 
 function makeStack(overrides: Partial<WorldStack> = {}): WorldStack {
@@ -33,6 +34,7 @@ function makeStack(overrides: Partial<WorldStack> = {}): WorldStack {
     objectives: [{ text: "Find the rusted key", achieved: false, position: [0, 0] }],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
     ...overrides,
   };
 }
@@ -285,6 +287,7 @@ test("archivistTurn: returns moved and locationDescription fields", async () => 
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   callModelStructuredSpy.mockImplementationOnce(async () => ({
     entries: ["dune"],
@@ -309,6 +312,7 @@ test("archivistTurn: missing moved/locationDescription default safely", async ()
     objectives: [],
     presetSlug: null,
     attributes: [],
+    placeObjects: {},
   };
   callModelStructuredSpy.mockImplementationOnce(async () => ({
     entries: [],
@@ -339,6 +343,7 @@ test("narratorTurn: includes MISSION BRIEFING and OBJECTIVES when provided", asy
     objectives: [{ text: "Find the transmitter", achieved: false }],
     presetSlug: "lunar-rescue",
     attributes: [],
+    placeObjects: {},
   };
   let captured = "";
   callModelSpy.mockImplementationOnce(async (_sys: string, inp: string) => {
