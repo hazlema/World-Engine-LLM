@@ -487,16 +487,31 @@ export function formatStackForNarrator(stack: WorldStack, briefing?: string): st
   return parts.length === 0 ? "" : `${parts.join("\n\n")}\n\n`;
 }
 
-// Deterministic safety net for LOCATE-objective completion: if the player is
-// on a LOCATE objective's target tile AND the new narrative contains the
-// target noun as a whole word, return that objective's index. This backstops
-// the archivist LLM which has been observed to miss obvious matches at higher
-// temperatures or with abstract prompt examples.
+// Observation verbs that qualify the player's turn as an active observation.
+// LOCATE objectives require BOTH this gate AND a name-match in the narrative,
+// matching the archivist's prompt rule — walking onto a tile is not finding.
+const OBSERVATION_VERBS_RE =
+  /\b(look|examine|inspect|search|study|scan|observe|view|regard|read|check|peer|gaze)\b/i;
+
+export function isObservationInput(playerInput: string): boolean {
+  return OBSERVATION_VERBS_RE.test(playerInput);
+}
+
+// Deterministic safety net for LOCATE-objective completion: fires only if the
+// player took an explicit observation action this turn (look / examine /
+// inspect / search / etc.) AND is on the target tile AND the new narrative
+// contains the anchor noun. Backstops the archivist LLM, which has been
+// observed to miss obvious matches at higher temperatures or with abstract
+// prompt examples.
 export function inferLocateCompletions(
   objectives: Objective[],
   position: [number, number],
   narrative: string,
+  playerInput: string,
 ): number[] {
+  // Gate: walking into a tile is not finding. Require an explicit look-verb
+  // before considering LOCATE auto-completion.
+  if (!isObservationInput(playerInput)) return [];
   const indices: number[] = [];
   for (let i = 0; i < objectives.length; i++) {
     const obj = objectives[i];

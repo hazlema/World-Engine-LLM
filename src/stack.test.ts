@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, extractPinnedNames, applyRoomObjectsSafetyNet, tagEntriesByTile, CATEGORY_PRIORITY, MAX_PLACE_OBJECTS, type Objective, type WorldStack, type RoomObject, type ObjectCategory } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, extractPinnedNames, applyRoomObjectsSafetyNet, tagEntriesByTile, inferLocateCompletions, isObservationInput, CATEGORY_PRIORITY, MAX_PLACE_OBJECTS, type Objective, type WorldStack, type RoomObject, type ObjectCategory } from "./stack";
 import type { Preset, PlayerAttribute } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
@@ -1399,4 +1399,82 @@ test("tagEntriesByTile: removed prior entries are not preserved", () => {
   ];
   const out = tagEntriesByTile(["kept"], prior, "1,0");
   expect(out).toEqual([{ text: "kept", tile: "0,0" }]);
+});
+
+// isObservationInput — recognised observation verbs.
+
+test("isObservationInput: matches each observation verb the gate covers", () => {
+  for (const verb of ["look", "examine", "inspect", "search", "study", "scan", "observe", "view", "regard", "read", "check", "peer", "gaze"]) {
+    expect(isObservationInput(verb)).toBe(true);
+    expect(isObservationInput(`${verb} at the chest`)).toBe(true);
+    expect(isObservationInput(`I want to ${verb} the desk`)).toBe(true);
+  }
+});
+
+test("isObservationInput: rejects bare cardinal moves and non-observation actions", () => {
+  expect(isObservationInput("north")).toBe(false);
+  expect(isObservationInput("south")).toBe(false);
+  expect(isObservationInput("go east")).toBe(false);
+  expect(isObservationInput("wait")).toBe(false);
+  expect(isObservationInput("talk to the woman")).toBe(false);
+  expect(isObservationInput("take the key")).toBe(false);
+  expect(isObservationInput("")).toBe(false);
+});
+
+// inferLocateCompletions — the deterministic safety net.
+
+test("inferLocateCompletions: does NOT fire on bare cardinal move (walked into tile, no look-verb)", () => {
+  const objectives: Objective[] = [
+    { text: "Find the iron key", achieved: false, position: [0, 0] },
+  ];
+  const narrative = "you step into the cellar; the iron key catches the light on the altar";
+  expect(inferLocateCompletions(objectives, [0, 0], narrative, "north")).toEqual([]);
+});
+
+test("inferLocateCompletions: fires when player looks, on target tile, narrative names anchor", () => {
+  const objectives: Objective[] = [
+    { text: "Find the iron key", achieved: false, position: [0, 0] },
+  ];
+  const narrative = "your eyes sweep the room; the iron key rests on the chest in plain sight";
+  expect(inferLocateCompletions(objectives, [0, 0], narrative, "look around")).toEqual([0]);
+});
+
+test("inferLocateCompletions: fires for 'examine' input", () => {
+  const objectives: Objective[] = [
+    { text: "Find the iron key", achieved: false, position: [0, 0] },
+  ];
+  const narrative = "you crouch and look closer; the iron key glints among the scrap";
+  expect(inferLocateCompletions(objectives, [0, 0], narrative, "examine the desk")).toEqual([0]);
+});
+
+test("inferLocateCompletions: stays off when player looks at wrong tile", () => {
+  const objectives: Objective[] = [
+    { text: "Find the iron key", achieved: false, position: [1, 0] },
+  ];
+  const narrative = "you look around — only dust and empty boards";
+  expect(inferLocateCompletions(objectives, [0, 0], narrative, "look around")).toEqual([]);
+});
+
+test("inferLocateCompletions: stays off when narrative doesn't name the anchor", () => {
+  const objectives: Objective[] = [
+    { text: "Find the iron key", achieved: false, position: [0, 0] },
+  ];
+  const narrative = "you scan the corner — bookshelves and a brass lantern";
+  expect(inferLocateCompletions(objectives, [0, 0], narrative, "look around")).toEqual([]);
+});
+
+test("inferLocateCompletions: ignores non-LOCATE objectives even when observed at tile", () => {
+  const objectives: Objective[] = [
+    { text: "Open the chest", achieved: false, position: [0, 0] },
+  ];
+  const narrative = "you inspect the chest; the latch is unmoving";
+  expect(inferLocateCompletions(objectives, [0, 0], narrative, "examine the chest")).toEqual([]);
+});
+
+test("inferLocateCompletions: skips already-achieved objectives", () => {
+  const objectives: Objective[] = [
+    { text: "Find the iron key", achieved: true, position: [0, 0] },
+  ];
+  const narrative = "the iron key still sits on the altar";
+  expect(inferLocateCompletions(objectives, [0, 0], narrative, "look around")).toEqual([]);
 });

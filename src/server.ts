@@ -309,7 +309,7 @@ export async function processInput(
 
   let archived;
   try {
-    archived = await archivistTurn(stack, narrative);
+    archived = await archivistTurn(stack, narrative, input);
   } catch (err) {
     const message = String(err);
     send({ type: "error", source: "archivist", message });
@@ -343,7 +343,7 @@ export async function processInput(
     stack.objectives.length > 0 && stack.objectives.every((o) => o.achieved);
   // Backstop: even if the archivist missed an obvious LOCATE match, infer
   // completions from (player position, objective target, narrative text).
-  const inferredIndices = inferLocateCompletions(stack.objectives, finalPosition, narrative);
+  const inferredIndices = inferLocateCompletions(stack.objectives, finalPosition, narrative, input);
   const combinedIndices = Array.from(
     new Set([...archived.achievedObjectiveIndices, ...inferredIndices])
   );
