@@ -1,6 +1,6 @@
 import { appendFileSync } from "node:fs";
 import * as api from "./api";
-import { WorldStack, MAX_STACK_ENTRIES, MAX_THREADS, formatStackForNarrator, formatStackForArchivist, locateObjectiveAnchor } from "./stack";
+import { WorldStack, MAX_STACK_ENTRIES, MAX_THREADS, MAX_PLACE_OBJECTS, formatStackForNarrator, formatStackForArchivist, locateObjectiveAnchor, type RoomObject } from "./stack";
 
 export const NARRATOR_SYSTEM = `You are a living world. Not an assistant. A world.
 
@@ -126,8 +126,23 @@ const ARCHIVIST_SCHEMA = {
     moved: { type: "boolean" },
     locationDescription: { type: "string" },
     achievedObjectiveIndices: { type: "array", items: { type: "integer", minimum: 0 } },
+    objects: {
+      type: "array",
+      maxItems: MAX_PLACE_OBJECTS,
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          states: { type: "array", items: { type: "string" } },
+          location: { type: "string" },
+          category: { type: "string", enum: ["item", "fixture", "feature", "character"] },
+        },
+        required: ["name", "states", "category"],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ["entries", "threads", "moved", "locationDescription", "achievedObjectiveIndices"],
+  required: ["entries", "threads", "moved", "locationDescription", "achievedObjectiveIndices", "objects"],
   additionalProperties: false,
 };
 
@@ -175,6 +190,7 @@ export interface ArchivistResult {
   moved: boolean;
   locationDescription: string;
   achievedObjectiveIndices: number[];
+  objects: RoomObject[];
 }
 
 export async function archivistTurn(
@@ -199,6 +215,7 @@ export async function archivistTurn(
     moved?: boolean;
     locationDescription?: string;
     achievedObjectiveIndices?: unknown;
+    objects?: unknown;
   }>(ARCHIVIST_SYSTEM, input, "world_stack", ARCHIVIST_SCHEMA);
 
   if (!Array.isArray(result.entries) || !Array.isArray(result.threads)) {
@@ -211,6 +228,19 @@ export async function archivistTurn(
       )
     : [];
 
+  const objects: RoomObject[] = Array.isArray(result.objects)
+    ? (result.objects as any[]).flatMap((o): RoomObject[] => {
+        if (!o || typeof o !== "object") return [];
+        if (typeof o.name !== "string" || o.name.length === 0) return [];
+        if (!Array.isArray(o.states)) return [];
+        if (!o.states.every((s: any) => typeof s === "string")) return [];
+        if (o.category !== "item" && o.category !== "fixture" && o.category !== "feature" && o.category !== "character") return [];
+        const ro: RoomObject = { name: o.name, states: [...o.states], category: o.category };
+        if (typeof o.location === "string" && o.location.length > 0) ro.location = o.location;
+        return [ro];
+      })
+    : [];
+
   return {
     entries: result.entries.slice(0, MAX_STACK_ENTRIES),
     threads: result.threads.slice(0, MAX_THREADS),
@@ -218,6 +248,7 @@ export async function archivistTurn(
     moved: typeof result.moved === "boolean" ? result.moved : false,
     locationDescription: typeof result.locationDescription === "string" ? result.locationDescription : "",
     achievedObjectiveIndices: indices,
+    objects,
   };
 }
 

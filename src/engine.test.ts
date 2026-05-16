@@ -632,3 +632,53 @@ test("ARCHIVIST_SYSTEM: forbids paraphrasing player attributes as world entries"
   expect(lower).toMatch(/immutable session data/);
   expect(lower).toMatch(/do not add entries.*paraphrase|paraphrase.*restate/);
 });
+
+test("archivistTurn: returns objects parsed from model response", async () => {
+  callModelStructuredSpy.mockResolvedValue({
+    entries: ["a candle on a desk"],
+    threads: [],
+    moved: false,
+    locationDescription: "a small study with an oak desk",
+    achievedObjectiveIndices: [],
+    objects: [
+      { name: "candle", states: ["lit"], location: "on oak desk", category: "fixture" },
+      { name: "key", states: ["worn smooth"], category: "item" },
+    ],
+  });
+  const result = await archivistTurn(makeStack(), "narrative text");
+  expect(result.objects).toEqual([
+    { name: "candle", states: ["lit"], location: "on oak desk", category: "fixture" },
+    { name: "key", states: ["worn smooth"], category: "item" },
+  ]);
+});
+
+test("archivistTurn: defaults objects to empty array when missing", async () => {
+  callModelStructuredSpy.mockResolvedValue({
+    entries: [],
+    threads: [],
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [],
+    // no `objects` field at all
+  });
+  const result = await archivistTurn(makeStack(), "narrative text");
+  expect(result.objects).toEqual([]);
+});
+
+test("archivistTurn: filters invalid objects (bad category, missing name)", async () => {
+  callModelStructuredSpy.mockResolvedValue({
+    entries: [],
+    threads: [],
+    moved: false,
+    locationDescription: "",
+    achievedObjectiveIndices: [],
+    objects: [
+      { name: "good", states: [], category: "fixture" },
+      { name: "", states: [], category: "fixture" }, // empty name — drop
+      { name: "bad-cat", states: [], category: "player_body" }, // not in enum — drop
+      { name: "no-cat", states: [] }, // missing category — drop
+    ],
+  });
+  const result = await archivistTurn(makeStack(), "narrative text");
+  expect(result.objects.map((o) => o.name)).toEqual(["good"]);
+});
