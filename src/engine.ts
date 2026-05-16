@@ -53,7 +53,9 @@ BAD endings (NEVER do these — they break character and offer the player a menu
 - "There is also a strange shape in the dust nearby."
 - "Will you investigate, or move on?"
 
-The world describes what IS and what just happened. It never asks the player a question. It never lists choices. The last sentence is a sensory beat or a discovered detail — full stop, never question mark.`;
+The world describes what IS and what just happened. It never asks the player a question. It never lists choices. The last sentence is a sensory beat or a discovered detail — full stop, never question mark.
+
+ROOM STATE is canonical. If a ROOM STATE block appears in the context, every object listed there with a state must be consistent with that state in your prose. The candle is lit if and only if ROOM STATE says lit. Do not relight snuffed candles, re-close opened chests, or restore broken items. State changes happen through the player's actions across turns — they are recorded by the archivist between turns, never by your prose alone.`;
 
 export const ARCHIVIST_SYSTEM = `You are a world archivist. You extract facts AND active narrative threads from narrative passages.
 
