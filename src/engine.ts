@@ -137,11 +137,12 @@ Rules for "objects" (current tile only):
 
 Return only the JSON object. No preamble, no markdown fences, no commentary.`;
 
-// NOTE: caps (MAX_STACK_ENTRIES / MAX_THREADS / MAX_PLACE_OBJECTS) are
-// enforced server-side in archivistTurn (slice + applyRoomObjectsSafetyNet).
-// Don't add `maxItems` to array properties here — Amazon Bedrock's strict
-// JSON-schema validator rejects it ("For 'array' type, property 'maxItems'
-// is not supported"), which breaks Claude-via-OpenRouter archivist routing.
+// NOTE: caps and range constraints are enforced server-side in archivistTurn
+// (slice + applyRoomObjectsSafetyNet + Number.isInteger / i >= 0 filtering).
+// Don't add `maxItems` to array properties or `minimum` to integer items here
+// — Amazon Bedrock's strict JSON-schema validator rejects both ("For 'array'
+// type, property 'maxItems' is not supported"; "For 'integer' type, property
+// 'minimum' is not supported"), which breaks Claude-via-OpenRouter routing.
 const ARCHIVIST_SCHEMA = {
   type: "object",
   properties: {
@@ -149,7 +150,7 @@ const ARCHIVIST_SCHEMA = {
     threads: { type: "array", items: { type: "string" } },
     moved: { type: "boolean" },
     locationDescription: { type: "string" },
-    achievedObjectiveIndices: { type: "array", items: { type: "integer", minimum: 0 } },
+    achievedObjectiveIndices: { type: "array", items: { type: "integer" } },
     objects: {
       type: "array",
       items: {
