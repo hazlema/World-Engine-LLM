@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, extractPinnedNames, type Objective, type WorldStack } from "./stack";
+import { formatStackForNarrator, formatStackForArchivist, posKey, applyDirection, applyPresetToStack, unionAchievedIndices, parseStackData, manhattan, partitionObjectivesByReach, locateObjectiveAnchor, extractPinnedNames, applyRoomObjectsSafetyNet, CATEGORY_PRIORITY, MAX_PLACE_OBJECTS, type Objective, type WorldStack, type RoomObject, type ObjectCategory } from "./stack";
 import type { Preset, PlayerAttribute } from "./presets";
 
 test("formatStackForNarrator: empty stack returns empty string", () => {
@@ -899,4 +899,107 @@ test("extractPinnedNames: pulls trailing nouns from threads as cheap heuristic",
 
 test("extractPinnedNames: returns empty set when nothing to pin", () => {
   expect(extractPinnedNames([], [])).toEqual(new Set());
+});
+
+test("safetyNet: drops player-self-referential objects", () => {
+  const archivistObjects: RoomObject[] = [
+    { name: "your hair", states: ["red"], category: "feature" },
+    { name: "the player's eyes", states: ["alert"], category: "feature" },
+    { name: "Player's shadow", states: ["long"], category: "feature" },
+    { name: "candle", states: ["lit"], category: "fixture" },
+  ];
+  const result = applyRoomObjectsSafetyNet(archivistObjects, [], new Set());
+  expect(result.map((o) => o.name)).toEqual(["candle"]);
+});
+
+test("safetyNet: restores missing pinned object from prior state", () => {
+  const prior: RoomObject[] = [
+    { name: "candle", states: ["lit"], location: "on oak desk", category: "fixture" },
+    { name: "key", states: ["worn smooth"], category: "item" },
+  ];
+  const archivistObjects: RoomObject[] = [
+    { name: "candle", states: ["lit"], location: "on oak desk", category: "fixture" },
+    // archivist dropped "key" by mistake — should be restored
+  ];
+  const pinned = new Set(["key"]);
+  const result = applyRoomObjectsSafetyNet(archivistObjects, prior, pinned);
+  expect(result.map((o) => o.name).sort()).toEqual(["candle", "key"]);
+  const restored = result.find((o) => o.name === "key");
+  expect(restored?.states).toEqual(["worn smooth"]);
+});
+
+test("safetyNet: does not invent objects not in prior state", () => {
+  const prior: RoomObject[] = [];
+  const archivistObjects: RoomObject[] = [];
+  const pinned = new Set(["unicorn"]);
+  const result = applyRoomObjectsSafetyNet(archivistObjects, prior, pinned);
+  expect(result).toEqual([]);
+});
+
+test("safetyNet: cap enforcement drops feature before fixture before item", () => {
+  const archivistObjects: RoomObject[] = [
+    { name: "item-1", states: [], category: "item" },
+    { name: "item-2", states: [], category: "item" },
+    { name: "item-3", states: [], category: "item" },
+    { name: "fix-1", states: [], category: "fixture" },
+    { name: "fix-2", states: [], category: "fixture" },
+    { name: "fix-3", states: [], category: "fixture" },
+    { name: "feat-1", states: [], category: "feature" },
+    { name: "feat-2", states: [], category: "feature" },
+    { name: "feat-3", states: [], category: "feature" },
+    { name: "feat-4", states: [], category: "feature" },
+    { name: "feat-5", states: [], category: "feature" },
+  ];
+  const result = applyRoomObjectsSafetyNet(archivistObjects, [], new Set());
+  expect(result.length).toBe(MAX_PLACE_OBJECTS);
+  // No features should survive when 6 normals/highs exist
+  const remaining = result.map((o) => o.category);
+  const featureCount = remaining.filter((c) => c === "feature").length;
+  expect(featureCount).toBeLessThanOrEqual(MAX_PLACE_OBJECTS - 6);
+});
+
+test("safetyNet: pinned name forces high priority and survives cap", () => {
+  // 10 features + 1 pinned feature; the pinned one must survive.
+  const features: RoomObject[] = Array.from({ length: 10 }, (_, i) => ({
+    name: `feat-${i}`,
+    states: [],
+    category: "feature" as ObjectCategory,
+  }));
+  const pinnedFeature: RoomObject = {
+    name: "candle",
+    states: ["lit"],
+    category: "feature",
+  };
+  const result = applyRoomObjectsSafetyNet(
+    [...features, pinnedFeature],
+    [],
+    new Set(["candle"])
+  );
+  expect(result.length).toBe(MAX_PLACE_OBJECTS);
+  expect(result.some((o) => o.name === "candle")).toBe(true);
+});
+
+test("safetyNet: within a tier, prefers keeping objects whose state changed this turn", () => {
+  const prior: RoomObject[] = [
+    { name: "lever", states: ["up"], category: "fixture" },
+    { name: "hatch", states: ["closed"], category: "fixture" },
+  ];
+  // Eleven fixtures, two of which appear in prior. Of the two in prior, only
+  // "hatch" has a state change ("closed" → "open"). Cap drops one — should
+  // prefer dropping the unchanged "lever" over the changed "hatch".
+  const archivistObjects: RoomObject[] = [
+    { name: "lever", states: ["up"], category: "fixture" },          // unchanged
+    { name: "hatch", states: ["open"], category: "fixture" },        // changed
+    ...Array.from({ length: 9 }, (_, i) => ({
+      name: `fix-new-${i}`,
+      states: [] as string[],
+      category: "fixture" as ObjectCategory,
+    })),
+  ];
+  const result = applyRoomObjectsSafetyNet(archivistObjects, prior, new Set());
+  expect(result.length).toBe(MAX_PLACE_OBJECTS);
+  // The changed one must survive.
+  expect(result.some((o) => o.name === "hatch")).toBe(true);
+  // The unchanged one is the only natural drop candidate.
+  expect(result.some((o) => o.name === "lever")).toBe(false);
 });

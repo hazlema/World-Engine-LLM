@@ -285,6 +285,84 @@ export function extractPinnedNames(
   return names;
 }
 
+const PLAYER_NAME_PREFIXES = [
+  /^your\s+/i,
+  /^the\s+player'?s\s+/i,
+  /^player'?s\s+/i,
+];
+
+function isPlayerSelfReferential(name: string): boolean {
+  return PLAYER_NAME_PREFIXES.some((re) => re.test(name));
+}
+
+function priorityRank(p: "high" | "normal" | "low"): number {
+  return p === "high" ? 2 : p === "normal" ? 1 : 0;
+}
+
+function stateChanged(current: RoomObject, prior: RoomObject[]): boolean {
+  const match = prior.find((p) => p.name.toLowerCase() === current.name.toLowerCase());
+  if (!match) return true; // brand-new object counts as a change
+  if (match.states.length !== current.states.length) return true;
+  for (const s of current.states) if (!match.states.includes(s)) return true;
+  return false;
+}
+
+// Post-archivist deterministic pass. Input: archivist's returned objects for
+// the current tile, the prior turn's objects for the same tile, and the set
+// of pinned names (from objectives + threads).
+//
+// The function: (1) drops player-self-referential names, (2) force-pins
+// objects whose names are in the pinned set to "high" priority for eviction,
+// (3) restores any pinned name that is missing from the archivist output but
+// existed in prior state, (4) enforces MAX_PLACE_OBJECTS by dropping
+// lowest-priority objects first; within a tier, prefers dropping objects with
+// no state change this turn.
+//
+// Never invents objects. Restoration only re-injects entries from prior state.
+export function applyRoomObjectsSafetyNet(
+  archivistObjects: RoomObject[],
+  priorObjects: RoomObject[],
+  pinnedNames: Set<string>
+): RoomObject[] {
+  // 1. Drop player-self-referential objects.
+  const filtered = archivistObjects.filter((o) => !isPlayerSelfReferential(o.name));
+
+  // 2. Track which names are present, lowercased for matching.
+  const presentNames = new Set(filtered.map((o) => o.name.toLowerCase()));
+
+  // 3. Restore pinned objects missing from archivist output, using prior state.
+  const restored: RoomObject[] = [...filtered];
+  for (const name of pinnedNames) {
+    if (presentNames.has(name.toLowerCase())) continue;
+    const priorMatch = priorObjects.find((o) => o.name.toLowerCase().includes(name.toLowerCase()));
+    if (priorMatch) {
+      console.warn(`[room-state] archivist dropped pinned object: ${priorMatch.name}`);
+      restored.push({ ...priorMatch, states: [...priorMatch.states] });
+    }
+  }
+
+  // 4. Compute effective priority and per-object state-change flag.
+  const annotated = restored.map((o) => {
+    const isPinned = Array.from(pinnedNames).some((p) =>
+      o.name.toLowerCase().includes(p.toLowerCase())
+    );
+    const basePriority = CATEGORY_PRIORITY[o.category];
+    const effective: "high" | "normal" | "low" = isPinned ? "high" : basePriority;
+    return { obj: o, priority: effective, changed: stateChanged(o, priorObjects) };
+  });
+
+  // 5. Cap enforcement: highest priority first, changed-this-turn breaks ties.
+  if (annotated.length <= MAX_PLACE_OBJECTS) {
+    return annotated.map((x) => x.obj);
+  }
+  annotated.sort((a, b) => {
+    const pDiff = priorityRank(b.priority) - priorityRank(a.priority);
+    if (pDiff !== 0) return pDiff;
+    return (b.changed ? 1 : 0) - (a.changed ? 1 : 0);
+  });
+  return annotated.slice(0, MAX_PLACE_OBJECTS).map((x) => x.obj);
+}
+
 // Match LOCATE-style objectives ("Find the X", "Locate the X", "Reach the X",
 // "Discover the location of X") against entries containing the target noun.
 // Returns explicit per-turn naming directives so the narrator can't substitute
