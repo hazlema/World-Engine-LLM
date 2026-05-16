@@ -137,17 +137,21 @@ Rules for "objects" (current tile only):
 
 Return only the JSON object. No preamble, no markdown fences, no commentary.`;
 
+// NOTE: caps (MAX_STACK_ENTRIES / MAX_THREADS / MAX_PLACE_OBJECTS) are
+// enforced server-side in archivistTurn (slice + applyRoomObjectsSafetyNet).
+// Don't add `maxItems` to array properties here — Amazon Bedrock's strict
+// JSON-schema validator rejects it ("For 'array' type, property 'maxItems'
+// is not supported"), which breaks Claude-via-OpenRouter archivist routing.
 const ARCHIVIST_SCHEMA = {
   type: "object",
   properties: {
-    entries: { type: "array", items: { type: "string" }, maxItems: MAX_STACK_ENTRIES },
-    threads: { type: "array", items: { type: "string" }, maxItems: MAX_THREADS },
+    entries: { type: "array", items: { type: "string" } },
+    threads: { type: "array", items: { type: "string" } },
     moved: { type: "boolean" },
     locationDescription: { type: "string" },
     achievedObjectiveIndices: { type: "array", items: { type: "integer", minimum: 0 } },
     objects: {
       type: "array",
-      maxItems: MAX_PLACE_OBJECTS,
       items: {
         type: "object",
         properties: {
