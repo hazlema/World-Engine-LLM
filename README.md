@@ -28,7 +28,9 @@ You can also skip the presets entirely and start in an empty open world. Type wh
 
 > **Status:** still being shaped. The engine grows sharper between sessions; expect occasional rough edges and behavior that changes as it learns.
 
-**Demo:** [Gameplay video](https://www.youtube.com/watch?v=_BUib3K9mK4) — streaming TTS narration and per-turn image generation in action.
+**Demo:** [Gameplay video #1](https://www.youtube.com/watch?v=Lk7heHbcHik) — Full game of Merlins Daughter (20m)
+
+**Demo:** [Gameplay video #2](https://www.youtube.com/watch?v=_BUib3K9mK4) — streaming TTS narration and per-turn image generation in action. Slightly old, New ui and logic now but still aa good example
 
 ---
 
@@ -355,6 +357,8 @@ Covers the stack, presets, engine prompts, server message handlers, and the API 
 ---
 
 ## Recent Changes
+
+- **Room state — snuffed things stay snuffed.** Each tile now keeps a structured list of its objects (`name`, `states[]`, `location`, `category`) on top of the existing free-form entries. When you snuff a candle, open a chest, or break a thing, the new state is pinned per-tile and the narrator is told ROOM STATE is canonical — no spontaneous relighting, no chests re-closing themselves between turns. State survives travel: walk three rooms away and back, the candle's still out. Storage is keyed by tile coordinates the same way `places` already is, so `world-stack.json` carries this forward on disk. Category drives eviction priority (items and characters pinned, features evicted first) with a deterministic safety net that restores objects the archivist drops if they're named in an active objective. Spec at [`docs/superpowers/specs/2026-05-15-room-state-design.md`](docs/superpowers/specs/2026-05-15-room-state-design.md).
 
 - **Provider keep-alive and startup probes.** Boot now sends a 1-token chat completion to every unique `(provider, model)` your three stages reference, in parallel. If any probe fails — bad API key (`check OPENROUTER_API_KEY`), missing credits (`OpenRouter out of credits`), unreachable LM Studio (`connect refused at http://localhost:1234: is LM Studio running?`), unloaded model (`` model "X" not loaded in LM Studio — load it via the UI or `lms load` ``) — the server prints a per-stage hint that names which pipeline stages share that target, then exits before opening the port. Once probes pass, a 60-second keep-alive ping keeps each connection warm at the provider edge, so the first turn doesn't pay TLS handshake or model-load cold-start costs. Replaces the prior narrator-only OpenRouter warmup; now uniformly covers narrator, archivist, and interpreter regardless of provider.
 
