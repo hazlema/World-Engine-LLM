@@ -992,6 +992,7 @@ function App() {
                 position={stack.position}
                 placeDescription={lastTrace?.archivist?.locationDescription}
                 providers={providers}
+                imageStyle={imageStyle}
                 lastTrace={lastTrace}
                 onClose={() => setModal(null)}
               />
@@ -1499,10 +1500,11 @@ function DebugModal(props: {
   position: Position;
   placeDescription?: string;
   providers: ProviderInfo | null;
+  imageStyle: string;
   lastTrace: LastTurnTrace | null;
   onClose: () => void;
 }) {
-  const { stack, position, placeDescription, providers, lastTrace, onClose } = props;
+  const { stack, position, placeDescription, providers, imageStyle, lastTrace, onClose } = props;
   const active = stack.objectives.filter(
     (o) => !o.position || (o.position[0] === position[0] && o.position[1] === position[1])
   );
@@ -1561,7 +1563,7 @@ function DebugModal(props: {
               <li>archivist: {providers.archivist.provider} / {providers.archivist.model}</li>
               <li>interpreter: {providers.interpreter.provider} / {providers.interpreter.model}</li>
               <li>tts: {providers.tts.provider} / {providers.tts.voice}</li>
-              <li>image: {providers.image.provider} / {providers.image.style}</li>
+              <li>image: {providers.image.provider} / {imageStyle}</li>
             </ul>
           ) : (
             <p className="debug-muted">(loading)</p>
