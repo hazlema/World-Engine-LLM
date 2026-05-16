@@ -345,7 +345,20 @@ export function applyRoomObjectsSafetyNet(
   pinnedNames: Set<string>
 ): RoomObject[] {
   // 1. Drop player-self-referential objects.
-  const filtered = archivistObjects.filter((o) => !isPlayerSelfReferential(o.name));
+  const noSelf = archivistObjects.filter((o) => !isPlayerSelfReferential(o.name));
+
+  // 1b. De-dupe by lowercased name (archivists occasionally emit the same
+  // object twice in a single turn). Keep the FIRST occurrence; archivist
+  // rules say state changes go in the first/canonical entry, so the second
+  // is almost always a redundant restatement.
+  const seen = new Set<string>();
+  const filtered: RoomObject[] = [];
+  for (const o of noSelf) {
+    const key = o.name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    filtered.push(o);
+  }
 
   // 2. Track which names are present, lowercased for matching.
   const presentNames = new Set(filtered.map((o) => o.name.toLowerCase()));

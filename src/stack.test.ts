@@ -973,6 +973,20 @@ test("safetyNet: drops player-self-referential objects", () => {
   expect(result.map((o) => o.name)).toEqual(["candle"]);
 });
 
+test("safetyNet: de-dupes objects emitted twice by the archivist in a single turn (keep first)", () => {
+  const archivistObjects: RoomObject[] = [
+    { name: "apprentice's chest", states: ["brass-bound"], location: "on the desk", category: "fixture" },
+    { name: "candle", states: ["snuffed"], category: "fixture" },
+    { name: "Apprentice's Chest", states: ["brass-bound"], location: "on the desk", category: "fixture" }, // duplicate, different case
+    { name: "apprentice's chest", states: ["brass-bound", "later-restatement"], category: "fixture" }, // duplicate, slightly different states
+  ];
+  const result = applyRoomObjectsSafetyNet(archivistObjects, [], new Set());
+  expect(result.map((o) => o.name)).toEqual(["apprentice's chest", "candle"]);
+  // First occurrence wins, including its states.
+  const chest = result.find((o) => o.name === "apprentice's chest");
+  expect(chest?.states).toEqual(["brass-bound"]);
+});
+
 test("safetyNet: restores missing pinned object from prior state", () => {
   const prior: RoomObject[] = [
     { name: "candle", states: ["lit"], location: "on oak desk", category: "fixture" },
