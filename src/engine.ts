@@ -240,6 +240,21 @@ export async function archivistTurn(
     throw new Error(`Archivist returned unexpected shape: ${JSON.stringify(result)}`);
   }
 
+  // Local archivists occasionally emit RoomObject-shaped values into the
+  // entries array even though the schema declares items as strings — drop
+  // non-strings rather than letting them corrupt the WorldStack downstream
+  // (one such leak landed in world-stack.json as {text: {name,...}, tile}).
+  const dropped: unknown[] = [];
+  const cleanEntries = (result.entries as unknown[]).filter((e): e is string => {
+    const isStr = typeof e === "string" && e.length > 0;
+    if (!isStr) dropped.push(e);
+    return isStr;
+  });
+  const cleanThreads = (result.threads as unknown[]).filter((t): t is string => typeof t === "string" && t.length > 0);
+  if (dropped.length > 0) {
+    console.warn(`[archivist] dropped ${dropped.length} non-string entries: ${JSON.stringify(dropped).slice(0, 200)}`);
+  }
+
   const indices = Array.isArray(result.achievedObjectiveIndices)
     ? result.achievedObjectiveIndices.filter(
         (i): i is number => typeof i === "number" && Number.isInteger(i) && i >= 0
@@ -260,8 +275,8 @@ export async function archivistTurn(
     : [];
 
   return {
-    entries: result.entries.slice(0, MAX_STACK_ENTRIES),
-    threads: result.threads.slice(0, MAX_THREADS),
+    entries: cleanEntries.slice(0, MAX_STACK_ENTRIES),
+    threads: cleanThreads.slice(0, MAX_THREADS),
     turn: stack.turn + 1,
     moved: typeof result.moved === "boolean" ? result.moved : false,
     locationDescription: typeof result.locationDescription === "string" ? result.locationDescription : "",

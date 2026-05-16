@@ -11,9 +11,9 @@ let callModelSpy: any;
 let callModelStructuredSpy: any;
 let callInterpreterStructuredSpy: any;
 
-const emptyStack: WorldStack = { entries: [] as string[], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} };
+const emptyStack: WorldStack = { entries: [], threads: [] as string[], turn: 0, position: [0, 0] as [number, number], places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {} };
 const populatedStack: WorldStack = {
-  entries: ["world is cold", "crow watches"],
+  entries: [{ text: "world is cold" }, { text: "crow watches" }],
   threads: ["find the watcher"],
   turn: 2,
   position: [0, 0] as [number, number],
@@ -26,7 +26,7 @@ const populatedStack: WorldStack = {
 
 function makeStack(overrides: Partial<WorldStack> = {}): WorldStack {
   return {
-    entries: ["a rusted key lies on the floor here"],
+    entries: [{ text: "a rusted key lies on the floor here" }],
     threads: [],
     turn: 1,
     position: [0, 0],
@@ -175,6 +175,22 @@ test("archivistTurn: throws on non-array threads response", async () => {
   await expect(archivistTurn(emptyStack, "narrative")).rejects.toThrow(
     "Archivist returned unexpected shape"
   );
+});
+
+test("archivistTurn: drops non-string entries (defensive filter for LLMs that put RoomObjects into entries[])", async () => {
+  callModelStructuredSpy.mockImplementationOnce(async () => ({
+    entries: [
+      "a real fact",
+      { name: "candle", states: ["lit"], category: "fixture" } as unknown as string, // LLM mis-emission
+      "another real fact",
+      null as unknown as string,
+      "",
+    ],
+    threads: ["valid thread", null as unknown as string, ""],
+  }));
+  const result = await archivistTurn(emptyStack, "narrative");
+  expect(result.entries).toEqual(["a real fact", "another real fact"]);
+  expect(result.threads).toEqual(["valid thread"]);
 });
 
 test("interpreterTurn: classifies 'go north' as move-north", async () => {
