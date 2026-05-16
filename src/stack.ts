@@ -419,6 +419,15 @@ export function formatStackForNarrator(stack: WorldStack, briefing?: string): st
   if (here) {
     parts.push(`CURRENT LOCATION (canonical description):\n${here}`);
   }
+  const roomObjects = stack.placeObjects[posKey(stack.position)] ?? [];
+  if (roomObjects.length > 0) {
+    const lines = roomObjects.map((o) => {
+      const loc = o.location ? ` (${o.location})` : "";
+      const statesPart = o.states.length > 0 ? `: ${o.states.join(", ")}` : "";
+      return `- ${o.name}${statesPart}${loc}`;
+    });
+    parts.push(`ROOM STATE:\n${lines.join("\n")}`);
+  }
   if (stack.entries.length > 0) {
     parts.push(`ESTABLISHED WORLD:\n${stack.entries.map((e) => `- ${e}`).join("\n")}`);
   }

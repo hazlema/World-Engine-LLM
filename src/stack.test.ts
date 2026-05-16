@@ -115,6 +115,67 @@ test("formatStackForNarrator: omits the location section when no description sto
   expect(out).not.toContain("CURRENT LOCATION (canonical description):");
 });
 
+test("formatStackForNarrator: includes ROOM STATE block with objects", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {
+      "0,0": [
+        { name: "candle", states: ["lit"], location: "on oak desk", category: "fixture" },
+        { name: "key", states: ["worn smooth"], category: "item" },
+      ],
+    },
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("ROOM STATE:");
+  expect(out).toContain("- candle: lit (on oak desk)");
+  expect(out).toContain("- key: worn smooth");
+});
+
+test("formatStackForNarrator: omits ROOM STATE block when current tile has none", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {
+      // Different tile has objects, but current tile [0,0] does not.
+      "1,0": [{ name: "candle", states: ["lit"], category: "fixture" }],
+    },
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).not.toContain("ROOM STATE");
+});
+
+test("formatStackForNarrator: object with no states omits trailing colon", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {
+      "0,0": [{ name: "oak desk", states: [], category: "feature" }],
+    },
+  };
+  const out = formatStackForNarrator(stack);
+  expect(out).toContain("- oak desk");
+  expect(out).not.toContain("- oak desk: ");
+});
+
 const samplePreset: Preset = {
   slug: "lunar-rescue",
   title: "Lunar Rescue",
