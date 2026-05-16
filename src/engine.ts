@@ -116,6 +116,22 @@ Rules for "achievedObjectiveIndices":
 - When in doubt, return [].
 - Do not invent indices outside the provided list. Return [] if no OBJECTIVES section is present.
 
+Rules for "objects" (current tile only):
+- Extract discrete physical things at the player's CURRENT tile: items they could interact with, fixtures attached to the room, immovable features, and characters present.
+- Each object gets: name (canonical lowercase noun, e.g. "brass candle"), states (observable conditions, e.g. ["lit"], ["snuffed"], ["worn smooth"], ["open"]), optional location (within-tile detail like "on oak desk"), category (item | fixture | feature | character).
+- CATEGORIES:
+  - "item" = a pickup-able discrete object (key, scroll, coin, dagger).
+  - "character" = an NPC or creature in the room (the woman in wool, the watchman, a crow).
+  - "fixture" = a durable thing attached to the room with state worth tracking (candle, chest, lever, painting, hearth).
+  - "feature" = immovable scenery (wall, floor, ceiling, dust motes, the shape of the corridor).
+- PRESERVE STATES ACROSS TURNS. The CURRENT TILE OBJECTS block (when present) shows what was true last turn. Carry states forward unchanged unless the new narrative depicts a state change. The default is keep.
+- UPDATE STATES ONLY WHEN THE NARRATIVE DEPICTS A CHANGE. Player snuffs the candle -> states ["lit"] becomes ["snuffed"]. Player opens the chest -> states include "open". Do not accumulate contradictory states.
+- PRESERVE location ACROSS STATE CHANGES. The desk is still the desk after the candle on it is snuffed.
+- MAX ${MAX_PLACE_OBJECTS} OBJECTS. When over the cap, prefer dropping "feature" before "fixture", and drop fixtures with no recent state change before fixtures that just changed.
+- MUST INCLUDE names cannot be dropped. If the input shows MUST INCLUDE: brass candle, the brass candle must be in your output.
+- NEVER emit objects describing the player. The player's body, hair, eyes, innate appearance, and anything covered by PLAYER ATTRIBUTES is immutable session data. Do not duplicate it as a room object. The player is the camera, not an object in the room.
+- Object updates apply only to the CURRENT tile. Do not invent objects from other tiles. Other tiles' state is preserved server-side and not your concern this turn.
+
 Return only the JSON object. No preamble, no markdown fences, no commentary.`;
 
 const ARCHIVIST_SCHEMA = {
