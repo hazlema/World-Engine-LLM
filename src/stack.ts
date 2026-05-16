@@ -360,14 +360,17 @@ export function applyRoomObjectsSafetyNet(
     filtered.push(o);
   }
 
-  // 2. Track which names are present, lowercased for matching.
-  const presentNames = new Set(filtered.map((o) => o.name.toLowerCase()));
-
   // 3. Restore pinned objects missing from archivist output, using prior state.
+  // Use the same fuzzy .includes() match on both sides so a pinned name like
+  // "chest" is considered present when the archivist emitted "apprentice's
+  // chest" — otherwise we'd false-positive a restoration and end up with the
+  // pinned item duplicated (one from archivist, one re-injected from prior).
   const restored: RoomObject[] = [...filtered];
   for (const name of pinnedNames) {
-    if (presentNames.has(name.toLowerCase())) continue;
-    const priorMatch = priorObjects.find((o) => o.name.toLowerCase().includes(name.toLowerCase()));
+    const nameLower = name.toLowerCase();
+    const isPresent = filtered.some((o) => o.name.toLowerCase().includes(nameLower));
+    if (isPresent) continue;
+    const priorMatch = priorObjects.find((o) => o.name.toLowerCase().includes(nameLower));
     if (priorMatch) {
       console.warn(`[room-state] archivist dropped pinned object: ${priorMatch.name}`);
       restored.push({ ...priorMatch, states: [...priorMatch.states] });

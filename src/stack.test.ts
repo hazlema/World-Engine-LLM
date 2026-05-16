@@ -973,6 +973,41 @@ test("safetyNet: drops player-self-referential objects", () => {
   expect(result.map((o) => o.name)).toEqual(["candle"]);
 });
 
+test("safetyNet: pinned-name 'chest' does NOT double-add when archivist already emitted 'apprentice's chest'", () => {
+  // Regression for the Merlin's Daughter session that produced the visible
+  // duplicate in placeObjects[0,0]. Pinned names use fuzzy .includes() match
+  // for restoration; the presence check must use the SAME semantics so
+  // "apprentice's chest" satisfies a pin on "chest".
+  const prior: RoomObject[] = [
+    { name: "apprentice's chest", states: ["brass-bound"], location: "on the desk", category: "fixture" },
+    { name: "candle", states: ["snuffed"], category: "fixture" },
+  ];
+  const archivistObjects: RoomObject[] = [
+    { name: "apprentice's chest", states: ["brass-bound"], location: "on the desk", category: "fixture" },
+    { name: "candle", states: ["snuffed"], category: "fixture" },
+    { name: "quill", states: [], location: "on the desk", category: "item" },
+  ];
+  // Pinned names mirror what extractPinnedNames produces from objective
+  // "Open the apprentice's chest" — trailing-noun anchor "chest".
+  const result = applyRoomObjectsSafetyNet(archivistObjects, prior, new Set(["chest"]));
+  const chestCount = result.filter((o) => o.name === "apprentice's chest").length;
+  expect(chestCount).toBe(1);
+  expect(result.map((o) => o.name).sort()).toEqual(["apprentice's chest", "candle", "quill"]);
+});
+
+test("safetyNet: pinned-name still triggers restoration when archivist genuinely dropped the object", () => {
+  // Make sure the fuzzy presence check didn't accidentally disable
+  // restoration for the case it was designed for.
+  const prior: RoomObject[] = [
+    { name: "iron key", states: ["worn smooth"], category: "item" },
+  ];
+  const archivistObjects: RoomObject[] = [
+    { name: "candle", states: ["lit"], category: "fixture" },
+  ];
+  const result = applyRoomObjectsSafetyNet(archivistObjects, prior, new Set(["key"]));
+  expect(result.map((o) => o.name).sort()).toEqual(["candle", "iron key"]);
+});
+
 test("safetyNet: de-dupes objects emitted twice by the archivist in a single turn (keep first)", () => {
   const archivistObjects: RoomObject[] = [
     { name: "apprentice's chest", states: ["brass-bound"], location: "on the desk", category: "fixture" },
