@@ -44,6 +44,7 @@ tts_sidecar/__pycache__/
 tts_sidecar/.pytest_cache/
 play-log.jsonl
 world-stack.json
+world-stack.json.bak*
 docs/
 
 /.*
