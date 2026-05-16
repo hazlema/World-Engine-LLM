@@ -8,6 +8,8 @@ import {
   applyPresetToStack,
   unionAchievedIndices,
   inferLocateCompletions,
+  applyRoomObjectsSafetyNet,
+  extractPinnedNames,
   type WorldStack,
   type Direction,
   type Objective,
@@ -325,6 +327,16 @@ export async function processInput(
   const isAllDone =
     newObjectives.length > 0 && newObjectives.every((o) => o.achieved);
 
+  // Apply room-state safety net for the current (post-move) tile.
+  const priorObjectsForTile = stack.placeObjects[finalKey] ?? [];
+  const pinnedNames = extractPinnedNames(stack.objectives, archived.threads);
+  const cleanedObjects = applyRoomObjectsSafetyNet(
+    archived.objects,
+    priorObjectsForTile,
+    pinnedNames
+  );
+  const placeObjects = { ...stack.placeObjects, [finalKey]: cleanedObjects };
+
   const newStack: WorldStack = {
     entries: archived.entries,
     threads: archived.threads,
@@ -334,6 +346,7 @@ export async function processInput(
     objectives: newObjectives,
     presetSlug: stack.presetSlug,
     attributes: stack.attributes,
+    placeObjects,
   };
 
   await appendPlayLog(archived.turn, input, narrative, finalPosition);

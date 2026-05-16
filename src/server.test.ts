@@ -60,6 +60,7 @@ test("processInput: stay action does not change position", async () => {
     moved: false,
     locationDescription: "A flat expanse of sand.",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
 
   const messages: ServerMessage[] = [];
@@ -79,6 +80,7 @@ test("processInput: successful move updates position and captures new place", as
     moved: true,
     locationDescription: "A windswept dune crowned by a single dead tree.",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
 
   const newStack = await processInput(emptyStack, "go north", () => {});
@@ -97,6 +99,7 @@ test("processInput: move-{cardinal} updates position even when archivist sets mo
     moved: false,
     locationDescription: "A windswept dune.",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
 
   const newStack = await processInput(emptyStack, "north", () => {});
@@ -126,6 +129,7 @@ test("processInput: narrator receives the target tile's stored description as an
     moved: true,
     locationDescription: "A windswept dune crowned by a single dead tree.",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
 
   await processInput(stackWithKnownPlace, "north", () => {});
@@ -157,6 +161,7 @@ test("processInput: return visit does NOT overwrite stored description", async (
     moved: true,
     locationDescription: "DIFFERENT DESCRIPTION",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
 
   const newStack = await processInput(stackWithKnownPlace, "north", () => {});
@@ -174,6 +179,7 @@ test("processInput: emits turn-start, narrative, stack-update on happy path", as
     moved: false,
     locationDescription: "An empty void.",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
 
   const messages: ServerMessage[] = [];
@@ -249,6 +255,7 @@ test("processInput: on interpreter failure, falls back to stay (still runs narra
     moved: false,
     locationDescription: "",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
 
   const messages: ServerMessage[] = [];
@@ -329,6 +336,7 @@ test("processInput: stack-update includes objectives", async () => {
     moved: false,
     locationDescription: "",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
   const stack: WorldStack = {
     entries: [],
@@ -360,6 +368,7 @@ test("processInput: applies achievedObjectiveIndices monotonically", async () =>
     moved: false,
     locationDescription: "",
     achievedObjectiveIndices: [0],
+    objects: [],
   }));
   const stack: WorldStack = {
     entries: [],
@@ -392,6 +401,7 @@ test("processInput: emits win when last objective is achieved", async () => {
     moved: false,
     locationDescription: "",
     achievedObjectiveIndices: [1],
+    objects: [],
   }));
   const stack: WorldStack = {
     entries: [],
@@ -422,6 +432,7 @@ test("processInput: does NOT re-emit win on subsequent turns when already won", 
     moved: false,
     locationDescription: "",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
   const alreadyWon: WorldStack = {
     entries: [],
@@ -452,6 +463,7 @@ test("processInput: free-play (no objectives) never emits win", async () => {
     moved: false,
     locationDescription: "",
     achievedObjectiveIndices: [],
+    objects: [],
   }));
   const messages: ServerMessage[] = [];
   await processInput(emptyStack, "look", (m) => messages.push(m));
@@ -497,6 +509,7 @@ test("processInput: emits debug-trace after stack-update on normal turn", async 
     moved: true,
     locationDescription: "A clearing under tall pines.",
     achievedObjectiveIndices: [2],
+    objects: [],
   }));
 
   const messages: ServerMessage[] = [];
@@ -562,14 +575,14 @@ test("processInput: TTS audio-ready message goes through sendAudio (unicast), no
     spyOn(engineModule, "narratorTurn").mockResolvedValue("Narration.");
     spyOn(engineModule, "archivistTurn").mockResolvedValue({
       entries: [], threads: [], turn: 1, moved: false,
-      locationDescription: "", achievedObjectiveIndices: [],
+      locationDescription: "", achievedObjectiveIndices: [], objects: [],
     } as any);
 
     const broadcasts: any[] = [];
     const unicasts: any[] = [];
     const baseStack: any = {
       entries: [], threads: [], turn: 0, position: [0, 0],
-      places: {}, objectives: [], presetSlug: null,
+      places: {}, objectives: [], presetSlug: null, attributes: [], placeObjects: {},
     };
 
     await processInput(
