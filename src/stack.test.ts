@@ -56,7 +56,7 @@ test("formatStackForArchivist: populated stack", () => {
     placeObjects: {},
   };
   expect(formatStackForArchivist(stack)).toBe(
-    "CURRENT STACK:\n- world is cold\n\nACTIVE THREADS:\n- find the watcher\n\n"
+    "CURRENT STACK:\n- world is cold\n\nACTIVE THREADS:\n- find the watcher\n\nMUST INCLUDE: watcher\n\n"
   );
 });
 
@@ -1002,4 +1002,96 @@ test("safetyNet: within a tier, prefers keeping objects whose state changed this
   expect(result.some((o) => o.name === "hatch")).toBe(true);
   // The unchanged one is the only natural drop candidate.
   expect(result.some((o) => o.name === "lever")).toBe(false);
+});
+
+test("formatStackForArchivist: includes CURRENT TILE OBJECTS when current tile has prior objects", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {
+      "0,0": [
+        { name: "candle", states: ["lit"], location: "on desk", category: "fixture" },
+        { name: "key", states: ["worn smooth"], category: "item" },
+      ],
+    },
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("CURRENT TILE OBJECTS:");
+  expect(out).toContain("- candle (fixture, on desk): lit");
+  expect(out).toContain("- key (item): worn smooth");
+});
+
+test("formatStackForArchivist: omits CURRENT TILE OBJECTS when current tile has none", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {},
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).not.toContain("CURRENT TILE OBJECTS");
+});
+
+test("formatStackForArchivist: includes MUST INCLUDE when pinned names exist", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [
+      { text: "Find the brass key", achieved: false, position: [0, 0] },
+    ],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {},
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("MUST INCLUDE: key");
+});
+
+test("formatStackForArchivist: omits MUST INCLUDE when no pinned names", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {},
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).not.toContain("MUST INCLUDE");
+});
+
+test("formatStackForArchivist: object without states formats without colon-empty", () => {
+  const stack: WorldStack = {
+    entries: [],
+    threads: [],
+    turn: 1,
+    position: [0, 0],
+    places: {},
+    objectives: [],
+    presetSlug: null,
+    attributes: [],
+    placeObjects: {
+      "0,0": [{ name: "wall", states: [], category: "feature" }],
+    },
+  };
+  const out = formatStackForArchivist(stack);
+  expect(out).toContain("- wall (feature)");
+  expect(out).not.toContain("- wall (feature): ");
 });

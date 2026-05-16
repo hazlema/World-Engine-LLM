@@ -477,6 +477,22 @@ export function formatStackForArchivist(stack: WorldStack): string {
       : `ACTIVE THREADS:\n${stack.threads.map((t) => `- ${t}`).join("\n")}`;
   parts.push(facts);
   parts.push(threads);
+
+  const currentObjects = stack.placeObjects[posKey(stack.position)] ?? [];
+  if (currentObjects.length > 0) {
+    const lines = currentObjects.map((o) => {
+      const loc = o.location ? `, ${o.location}` : "";
+      const statesPart = o.states.length > 0 ? `: ${o.states.join(", ")}` : "";
+      return `- ${o.name} (${o.category}${loc})${statesPart}`;
+    });
+    parts.push(`CURRENT TILE OBJECTS:\n${lines.join("\n")}`);
+  }
+
+  const pinned = extractPinnedNames(stack.objectives, stack.threads);
+  if (pinned.size > 0) {
+    parts.push(`MUST INCLUDE: ${Array.from(pinned).join(", ")}`);
+  }
+
   if (stack.objectives.length > 0) {
     const lines = stack.objectives.map((o, i) => {
       const status = o.achieved ? "x" : " ";
