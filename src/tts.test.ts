@@ -124,3 +124,43 @@ describe("synthesizeToFile", () => {
     expect(postCalls).toBe(0);
   });
 });
+
+describe("normalizeForTts", () => {
+  test("em-dash becomes ', '", async () => {
+    const { normalizeForTts } = await import("./tts");
+    expect(normalizeForTts("walls — old stone")).toBe("walls ,  old stone");
+  });
+
+  test("en-dash becomes '-'", async () => {
+    const { normalizeForTts } = await import("./tts");
+    expect(normalizeForTts("3–5 paces")).toBe("3-5 paces");
+  });
+
+  test("curly quotes become straight", async () => {
+    const { normalizeForTts } = await import("./tts");
+    expect(normalizeForTts("‘alive’ and “well”")).toBe("'alive' and \"well\"");
+  });
+
+  test("ellipsis char becomes three dots", async () => {
+    const { normalizeForTts } = await import("./tts");
+    expect(normalizeForTts("a pause… then movement")).toBe("a pause... then movement");
+  });
+
+  test("non-breaking space becomes regular space", async () => {
+    const { normalizeForTts } = await import("./tts");
+    expect(normalizeForTts("non breaking")).toBe("non breaking");
+  });
+
+  test("idempotent — re-running on already-normalized text changes nothing", async () => {
+    const { normalizeForTts } = await import("./tts");
+    const once = normalizeForTts("walls — and ‘echoes’… here");
+    expect(normalizeForTts(once)).toBe(once);
+  });
+
+  test("plain ASCII passes through unchanged", async () => {
+    const { normalizeForTts } = await import("./tts");
+    expect(normalizeForTts("the candle is lit, the chest is closed.")).toBe(
+      "the candle is lit, the chest is closed."
+    );
+  });
+});

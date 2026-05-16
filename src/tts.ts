@@ -29,6 +29,30 @@ function audioDir(): string {
   return dir;
 }
 
+// Punctuation TTS engines (both ElevenLabs and Chatterbox) handle poorly.
+// Swap for ASCII equivalents pre-send; listeners hear the same prosodic
+// intent. Mirrors tts_sidecar/server.py's _TTS_NORMALIZE_MAP so both
+// backends produce identical inputs from identical narrator output.
+const TTS_NORMALIZE_MAP: ReadonlyArray<[string, string]> = [
+  ["—", ", "],   // em-dash —   (the big offender for our narrator's prose)
+  ["–", "-"],    // en-dash –
+  ["‘", "'"],    // left single quote ‘
+  ["’", "'"],    // right single quote / apostrophe ’
+  ["“", '"'],    // left double quote “
+  ["”", '"'],    // right double quote ”
+  ["…", "..."],  // ellipsis char …
+  [" ", " "],    // non-breaking space
+];
+
+/** Replace common non-ASCII punctuation that confuses TTS engines. Idempotent. */
+export function normalizeForTts(text: string): string {
+  let out = text;
+  for (const [src, dst] of TTS_NORMALIZE_MAP) {
+    out = out.split(src).join(dst);
+  }
+  return out;
+}
+
 /** Hash key for cached audio: first 16 chars of sha256(text + voice). */
 export function _hashForTesting(text: string, voice: string): string {
   return createHash("sha256").update(`${voice} ${text}`).digest("hex").slice(0, 16);
@@ -45,9 +69,13 @@ export function _hashForTesting(text: string, voice: string): string {
  * @throws if the provider returns non-2xx.
  */
 export async function synthesizeToFile(text: string, voice: string): Promise<string> {
+  // Normalize once at the boundary so the cache key + the bytes sent to either
+  // backend match. The Chatterbox sidecar re-runs the same mappings server-side
+  // (no-op after this pass — the table is idempotent).
+  const normalized = normalizeForTts(text);
   const useEleven = (process.env.USE_ELEVENLABS ?? "").trim().toLowerCase() === "true";
   const ext = useEleven ? "mp3" : "wav";
-  const hash = _hashForTesting(text, voice);
+  const hash = _hashForTesting(normalized, voice);
   const filename = `${hash}.${ext}`;
   const filePath = join(audioDir(), filename);
   const urlPath = `/media/audio/${filename}`;
@@ -57,8 +85,8 @@ export async function synthesizeToFile(text: string, voice: string): Promise<str
   }
 
   const bytes = useEleven
-    ? await synthesizeViaElevenLabs(text, voice)
-    : await synthesizeViaSidecar(text, voice);
+    ? await synthesizeViaElevenLabs(normalized, voice)
+    : await synthesizeViaSidecar(normalized, voice);
 
   writeFileSync(filePath, bytes);
   return urlPath;
